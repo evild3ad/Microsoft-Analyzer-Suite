@@ -27,7 +27,7 @@ Automated Processing of Microsoft 365 Logs and Microsoft Entra ID Logs extracted
 **Fig 5:** MITRE ATT&CK Techniques (Stats)
 
 ![RiskyDetections-RiskEventType](https://github.com/evild3ad/Microsoft-Analyzer-Suite/blob/bf004f386ed5af210a0b326c24dcf50fccc9adf4/Screenshots/06.png)  
-**Fig 6:** RiskEvenType (Stats)
+**Fig 6:** RiskEventType (Stats)
 
 ![RiskyDetections-RiskLevel](https://github.com/evild3ad/Microsoft-Analyzer-Suite/blob/bf004f386ed5af210a0b326c24dcf50fccc9adf4/Screenshots/07.png)  
 **Fig 7:** RiskLevel (Stats)
