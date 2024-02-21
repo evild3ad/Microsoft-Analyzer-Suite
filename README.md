@@ -8,6 +8,7 @@ Automated Processing of Microsoft 365 Logs and Microsoft Entra ID Logs extracted
 
 > Output Files of Microsoft-Extractor-Suite v1.2.2 by Invictus-IR
 
+  * Get-MFA &#8594; MFA-Analyzer v0.1
   * Get-RiskyDetections &#8594; RiskyDetections-Analyzer v0.1
   * Get-RiskyUsers &#8594; RiskyUsers-Analyzer v0.1
 
