@@ -1,10 +1,10 @@
-﻿# RiskyUsers-Analyzer v0.1
+﻿# RiskyUsers-Analyzer v0.2
 #
 # @author:    Martin Willing
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-02-21
+# @date:      2024-03-09
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -26,20 +26,25 @@
 # Release Date: 2024-02-21
 # Initial Release
 #
+# Version 0.2
+# Release Date: 2024-03-09
+# Added: Support TimestampFormat (en-US)
+# Fixed: Other minor fixes and improvements
+#
 #
 #############################################################################################################################################################################################
 #############################################################################################################################################################################################
 
 <#
 .SYNOPSIS
-  RiskyUsers-Analyzer v0.1 - Automated Processing of 'RiskyUsers.csv' (Microsoft-Extractor-Suite by Invictus-IR)
+  RiskyUsers-Analyzer v0.2 - Automated Processing of 'RiskyUsers.csv' (Microsoft-Extractor-Suite by Invictus-IR)
 
 .DESCRIPTION
-  RiskyUsers-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of the Risky Users from the Entra ID Identity Protection extracted via "Microsoft 365 Extractor Suite" by Invictus Incident Response.
+  RiskyUsers-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of the Risky Users from the Entra ID Identity Protection extracted via "Microsoft Extractor Suite" by Invictus Incident Response.
 
   Note: Using the riskyUsers API requires a Microsoft Entra ID P2 license.
 
-  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-365-Extractor-Suite v1.2.2)
+  https://github.com/invictus-ir/Microsoft-Extractor-Suite
 
 .EXAMPLE
   PS> .\RiskyUsers-Analyzer.ps1
@@ -82,7 +87,7 @@ $OUTPUT_FOLDER = "$env:USERPROFILE\Desktop\RiskyUsers-Analyzer"
 
 # Windows Title
 $DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
-$Host.UI.RawUI.WindowTitle = "RiskyUsers-Analyzer v0.1 - Automated Processing of 'RiskyUsers.csv' (Microsoft-Extractor-Suite by Invictus-IR)"
+$Host.UI.RawUI.WindowTitle = "RiskyUsers-Analyzer v0.2 - Automated Processing of 'RiskyUsers.csv' (Microsoft-Extractor-Suite by Invictus-IR)"
 
 # Check if the PowerShell script is being run with admin rights
 if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
@@ -157,7 +162,7 @@ Write-Output "$Logo"
 Write-Output ""
 
 # Header
-Write-Output "RiskyUsers-Analyzer v0.1 - Automated Processing of 'RiskyUsers.csv'"
+Write-Output "RiskyUsers-Analyzer v0.2 - Automated Processing of 'RiskyUsers.csv'"
 Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
 Write-Output ""
 
@@ -212,9 +217,24 @@ Write-Output "[Info]  Processing RiskyUsers.csv ..."
 New-Item "$OUTPUT_FOLDER\CSV" -ItemType Directory -Force | Out-Null
 New-Item "$OUTPUT_FOLDER\XLSX" -ItemType Directory -Force | Out-Null
 
+# Check Timestamp Format
+$Timestamp = (Import-Csv -Path "$LogFile" -Delimiter "," | Select-Object RiskLastUpdatedDateTime -First 1).RiskLastUpdatedDateTime
+
+# de-DE
+if ($Timestamp -match "\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}:\d{2}")
+{
+    $script:TimestampFormat = "dd.MM.yyyy HH:mm:ss"
+}
+
+# en-US
+if ($Timestamp -match "\d{1,2}/\d{1,2}/\d{4} \d{1,2}:\d{2}:\d{2} (AM|PM)")
+{
+    $script:TimestampFormat = "M/d/yyyy h:mm:ss tt"
+}
+
 # Time Frame
-$StartDate = (Import-Csv "$LogFile" -Delimiter "," | Select-Object @{Name="RiskLastUpdatedDateTime";Expression={([DateTime]::Parse($_.RiskLastUpdatedDateTime).ToString("yyyy-MM-dd HH:mm:ss"))}} | Sort-Object { $_.RiskLastUpdatedDateTime -as [datetime] } -Descending | Select-Object -Last 1).RiskLastUpdatedDateTime
-$EndDate = (Import-Csv "$LogFile" -Delimiter "," | Select-Object @{Name="RiskLastUpdatedDateTime";Expression={([DateTime]::Parse($_.RiskLastUpdatedDateTime).ToString("yyyy-MM-dd HH:mm:ss"))}} | Sort-Object { $_.RiskLastUpdatedDateTime -as [datetime] } -Descending | Select-Object -First 1).RiskLastUpdatedDateTime
+$StartDate = (Import-Csv -Path "$LogFile" -Delimiter "," | Select-Object @{Name="RiskLastUpdatedDateTime";Expression={([DateTime]::ParseExact($_.RiskLastUpdatedDateTime, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}} | Sort-Object { $_.RiskLastUpdatedDateTime -as [datetime] } -Descending | Select-Object -Last 1).RiskLastUpdatedDateTime
+$EndDate = (Import-Csv -Path "$LogFile" -Delimiter "," | Select-Object @{Name="RiskLastUpdatedDateTime";Expression={([DateTime]::ParseExact($_.RiskLastUpdatedDateTime, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}} | Sort-Object { $_.RiskLastUpdatedDateTime -as [datetime] } -Descending | Select-Object -First 1).RiskLastUpdatedDateTime
 Write-Output "[Info]  Log data from $StartDate UTC until $EndDate UTC"
 
 # XLSX
@@ -224,7 +244,7 @@ if (Get-Module -ListAvailable -Name ImportExcel)
     {
         if(!([String]::IsNullOrWhiteSpace((Get-Content "$LogFile"))))
         {
-            $IMPORT = Import-Csv "$LogFile" -Delimiter "," | Select-Object @{Name="RiskLastUpdatedDateTime";Expression={([DateTime]::Parse($_.RiskLastUpdatedDateTime).ToString("yyyy-MM-dd HH:mm:ss"))}},Id,UserDisplayName,UserPrincipalName,RiskDetail,RiskLevel,RiskState,IsDeleted,IsProcessing,History | Sort-Object { $_.RiskLastUpdatedDateTime -as [datetime] } -Descending
+            $IMPORT = Import-Csv "$LogFile" -Delimiter "," | Select-Object @{Name="RiskLastUpdatedDateTime";Expression={([DateTime]::ParseExact($_.RiskLastUpdatedDateTime, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}},Id,UserDisplayName,UserPrincipalName,RiskDetail,RiskLevel,RiskState,IsDeleted,IsProcessing,History | Sort-Object { $_.RiskLastUpdatedDateTime -as [datetime] } -Descending
             $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\XLSX\RiskyUsers.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Risky Users" -CellStyleSB {
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
@@ -438,19 +458,3 @@ $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
 
 #############################################################################################################################################################################################
 #############################################################################################################################################################################################
-
-# TODO
-
-# Properties
-# id                      - Unique ID of the user at risk.
-# isDeleted               - Indicates whether the user is deleted. Possible values are: true, false.
-# isProcessing            - Indicates whether a user's risky state is being processed by the backend.
-# riskDetail              - Details of the detected risk. Possible values are: none, adminGeneratedTemporaryPassword, userPerformedSecuredPasswordChange, userPerformedSecuredPasswordReset, adminConfirmedSigninSafe, aiConfirmedSigninSafe, userPassedMFADrivenByRiskBasedPolicy, adminDismissedAllRiskForUser, adminConfirmedSigninCompromised, hidden, adminConfirmedUserCompromised, unknownFutureValue.
-# riskLastUpdatedDateTime - The date and time that the risky user was last updated (UTC). 
-# riskLevel               - Level of the detected risky user. Possible values are: low, medium, high, hidden, none, unknownFutureValue.
-# riskState               - State of the user's risk. Possible values are: none, confirmedSafe, remediated, dismissed, atRisk, confirmedCompromised, unknownFutureValue.
-# userDisplayName         - Risky user display name.
-# userPrincipalName       - Risky user principal name.
-#
-# Relationships
-# history                 - The activity related to user risk level change

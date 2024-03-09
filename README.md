@@ -12,7 +12,7 @@ Automated Processing of Microsoft 365 Logs and Microsoft Entra ID Logs extracted
 
   * Get-MFA &#8594; MFA-Analyzer v0.1
   * Get-RiskyDetections &#8594; RiskyDetections-Analyzer v0.2
-  * Get-RiskyUsers &#8594; RiskyUsers-Analyzer v0.1
+  * Get-RiskyUsers &#8594; RiskyUsers-Analyzer v0.2
 
 ![RiskyDetections-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/blob/bf004f386ed5af210a0b326c24dcf50fccc9adf4/Screenshots/01.png)  
 **Fig 1:** RiskyDetections-Analyzer
