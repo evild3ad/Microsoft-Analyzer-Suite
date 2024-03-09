@@ -1,6 +1,6 @@
 <img src="https://img.shields.io/badge/Language-Powershell-blue"> <img src="https://img.shields.io/badge/Maintenance%20Level-Actively%20Developed-brightgreen"> <a href="https://twitter.com/Evild3ad79"><img src="https://img.shields.io/twitter/follow/Evild3ad79?style=social"></a> <a href="https://twitter.com/InvictusIR"><img src="https://img.shields.io/twitter/follow/InvictusIR?style=social"></a>
 
-# Microsoft-Analyzer-Suite
+# Microsoft-Analyzer-Suite (Community Edition)
 A collection of PowerShell scripts for analyzing data from Microsoft 365 and Microsoft Entra ID.
 
 ## TL;DR  
