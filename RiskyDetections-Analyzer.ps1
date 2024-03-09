@@ -1,10 +1,10 @@
-﻿# RiskyDetections-Analyzer v0.1
+﻿# RiskyDetections-Analyzer v0.2
 #
 # @author:    Martin Willing
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-02-21
+# @date:      2024-03-09
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -26,18 +26,23 @@
 # Release Date: 2024-02-21
 # Initial Release
 #
+# Version 0.2
+# Release Date: 2024-03-09
+# Added: Support TimestampFormat (en-US)
+# Fixed: Other minor fixes and improvements
+#
 #
 #############################################################################################################################################################################################
 #############################################################################################################################################################################################
 
 <#
 .SYNOPSIS
-  RiskyDetections-Analyzer v0.1 - Automated Processing of 'RiskyDetections.csv' (Microsoft-Extractor-Suite by Invictus-IR)
+  RiskyDetections-Analyzer v0.2 - Automated Processing of 'RiskyDetections.csv' (Microsoft-Extractor-Suite by Invictus-IR)
 
 .DESCRIPTION
   RiskyDetections-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of the Risk Detections from the Entra ID Identity Protection extracted via "Microsoft 365 Extractor Suite" by Invictus Incident Response.
 
-  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-365-Extractor-Suite v1.2.2)
+  https://github.com/invictus-ir/Microsoft-Extractor-Suite
 
 .EXAMPLE
   PS> .\RiskyDetections-Analyzer.ps1
@@ -80,7 +85,7 @@ $OUTPUT_FOLDER = "$env:USERPROFILE\Desktop\RiskyDetections-Analyzer"
 
 # Windows Title
 $DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
-$Host.UI.RawUI.WindowTitle = "RiskyDetections-Analyzer v0.1 - Automated Processing of 'RiskyDetections.csv' (Microsoft-Extractor-Suite by Invictus-IR)"
+$Host.UI.RawUI.WindowTitle = "RiskyDetections-Analyzer v0.2 - Automated Processing of 'RiskyDetections.csv' (Microsoft-Extractor-Suite by Invictus-IR)"
 
 # Check if the PowerShell script is being run with admin rights
 if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
@@ -209,9 +214,24 @@ Write-Output "[Info]  Processing RiskyDetections.csv ..."
 New-Item "$OUTPUT_FOLDER\CSV" -ItemType Directory -Force | Out-Null
 New-Item "$OUTPUT_FOLDER\XLSX" -ItemType Directory -Force | Out-Null
 
+# Check Timestamp Format
+$Timestamp = (Import-Csv -Path "$LogFile" -Delimiter "," | Select-Object ActivityDateTime -First 1).ActivityDateTime
+
+# de-DE
+if ($Timestamp -match "\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}:\d{2}")
+{
+    $script:TimestampFormat = "dd.MM.yyyy HH:mm:ss"
+}
+
+# en-US
+if ($Timestamp -match "\d{1,2}/\d{1,2}/\d{4} \d{1,2}:\d{2}:\d{2} (AM|PM)")
+{
+    $script:TimestampFormat = "M/d/yyyy h:mm:ss tt"
+}
+
 # Time Frame
-$StartDate = (Import-Csv "$LogFile" -Delimiter "," | Select-Object @{Name="ActivityDateTime";Expression={([DateTime]::Parse($_.ActivityDateTime).ToString("yyyy-MM-dd HH:mm:ss"))}} | Sort-Object { $_.ActivityDateTime -as [datetime] } -Descending | Select-Object -Last 1).ActivityDateTime
-$EndDate = (Import-Csv "$LogFile" -Delimiter "," | Select-Object @{Name="ActivityDateTime";Expression={([DateTime]::Parse($_.ActivityDateTime).ToString("yyyy-MM-dd HH:mm:ss"))}} | Sort-Object { $_.ActivityDateTime -as [datetime] } -Descending | Select-Object -First 1).ActivityDateTime
+$StartDate = (Import-Csv -Path "$LogFile" -Delimiter "," | Select-Object @{Name="ActivityDateTime";Expression={([DateTime]::ParseExact($_.ActivityDateTime, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}} | Sort-Object { $_.ActivityDateTime -as [datetime] } -Descending | Select-Object -Last 1).ActivityDateTime
+$EndDate = (Import-Csv -Path "$LogFile" -Delimiter "," | Select-Object @{Name="ActivityDateTime";Expression={([DateTime]::ParseExact($_.ActivityDateTime, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}} | Sort-Object { $_.ActivityDateTime -as [datetime] } -Descending | Select-Object -First 1).ActivityDateTime
 Write-Output "[Info]  Log data from $StartDate UTC until $EndDate UTC"
 
 # CSV
@@ -227,9 +247,9 @@ ForEach($Record in $Data)
 
     $Line = [PSCustomObject]@{
     "Activity"                    = $Record.Activity # Indicates the activity type the detected risk is linked to.
-    "ActivityDateTime"            = ($Record | Select-Object @{Name="ActivityDateTime";Expression={([DateTime]::Parse($_.ActivityDateTime).ToString("yyyy-MM-dd HH:mm:ss"))}}).ActivityDateTime # Date and time that the risky activity occurred (UTC). 
-    "DetectedDateTime"            = ($Record | Select-Object @{Name="DetectedDateTime";Expression={([DateTime]::Parse($_.DetectedDateTime).ToString("yyyy-MM-dd HH:mm:ss"))}}).DetectedDateTime # Date and time that the risk was detected.
-    "LastUpdatedDateTime"         = ($Record | Select-Object @{Name="LastUpdatedDateTime";Expression={([DateTime]::Parse($_.LastUpdatedDateTime).ToString("yyyy-MM-dd HH:mm:ss"))}}).LastUpdatedDateTime # Date and time that the risk detection was last updated.
+    "ActivityDateTime"            = ($Record | Select-Object @{Name="ActivityDateTime";Expression={([DateTime]::ParseExact($_.ActivityDateTime, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}}).ActivityDateTime # Date and time that the risky activity occurred (UTC). 
+    "DetectedDateTime"            = ($Record | Select-Object @{Name="DetectedDateTime";Expression={([DateTime]::ParseExact($_.DetectedDateTime, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}}).DetectedDateTime # Date and time that the risk was detected.
+    "LastUpdatedDateTime"         = ($Record | Select-Object @{Name="LastUpdatedDateTime";Expression={([DateTime]::ParseExact($_.LastUpdatedDateTime, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}}).LastUpdatedDateTime # Date and time that the risk detection was last updated.
     "UserPrincipalName"           = $Record.UserPrincipalName # The user principal name (UPN) of the user.
     "UserDisplayName"             = $Record.UserDisplayName # The user principal name (UPN) of the user.
     "UserId"                      = $Record.UserId # Unique ID of the user.
@@ -718,96 +738,3 @@ $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
 
 #############################################################################################################################################################################################
 #############################################################################################################################################################################################
-
-# TODO
-
-# CountryOrRegion --> Country Blacklisting???
-
-# ASN Blacklisting???
-
-# RiskDetail
-# none                                 - None
-# adminGeneratedTemporaryPassword      - An administrator generated a temporary password.
-# userPerformedSecuredPasswordChange   - A user performed a password change.
-# userPerformedSecuredPasswordReset    - A user performed a password reset.
-# adminConfirmedSigninSafe             - An administrator marked the sign-in as safe.
-# aiConfirmedSigninSafe                - AI marked the sign-in as safe.
-# userPassedMFADrivenByRiskBasedPolicy - A user successfully passed a multifactor authentication that was triggered by a risk-based policy.
-# adminDismissedAllRiskForUser         - An administrator dismissed all risk for the user. 
-# adminConfirmedSigninCompromised      - An administrator marked the sign-in as compromised.
-# hidden                               - Microsoft Entra ID P2 required.
-# adminConfirmedUserCompromised        - An administrator marked the user as compromised.
-# unknownFutureValue                   - Unknown
-# m365DAdminDismissedDetection         - ???
-#
-# https://learn.microsoft.com/en-us/azure/azure-monitor/reference/tables/aaduserriskevents
-
-# RiskEventType
-# unlikelyTravel
-# anonymizedIPAddress
-# maliciousIPAddress
-# unfamiliarFeatures
-# malwareInfectedIPAddress
-# suspiciousIPAddress
-# leakedCredentials
-# investigationsThreatIntelligence
-# generic
-# adminConfirmedUserCompromised
-# passwordSpray
-# impossibleTravel
-# newCountry
-# anomalousToken
-# tokenIssuerAnomaly
-# suspiciousBrowser
-# riskyIPAddress
-# mcasSuspiciousInboxManipulationRules
-# suspiciousInboxForwarding
-# anomalousUserActivity
-
-# Name                       UI Display Name                 Description 
-# unlikelyTravel             Atypical travel                 Identifies two sign-ins originating from geographically distant locations, where at least one of the locations may also be atypical for the user, given past behavior.
-# anonymizedIPAddress        Anonymous IP address            Indicates sign-ins from an anonymous IP address, for example, using an anonymous browser or VPN.
-# maliciousIPAddress         Malicious IP address            Indicates sign-ins from a malicious IP address. An IP address is considered malicious based on high failure rates because of invalid credentials received from the IP address or other IP reputation sources.
-# unfamiliarFeatures         Unfamiliar sign-in properties   Indicates sign-ins with characteristics that deviate from past sign-in properties.
-# malwareInfectedIPAddress   Malware linked IP address       Indicates sign-ins from IP addresses infected with malware. Deprecated and no longer generated for new detections.
-# suspiciousIPAddress        Malicious IP address            Identifies logins from IP addresses that are known to be malicious at the time of the sign in.
-# leakedCredentials          Leaked credentials              Indicates that the user's valid credentials have been leaked. This sharing is typically done by posting publicly on the dark web, paste sites, or by trading and selling the credentials on the black market. When the Microsoft leaked credentials service acquires user credentials from the dark web, paste sites, or other sources, they are checked against Microsoft Entra users' current valid credentials to find valid matches.
-#
-# https://learn.microsoft.com/en-us/graph/api/resources/riskdetection?view=graph-rest-1.0
-
-# RiskLevel
-# low
-# medium
-# high
-# hidden
-# none
-# unknownFutureValue
-
-# RiskReasons
-# UnfamiliarASN
-# UnfamiliarBrowser
-# UnfamiliarDevice
-# UnfamiliarIP
-# UnfamiliarLocation
-# UnfamiliarEASId
-# UnfamiliarTenantIPsubnet
-
-# RiskState
-# none
-# confirmedSafe
-# remediated
-# dismissed
-# atRisk
-# confirmedCompromised
-# unknownFutureValue
-
-# Activity
-# signin
-# user
-
-# DetectionTimingType
-# notDefined
-# realtime
-# nearRealtime
-# offline
-# unknownFutureValue
