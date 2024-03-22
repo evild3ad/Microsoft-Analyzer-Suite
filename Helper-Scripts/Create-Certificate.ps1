@@ -1,10 +1,10 @@
-﻿# Create-Certificate v0.1
+﻿# Create-Certificate v0.2
 #
 # @author:    Martin Willing
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-03-10
+# @date:      2024-03-22
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -20,22 +20,37 @@
 # Release Date: 2024-03-10
 # Initial Release
 #
+# Version 0.2
+# Release Date: 2024-03-22
+# Added: Prompt for User Input (FriendlyName)
+#
 #
 #############################################################################################################################################################################################
 #############################################################################################################################################################################################
 
-#region Declarations
-
-# Declarations
-
-# FriendlyName (Optional)
-$FriendlyName = "" # Enter Case Number (or Company Name)
-
-#endregion Declarations
-
-#############################################################################################################################################################################################
-
 #region Header
+
+# Logo
+$Logo = @"
+██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
+██║     ██╔════╝╚══██╔══╝██║  ██║██╔══██╗██║      ██╔════╝██╔═══██╗██╔══██╗██╔════╝████╗  ██║██╔════╝██║██╔════╝██╔════╝
+██║     █████╗     ██║   ███████║███████║██║█████╗█████╗  ██║   ██║██████╔╝█████╗  ██╔██╗ ██║███████╗██║██║     ███████╗
+██║     ██╔══╝     ██║   ██╔══██║██╔══██║██║╚════╝██╔══╝  ██║   ██║██╔══██╗██╔══╝  ██║╚██╗██║╚════██║██║██║     ╚════██║
+███████╗███████╗   ██║   ██║  ██║██║  ██║███████╗ ██║     ╚██████╔╝██║  ██║███████╗██║ ╚████║███████║██║╚██████╗███████║
+╚══════╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝ ╚═╝      ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝╚══════╝╚═╝ ╚═════╝╚══════╝
+"@
+
+# FriendlyName
+Write-Output ""
+Write-Output "$Logo"
+Write-Output ""
+Write-Output "Create-Certificate v0.2 - Automated Creation of Self-Signed Certificate for Microsoft Graph API"
+Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
+Write-Output ""
+Write-Host "Please enter Case Number (or Company Name)" -ForegroundColor Green
+Write-Host ""
+$FriendlyName = Read-Host "Case Number"
+Clear-Host
 
 # Output Directory
 $OUTPUT_FOLDER = "$env:USERPROFILE\Desktop\Certificate"
@@ -55,21 +70,12 @@ else
 Start-Transcript -Path "$OUTPUT_FOLDER\Transcript.txt"
 
 # Logo
-$Logo = @"
-██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
-██║     ██╔════╝╚══██╔══╝██║  ██║██╔══██╗██║      ██╔════╝██╔═══██╗██╔══██╗██╔════╝████╗  ██║██╔════╝██║██╔════╝██╔════╝
-██║     █████╗     ██║   ███████║███████║██║█████╗█████╗  ██║   ██║██████╔╝█████╗  ██╔██╗ ██║███████╗██║██║     ███████╗
-██║     ██╔══╝     ██║   ██╔══██║██╔══██║██║╚════╝██╔══╝  ██║   ██║██╔══██╗██╔══╝  ██║╚██╗██║╚════██║██║██║     ╚════██║
-███████╗███████╗   ██║   ██║  ██║██║  ██║███████╗ ██║     ╚██████╔╝██║  ██║███████╗██║ ╚████║███████║██║╚██████╗███████║
-╚══════╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝ ╚═╝      ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═══╝╚══════╝╚═╝ ╚═════╝╚══════╝
-"@
-
 Write-Output ""
 Write-Output "$Logo"
 Write-Output ""
 
 # Header
-Write-Output "Create-Certificate v0.1 - Automated Creation of Self-Signed Certificate for Microsoft Graph API"
+Write-Output "Create-Certificate v0.2 - Automated Creation of Self-Signed Certificate for Microsoft Graph API"
 Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
 Write-Output ""
 
@@ -123,8 +129,6 @@ Start-Sleep 1
 #endregion Certificate
 
 #############################################################################################################################################################################################
-
-# Wiki
 
 # List Certificate(s) for 'Invictus_IR-App'
 # Get-ChildItem -Path "Cert:\CurrentUser\My" | Where-Object {$_.Subject -match "CN=Invictus_IR-App"} | Select-Object Thumbprint,Subject,NotBefore,NotAfter,FriendlyName | Sort-Object NotBefore
