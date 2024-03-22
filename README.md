@@ -8,7 +8,7 @@ Automated Processing of Microsoft 365 Logs and Microsoft Entra ID Logs extracted
 
 ## The following Microsoft data sources are supported yet:
 
-> Output Files of Microsoft-Extractor-Suite v1.2.3 by Invictus-IR
+> Output Files of Microsoft-Extractor-Suite v1.3.0 by Invictus-IR
 
   * Get-MFA &#8594; MFA-Analyzer v0.1
   * Get-RiskyDetections &#8594; RiskyDetections-Analyzer v0.2
