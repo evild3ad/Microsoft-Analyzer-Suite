@@ -47,4 +47,5 @@ Automated Processing of Microsoft 365 Logs and Microsoft Entra ID Logs extracted
 ## Links  
 [Microsoft-Extractor-Suite by Invictus-IR](https://github.com/invictus-ir/Microsoft-Extractor-Suite)  
 [Microsoft-Extractor-Suite Documentation](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/)  
-[Microsoft 365 Artifact Reference Guide by the Microsoft Incident Response Team](https://go.microsoft.com/fwlink/?linkid=2257423)
+[Microsoft 365 Artifact Reference Guide by the Microsoft Incident Response Team](https://go.microsoft.com/fwlink/?linkid=2257423)  
+[Awesome-BEC](https://github.com/randomaccess3/Awesome-BEC)
