@@ -1,4 +1,4 @@
-<img src="https://img.shields.io/badge/Language-Powershell-blue"> <img src="https://img.shields.io/badge/Maintenance%20Level-Actively%20Developed-brightgreen"> <a href="https://twitter.com/Evild3ad79"><img src="https://img.shields.io/twitter/follow/Evild3ad79?style=social"></a> <a href="https://twitter.com/InvictusIR"><img src="https://img.shields.io/twitter/follow/InvictusIR?style=social"></a>
+<img src="https://img.shields.io/badge/Language-Powershell-blue"> <a href="https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki"><img src="https://img.shields.io/badge/Wiki-Documentation-blue"></a> <img src="https://img.shields.io/badge/Maintenance%20Level-Actively%20Developed-brightgreen"> <a href="https://twitter.com/Evild3ad79"><img src="https://img.shields.io/twitter/follow/Evild3ad79?style=social"></a> <a href="https://twitter.com/InvictusIR"><img src="https://img.shields.io/twitter/follow/InvictusIR?style=social"></a>
 
 # Microsoft-Analyzer-Suite (Community Edition)
 A collection of PowerShell scripts for analyzing data from Microsoft 365 and Microsoft Entra ID.
@@ -8,7 +8,7 @@ Automated Processing of Microsoft 365 Logs and Microsoft Entra ID Logs extracted
 
 ## The following Microsoft data sources are supported yet:
 
-> Output Files of Microsoft-Extractor-Suite v1.3.0 by Invictus-IR
+> Output Files of Microsoft-Extractor-Suite v1.3.2 by Invictus-IR
 
   * Get-MFA &#8594; MFA-Analyzer v0.1
   * Get-RiskyDetections &#8594; RiskyDetections-Analyzer v0.2
