@@ -49,9 +49,5 @@ Automated Processing of Microsoft 365 Logs and Microsoft Entra ID Logs extracted
 [Microsoft-Extractor-Suite by Invictus-IR](https://github.com/invictus-ir/Microsoft-Extractor-Suite)  
 [Microsoft-Extractor-Suite Documentation](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/)  
 [Microsoft 365 Artifact Reference Guide by the Microsoft Incident Response Team](https://go.microsoft.com/fwlink/?linkid=2257423)  
-<<<<<<< HEAD
 [Awesome BEC - Repository of attack and defensive information for Business Email Compromise investigations](https://go.microsoft.com/fwlink/?linkid=2257423)  
-[M365_Oauth_Apps - Repository of suspicious Enterprise Applications (BEC)](https://github.com/randomaccess3/detections/blob/main/M365_Oauth_Apps/MaliciousOauthAppDetections.json)
-=======
-[Awesome-BEC](https://github.com/randomaccess3/Awesome-BEC)
->>>>>>> f2e19c4e49897e12e88d51aa799c8d2cd6c93c12
+[M365_Oauth_Apps - Repository of suspicious Enterprise Applications (BEC)](https://github.com/randomaccess3/detections/blob/main/M365_Oauth_Apps/MaliciousOauthAppDetections.json)  
