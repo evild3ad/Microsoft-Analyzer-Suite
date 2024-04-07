@@ -10,10 +10,10 @@ Automated Processing of Microsoft 365 Logs and Microsoft Entra ID Logs extracted
 
 > Output Files of Microsoft-Extractor-Suite v1.3.2 by Invictus-IR
 
-  * Get-ADSignInLogsGraph &#8594; ADSignInLogsGraph-Analyzer v0.1  
-  * Get-MFA &#8594; MFA-Analyzer v0.1
-  * Get-RiskyDetections &#8594; RiskyDetections-Analyzer v0.2
-  * Get-RiskyUsers &#8594; RiskyUsers-Analyzer v0.2
+  * [Get-ADSignInLogsGraph](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/AzureSignInLogsGraph.html) &#8594; [ADSignInLogsGraph-Analyzer v0.1](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/ADSignInLogsGraph%E2%80%90Analyzer)  
+  * [Get-MFA](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/GetUserInfo.html#retrieves-mfa-status) &#8594; [MFA-Analyzer v0.1](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/MFA%E2%80%90Analyzer)
+  * [Get-RiskyDetections](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/GetUserInfo.html#retrieves-the-risky-detections) &#8594; [RiskyDetections-Analyzer v0.2](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/RiskyDetections%E2%80%90Analyzer)
+  * [Get-RiskyUsers](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/GetUserInfo.html#retrieves-the-risky-users) &#8594; [RiskyUsers-Analyzer v0.2](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/RiskyUsers%E2%80%90Analyzer)
 
 ![RiskyDetections-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/blob/bf004f386ed5af210a0b326c24dcf50fccc9adf4/Screenshots/01.png)  
 **Fig 1:** RiskyDetections-Analyzer
