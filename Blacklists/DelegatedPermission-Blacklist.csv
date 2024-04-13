@@ -1,4 +1,4 @@
-"Permission",PermissionType","DisplayText","AdminConsentRequired","Severity"
+"Permission","PermissionType","DisplayText","AdminConsentRequired","Severity"
 "Application.ReadWrite.All","Delegated","Read and write all applications","Yes","Red"
 "Calendars.Read","Delegated","Read user calendars","No","Yellow"
 "Calendars.ReadWrite","Delegated","Have full access to user calendars","No","Yellow"

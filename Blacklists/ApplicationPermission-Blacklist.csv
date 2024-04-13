@@ -1,4 +1,4 @@
-"Permission",PermissionType","DisplayText","AdminConsentRequired","Severity"
+"Permission","PermissionType","DisplayText","AdminConsentRequired","Severity"
 "Application.ReadWrite.All","Application","Read and write all applications","Yes","Red"
 "Calendars.Read","Application","Read calendars in all mailboxes","Yes","Red"
 "Calendars.ReadWrite","Application","Read and write calendars in all mailboxes","Yes","Red"
