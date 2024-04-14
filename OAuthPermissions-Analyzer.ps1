@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-04-11
+# @date:      2024-04-14
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -26,7 +26,7 @@
 #
 # Changelog:
 # Version 0.1
-# Release Date: 2023-04-13
+# Release Date: 2023-04-14
 # Initial Release
 #
 #
@@ -299,7 +299,7 @@ if (Get-Module -ListAvailable -Name ImportExcel)
         if([int](& $xsv count -d "," "$LogFile") -gt 0)
         {
             $IMPORT = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Select-Object PermissionType,ClientDisplayName,AppId,ClientObjectId,ResourceDisplayName,ResourceObjectId,Permission,Description,ConsentType,PrincipalObjectId,Homepage,PublisherName,ReplyUrls,@{Name="ExpiryTime";Expression={([DateTime]::ParseExact($_.ExpiryTime, "dd.MM.yyyy HH:mm:ss", $null).ToString("yyyy-MM-dd HH:mm:ss"))}},PrincipalDisplayName,IsEnabled,@{Name="CreationTimestamp";Expression={([DateTime]::ParseExact($_.CreationTimestamp, "dd.MM.yyyy HH:mm:ss", $null).ToString("yyyy-MM-dd HH:mm:ss"))}}
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\XLSX\OAuthPermissions.xlsx" -FreezePane 2,4 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "OAuthPermissions" -CellStyleSB {
+            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\XLSX\OAuthPermissions.xlsx" -NoHyperLinkConversion * -FreezePane 2,4 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "OAuthPermissions" -CellStyleSB {
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
@@ -381,7 +381,7 @@ if (Test-Path "$OUTPUT_FOLDER\OAuthPermissions\XLSX\OAuthPermissions.xlsx")
 
 # Application Permissions
 $Import = Import-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\XLSX\OAuthPermissions.xlsx" | Where-Object { $_.PermissionType -eq "Application" } | Select-Object CreationTimestamp,PermissionType,ClientDisplayName,PublisherName,AppId,ClientObjectId,ResourceDisplayName,ResourceObjectId,Permission,Description,Homepage,ReplyUrls,IsEnabled | Sort-Object { $_.CreationTimestamp -as [datetime] } -Descending
-$Import | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\XLSX\ApplicationPermissions.xlsx" -FreezePane 2,5 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Application Permissions" -CellStyleSB {
+$Import | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\XLSX\ApplicationPermissions.xlsx" -NoHyperLinkConversion * -FreezePane 2,5 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Application Permissions" -CellStyleSB {
     param($WorkSheet)
     # BackgroundColor and FontColor for specific cells of TopRow
     $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
@@ -409,7 +409,7 @@ $Import | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\XLSX\ApplicationPe
 
 # Delegated Permissions
 $Import = Import-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\XLSX\OAuthPermissions.xlsx" | Where-Object { $_.PermissionType -eq "Delegated" } | Select-Object PermissionType,PrincipalDisplayName,ClientDisplayName,PublisherName,AppId,ClientObjectId,ResourceDisplayName,ResourceObjectId,Permission,ConsentType,ExpiryTime,PrincipalObjectId,Homepage,ReplyUrls
-$Import | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\XLSX\DelegatedPermissions.xlsx" -FreezePane 2,4 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Delegated Permissions" -CellStyleSB {
+$Import | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\XLSX\DelegatedPermissions.xlsx" -NoHyperLinkConversion * -FreezePane 2,4 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Delegated Permissions" -CellStyleSB {
     param($WorkSheet)
     # BackgroundColor and FontColor for specific cells of TopRow
     $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
