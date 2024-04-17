@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-04-14
+# @date:      2024-04-17
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -408,8 +408,22 @@ if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\AuthenticationMethod.csv")
 # Processing User Registration Details
 Write-Output "[Info]  Processing User Registration Details ..."
 
+$File = Get-Item "$AuthenticationMethods"
+$Prefix = $File.Name | ForEach-Object{($_ -split "-")[0]}
+$FilePath = $File.Directory
+$UserRegistrationDetails = "$FilePath" + "\" + "$Prefix" + "-UserRegistrationDetails.csv"
+
+# Input-Check
+if (!(Test-Path "$UserRegistrationDetails"))
+{
+    Write-Host "[Error] $UserRegistrationDetails does not exist." -ForegroundColor Red
+    Write-Host ""
+    Stop-Transcript
+    $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
+    Exit
+}
+
 # Input Size
-$UserRegistrationDetails = ($AuthenticationMethods | ForEach-Object{($_ -split "-")[0]}) + "-UserRegistrationDetails.csv"
 $InputSize = Get-FileSize((Get-Item "$UserRegistrationDetails").Length)
 Write-Output "[Info]  Total Input Size: $InputSize"
 
@@ -579,7 +593,7 @@ $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
 # TODO
 
 # AuthenticationMethod Function
-# UserregistrationDetails Function
+# UserRegistrationDetails Function
 
 # Improve "Phone Authentication Method" --> authenticationPhoneType (mobile, alternateMobile, office), smsSignInState via authenticationMethodSignInState
 
