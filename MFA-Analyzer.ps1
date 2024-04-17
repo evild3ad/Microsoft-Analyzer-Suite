@@ -411,7 +411,7 @@ Write-Output "[Info]  Processing User Registration Details ..."
 $File = Get-Item "$AuthenticationMethods"
 $Prefix = $File.Name | ForEach-Object{($_ -split "-")[0]}
 $FilePath = $File.Directory
-$UserRegistrationDetails = "$FilePath" + "\" + "$Prefix" + "-UserRegistrationDetails.csv"
+$UserRegistrationDetails = "$FilePath" + "\" + "$Prefix" + "-MFA" + "-UserRegistrationDetails.csv"
 
 # Input-Check
 if (!(Test-Path "$UserRegistrationDetails"))
