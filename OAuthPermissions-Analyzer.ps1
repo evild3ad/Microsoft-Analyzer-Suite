@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-04-14
+# @date:      2024-04-19
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -474,6 +474,51 @@ if (Get-Module -ListAvailable -Name ImportExcel)
     }
 }
 
+# ClientDisplayName / AppId (Stats)
+$Data = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8
+$Applications = ($Data | Select-Object AppId -Unique | Sort-Object AppId).AppId
+
+ForEach($App in $Applications)
+{
+    $Count = ($Data | Where-Object {$_.AppId -eq "$App"} | Select-Object PrincipalDisplayName -Unique | Measure-Object).Count
+    $ClientDisplayName = $Data | Where-Object {$_.AppId -eq "$App"} | Select-Object ClientDisplayName -Unique
+
+    New-Object -TypeName PSObject -Property @{
+        "ClientDisplayName" = $ClientDisplayName.ClientDisplayName
+        "AppId"             = $App
+        "Count"             = $Count
+    } | Select-Object "ClientDisplayName","AppId","Count" | Export-Csv "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ClientDisplayName-AppId.csv" -NoTypeInformation -Encoding UTF8 -Append
+}
+
+# XLSX
+if (Get-Module -ListAvailable -Name ImportExcel)
+{
+    if (Test-Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ClientDisplayName-AppId.csv")
+    {
+        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ClientDisplayName-AppId.csv") -gt 0)
+        {
+            $IMPORT = Import-Csv "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ClientDisplayName-AppId.csv" -Delimiter "," | Sort-Object ClientDisplayName
+            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\XLSX\ClientDisplayName-AppId.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "ClientDisplayName" -CellStyleSB {
+            param($WorkSheet)
+            # BackgroundColor and FontColor for specific cells of TopRow
+            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+            Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of column B-C
+            $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
+
+            # Iterating over the Application-Blacklist HashTable
+            foreach ($AppId in $ApplicationBlacklist_HashTable.Keys) 
+            {
+                $Severity = $ApplicationBlacklist_HashTable["$AppId"][1]
+                $ConditionValue = 'NOT(ISERROR(FIND("{0}",$B1)))' -f $AppId
+                Add-ConditionalFormatting -Address $WorkSheet.Cells["A:C"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
+            }
+
+            }
+        }
+    }
+}
+
 # ClientObjectId (Stats)
 $Data = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8
 $ClientObjectIds = ($Data | Select-Object ClientObjectId -Unique | Sort-Object ClientObjectId).ClientObjectId
@@ -558,6 +603,7 @@ if (Get-Module -ListAvailable -Name ImportExcel)
 }
 
 # PrincipalDisplayName (Stats)
+# Note: Permissions Count
 Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Select-Object PrincipalDisplayName | Where-Object {$_.PrincipalDisplayName -ne '' } | Where-Object { $null -ne ($_.PSObject.Properties | ForEach-Object {$_.Value})} | Group-Object PrincipalDisplayName | Select-Object Name,Count | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PrincipalDisplayName.csv" -NoTypeInformation -Encoding UTF8
 
 # XLSX
@@ -581,6 +627,7 @@ if (Get-Module -ListAvailable -Name ImportExcel)
 }
 
 # PublisherName (Stats)
+# Note: Permissions Count
 $Total = (Import-Csv -Path "$LogFile" -Delimiter "," | Select-Object PublisherName | Measure-Object).Count
 $PublisherNames = (Import-Csv -Path "$LogFile" -Delimiter "," | Select-Object PublisherName | Sort-Object PublisherName -Unique | Measure-Object).Count
 Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Select-Object PublisherName | Where-Object {$_.PublisherName -ne '' } | Where-Object { $null -ne ($_.PSObject.Properties | ForEach-Object {$_.Value})} | Group-Object PublisherName | Select-Object @{Name='PublisherName'; Expression={ $_.Values[0] }},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PublisherName.csv" -NoTypeInformation -Encoding UTF8
@@ -772,5 +819,7 @@ if ($Result -eq "OK" )
 #############################################################################################################################################################################################
 
 # TODO
+
+# Permissions Count vs. Application Count (Stats)
 
 # https://github.com/randomaccess3/detections/blob/main/M365_Oauth_Apps/MaliciousOauthAppDetections.json
