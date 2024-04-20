@@ -221,6 +221,21 @@ Write-Output "[Info]  Total Lines: $Rows"
 Write-Output "[Info]  Processing Transport Rules ..."
 New-Item "$OUTPUT_FOLDER\TransportRules\XLSX" -ItemType Directory -Force | Out-Null
 
+# Check Timestamp Format
+$Timestamp = (Import-Csv -Path "$LogFile" -Delimiter "," | Select-Object WhenChanged -First 1).WhenChanged
+
+# de-DE
+if ($Timestamp -match "\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}:\d{2}")
+{
+    $script:TimestampFormat = "dd.MM.yyyy HH:mm:ss"
+}
+
+# en-US
+if ($Timestamp -match "\d{1,2}/\d{1,2}/\d{4} \d{1,2}:\d{2}:\d{2} (AM|PM)")
+{
+    $script:TimestampFormat = "M/d/yyyy h:mm:ss tt"
+}
+
 # XLSX
 if (Get-Module -ListAvailable -Name ImportExcel)
 {
@@ -228,7 +243,7 @@ if (Get-Module -ListAvailable -Name ImportExcel)
     {
         if([int](& $xsv count -d "," "$LogFile") -gt 0)
         {
-            $IMPORT = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8
+            $IMPORT = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Select-Object Name,Description,CreatedBy,@{Name="WhenChanged";Expression={([DateTime]::ParseExact($_.WhenChanged, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}},State | Sort-Object { $_.WhenChanged -as [datetime] } -Descending
             $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\TransportRules\XLSX\TransportRules.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Transport Rules" -CellStyleSB {
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
