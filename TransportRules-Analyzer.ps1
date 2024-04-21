@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-04-20
+# @date:      2024-04-21
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -243,7 +243,7 @@ if (Get-Module -ListAvailable -Name ImportExcel)
     {
         if([int](& $xsv count -d "," "$LogFile") -gt 0)
         {
-            $IMPORT = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Select-Object Name,Description,CreatedBy,@{Name="WhenChanged";Expression={([DateTime]::ParseExact($_.WhenChanged, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}},State | Sort-Object { $_.WhenChanged -as [datetime] } -Descending
+            $IMPORT = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Select-Object Name,@{Name="Rule";Expression={$_.Description}},CreatedBy,@{Name="WhenChanged";Expression={([DateTime]::ParseExact($_.WhenChanged, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}},State | Sort-Object { $_.WhenChanged -as [datetime] } -Descending
             $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\TransportRules\XLSX\TransportRules.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Transport Rules" -CellStyleSB {
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
@@ -263,10 +263,61 @@ if (Test-Path "$OUTPUT_FOLDER\TransportRules\XLSX\TransportRules.xlsx")
     Write-Output "[Info]  File Size (XLSX) : $Size"
 }
 
+# Count Transport Rules
+[int]$Count = (Import-Csv -Path "$LogFile" -Delimiter "," | Measure-Object).Count
+$TransportRules = '{0:N0}' -f $Count
+Write-Output "[Info]  $TransportRules Transport Rules found"
+
+# Count Admins
+[int]$Count = (Import-Csv -Path "$LogFile" -Delimiter "," | Select-Object CreatedBy -Unique | Measure-Object).Count
+$Admins = '{0:N0}' -f $Count
+Write-Output "[Info]  $Admins Creator(s) found ($TransportRules)"
+
 # Stats
-[int]$TransportRules = (Import-Csv -Path "$LogFile" -Delimiter "," | Measure-Object).Count
-$Count = '{0:N0}' -f $TransportRules
-Write-Output "[Info]  $Count Transport Rules found"
+New-Item "$OUTPUT_FOLDER\TransportRules\Stats\CSV" -ItemType Directory -Force | Out-Null
+New-Item "$OUTPUT_FOLDER\TransportRules\Stats\XLSX" -ItemType Directory -Force | Out-Null
+
+# CreatedBy (Stats)
+$Total = (Import-Csv -Path "$LogFile" -Delimiter "," | Select-Object CreatedBy | Measure-Object).Count
+Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Group-Object CreatedBy | Select-Object @{Name='CreatedBy'; Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\TransportRules\Stats\CSV\CreatedBy.csv" -NoTypeInformation -Encoding UTF8
+
+# XLSX
+if (Test-Path "$OUTPUT_FOLDER\TransportRules\Stats\CSV\CreatedBy.csv")
+{
+    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\TransportRules\Stats\CSV\CreatedBy.csv") -gt 0)
+    {
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\TransportRules\Stats\CSV\CreatedBy.csv" -Delimiter ","
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\TransportRules\Stats\XLSX\CreatedBy.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "CreatedBy" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of columns A-C
+        $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
+        }
+    }
+}
+
+# State (Stats)
+$Total = (Import-Csv -Path "$LogFile" -Delimiter "," | Select-Object State | Measure-Object).Count
+Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Group-Object State | Select-Object @{Name='State'; Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\TransportRules\Stats\CSV\State.csv" -NoTypeInformation -Encoding UTF8
+
+# XLSX
+if (Test-Path "$OUTPUT_FOLDER\TransportRules\Stats\CSV\State.csv")
+{
+    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\TransportRules\Stats\CSV\State.csv") -gt 0)
+    {
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\TransportRules\Stats\CSV\State.csv" -Delimiter ","
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\TransportRules\Stats\XLSX\State.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "State" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of columns A-C
+        $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
+        }
+    }
+}
 
 }
 
