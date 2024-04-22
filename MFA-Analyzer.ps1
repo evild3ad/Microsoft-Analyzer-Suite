@@ -212,7 +212,6 @@ if (Test-Path "$AuthenticationMethods")
     $Results = @()
     ForEach($Record in $Data)
     {
-
         $Line = [PSCustomObject]@{
         "UserPrincipalName"                = $Record.user
         "MFA Status"                       = $Record.MFAstatus
