@@ -1,10 +1,10 @@
-﻿# OAuthPermissions-Analyzer v0.1
+﻿# OAuthPermissions-Analyzer v0.2
 #
 # @author:    Martin Willing
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-04-19
+# @date:      2024-04-28
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -26,8 +26,16 @@
 #
 # Changelog:
 # Version 0.1
-# Release Date: 2023-04-14
+# Release Date: 2024-04-14
 # Initial Release
+#
+# Version 0.2
+# Release Date: 2024-04-28
+# Added: Application Blacklist: 9
+# Added: ApplicationPermission Blacklist: 60
+# Added: DelegatedPermission Blacklist: 95
+# Added: Severity Scoring (Permissions) --> Low, Medium, and High
+# Fixed: Other minor fixes and improvements
 #
 #
 # Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.4291) and PowerShell 5.1 (5.1.19041.4291)
@@ -38,7 +46,7 @@
 
 <#
 .SYNOPSIS
-  OAuthPermissions-Analyzer v0.1 - Automated Processing of M365 OAuth Permissions for DFIR
+  OAuthPermissions-Analyzer v0.2 - Automated Processing of M365 OAuth Permissions for DFIR
 
 .DESCRIPTION
   OAuthPermissions-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of M365 OAuth Permissions extracted via "Microsoft Extractor Suite" by Invictus Incident Response.
@@ -96,6 +104,11 @@ else
     $SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Definition
 }
 
+# Colors
+$script:HighColor   = [System.Drawing.Color]::FromArgb(255,0,0) # Red
+$script:MediumColor = [System.Drawing.Color]::FromArgb(255,192,0) # Orange
+$script:LowColor    = [System.Drawing.Color]::FromArgb(255,255,0) # Yellow
+
 # Output Directory
 $OUTPUT_FOLDER = "$env:USERPROFILE\Desktop\OAuthPermissions-Analyzer"
 
@@ -112,12 +125,13 @@ $script:xsv = "$SCRIPT_DIR\Tools\xsv\xsv.exe"
 
 # Windows Title
 $DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
-$Host.UI.RawUI.WindowTitle = "OAuthPermissions-Analyzer v0.1 - Automated Processing of M365 OAuth Permissions for DFIR"
+$Host.UI.RawUI.WindowTitle = "OAuthPermissions-Analyzer v0.2 - Automated Processing of M365 OAuth Permissions for DFIR"
 
 # Check if the PowerShell script is being run with admin rights
 if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
 {
     Write-Host "[Error] This PowerShell script must be run with admin rights." -ForegroundColor Red
+    $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
     Exit
 }
 
@@ -145,6 +159,12 @@ Function Get-FileSize()
     ElseIf ($Length -gt 1KB) {[string]::Format("{0:0.00} KB", $Length / 1KB)}
     ElseIf ($Length -gt 0) {[string]::Format("{0:0.00} Bytes", $Length)}
     Else {""}
+}
+
+# Function Get-ScopeLink by Merill Fernando (@merill)
+Function Get-ScopeLink($Scope) {
+    if ([string]::IsNullOrEmpty($Scope)) { return $Scope }
+    return "=HYPERLINK(`"https://graphpermissions.merill.net/permission/$Scope`",`"Link`")"
 }
 
 # Select Log File
@@ -193,7 +213,7 @@ Write-Output "$Logo"
 Write-Output ""
 
 # Header
-Write-Output "OAuthPermissions-Analyzer v0.1 - Automated Processing of M365 OAuth Permissions for DFIR"
+Write-Output "OAuthPermissions-Analyzer v0.2 - Automated Processing of M365 OAuth Permissions for DFIR"
 Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
 Write-Output ""
 
@@ -322,16 +342,22 @@ if (Get-Module -ListAvailable -Name ImportExcel)
             foreach ($Permission in $ApplicationPermissionBlacklist_HashTable.Keys) 
             {
                 $Severity = $ApplicationPermissionBlacklist_HashTable["$Permission"][1]
+                if ($Severity -eq "High"){$BackgroundColor = $HighColor}
+                if ($Severity -eq "Medium"){$BackgroundColor = $MediumColor}
+                if ($Severity -eq "Low"){$BackgroundColor = $LowColor}
                 $ConditionValue = '=AND($A1="Application",$G1="{0}")' -f $Permission
-                Add-ConditionalFormatting -Address $WorkSheet.Cells["G:G"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
+                Add-ConditionalFormatting -Address $WorkSheet.Cells["G:G"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $BackgroundColor
             }
 
             # Iterating over the DelegatedPermission-Blacklist HashTable
             foreach ($Permission in $DelegatedPermissionBlacklist_HashTable.Keys) 
             {
                 $Severity = $DelegatedPermissionBlacklist_HashTable["$Permission"][1]
+                if ($Severity -eq "High"){$BackgroundColor = $HighColor}
+                if ($Severity -eq "Medium"){$BackgroundColor = $MediumColor}
+                if ($Severity -eq "Low"){$BackgroundColor = $LowColor}
                 $ConditionValue = '=AND($A1="Delegated",$G1="{0}")' -f $Permission
-                Add-ConditionalFormatting -Address $WorkSheet.Cells["G:G"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
+                Add-ConditionalFormatting -Address $WorkSheet.Cells["G:G"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $BackgroundColor
             }
 
             }
@@ -402,13 +428,16 @@ $Import | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\XLSX\ApplicationPe
     foreach ($Permission in $ApplicationPermissionBlacklist_HashTable.Keys) 
     {
         $Severity = $ApplicationPermissionBlacklist_HashTable["$Permission"][1]
+        if ($Severity -eq "High"){$BackgroundColor = $HighColor}
+        if ($Severity -eq "Medium"){$BackgroundColor = $MediumColor}
+        if ($Severity -eq "Low"){$BackgroundColor = $LowColor}
         $ConditionValue = 'NOT(ISERROR(FIND("{0}",$I1)))' -f $Permission
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["I:J"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["I:I"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $BackgroundColor
     }
 }
 
 # Delegated Permissions
-$Import = Import-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\XLSX\OAuthPermissions.xlsx" | Where-Object { $_.PermissionType -eq "Delegated" } | Select-Object PermissionType,PrincipalDisplayName,ClientDisplayName,PublisherName,AppId,ClientObjectId,ResourceDisplayName,ResourceObjectId,Permission,ConsentType,ExpiryTime,PrincipalObjectId,Homepage,ReplyUrls
+$Import = Import-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\XLSX\OAuthPermissions.xlsx" | Where-Object { $_.PermissionType -eq "Delegated" } | Select-Object PermissionType,PrincipalDisplayName,ClientDisplayName,PublisherName,AppId,ClientObjectId,ResourceDisplayName,ResourceObjectId,Permission,@{Name="Description";Expression={Get-ScopeLink $_.Permission}},ConsentType,ExpiryTime,PrincipalObjectId,Homepage,ReplyUrls
 $Import | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\XLSX\DelegatedPermissions.xlsx" -NoHyperLinkConversion * -FreezePane 2,4 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Delegated Permissions" -CellStyleSB {
     param($WorkSheet)
     # BackgroundColor and FontColor for specific cells of TopRow
@@ -416,6 +445,9 @@ $Import | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\XLSX\DelegatedPerm
     Set-Format -Address $WorkSheet.Cells["A1:N1"] -BackgroundColor $BackgroundColor -FontColor White
     # HorizontalAlignment "Center" of columns A-L
     $WorkSheet.Cells["A:L"].Style.HorizontalAlignment="Center"
+    # Font Style "Underline" of column J
+    $LastRow = $WorkSheet.Dimension.End.Row
+    $WorkSheet.Cells["J2:J$LastRow"].Style.Font.UnderLine = $true
 
     # Iterating over the Application-Blacklist HashTable
     foreach ($AppId in $ApplicationBlacklist_HashTable.Keys) 
@@ -429,10 +461,17 @@ $Import | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\XLSX\DelegatedPerm
     foreach ($Permission in $DelegatedPermissionBlacklist_HashTable.Keys) 
     {
         $Severity = $DelegatedPermissionBlacklist_HashTable["$Permission"][1]
+        if ($Severity -eq "High"){$BackgroundColor = $HighColor}
+        if ($Severity -eq "Medium"){$BackgroundColor = $MediumColor}
+        if ($Severity -eq "Low"){$BackgroundColor = $LowColor}
         $ConditionValue = 'NOT(ISERROR(FIND("{0}",$I1)))' -f $Permission
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["I:I"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["I:I"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $BackgroundColor
     }
 }
+
+# ConsentType
+# Principal - Grant consent on behalf of a single user
+# All Principals - Grant consent on behalf of your organization
 
 #############################################################################################################################################################################################
 
@@ -528,11 +567,11 @@ ForEach($Id in $ClientObjectIds)
     $Name = $Data | Where-Object {$_.ClientObjectId -eq "$Id"} | Select-Object -ExpandProperty ClientDisplayName -Unique
     $Count = ($Data | Where-Object {$_.ClientObjectId -eq "$Id"} | Select-Object PrincipalDisplayName -Unique | Measure-Object).Count
 
-    New-Object -TypeName PSObject -Property @{
+    New-Object -TypeName PSObject -Property ([ordered]@{
         "ClientDisplayName" = $Name
         "ClientObjectId"    = $Id
         "Users"             = $Count
-    } | Select-Object "ClientDisplayName","ClientObjectId","Users" | Export-Csv "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ClientObjectId.csv" -NoTypeInformation -Encoding UTF8 -Append
+    }) | Export-Csv "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ClientObjectId.csv" -NoTypeInformation -Encoding UTF8 -Append
 }
 
 # XLSX
@@ -556,7 +595,7 @@ if (Get-Module -ListAvailable -Name ImportExcel)
 }
 
 # Permissions (Stats)
-Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Select-Object Permission,Description | Where-Object {$_.Permission -ne '' } | Where-Object { $null -ne ($_.PSObject.Properties | ForEach-Object {$_.Value})} | Group-Object Permission,Description | Select-Object Count,@{Name='Permission'; Expression={ $_.Values[0] }},@{Name='Description'; Expression={ $_.Values[1] }} | Sort-Object Count -Descending | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\Permissions.csv" -NoTypeInformation -Encoding UTF8
+Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Select-Object PermissionType,Permission,@{Name='Description';Expression={if($_.Description){$_.Description}else{Get-ScopeLink $_.Permission}}} | Group-Object PermissionType,Permission,Description | Select-Object Count,@{Name='PermissionType'; Expression={ $_.Values[0] }},@{Name='Permission'; Expression={ $_.Values[1] }},@{Name='Description'; Expression={ $_.Values[2] }} | Sort-Object Count -Descending | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\Permissions.csv" -NoTypeInformation -Encoding UTF8
 
 # XLSX
 if (Get-Module -ListAvailable -Name ImportExcel)
@@ -570,9 +609,34 @@ if (Get-Module -ListAvailable -Name ImportExcel)
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of column A
-            $WorkSheet.Cells["A:A"].Style.HorizontalAlignment="Center"
+            Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-C
+            $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
+            # Font Style "Underline" of column D (Link)
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["D:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Link",$D1)))' -Underline
+
+            # Iterating over the ApplicationPermission-Blacklist HashTable
+            foreach ($Permission in $ApplicationPermissionBlacklist_HashTable.Keys) 
+            {
+                $Severity = $ApplicationPermissionBlacklist_HashTable["$Permission"][1]
+                if ($Severity -eq "High"){$BackgroundColor = $HighColor}
+                if ($Severity -eq "Medium"){$BackgroundColor = $MediumColor}
+                if ($Severity -eq "Low"){$BackgroundColor = $LowColor}
+                $ConditionValue = '=AND($B1="Application",$C1="{0}")' -f $Permission
+                Add-ConditionalFormatting -Address $WorkSheet.Cells["C:C"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $BackgroundColor
+            }
+
+            # Iterating over the DelegatedPermission-Blacklist HashTable
+            foreach ($Permission in $DelegatedPermissionBlacklist_HashTable.Keys) 
+            {
+                $Severity = $DelegatedPermissionBlacklist_HashTable["$Permission"][1]
+                if ($Severity -eq "High"){$BackgroundColor = $HighColor}
+                if ($Severity -eq "Medium"){$BackgroundColor = $MediumColor}
+                if ($Severity -eq "Low"){$BackgroundColor = $LowColor}
+                $ConditionValue = '=AND($B1="Delegated",$C1="{0}")' -f $Permission
+                Add-ConditionalFormatting -Address $WorkSheet.Cells["C:C"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $BackgroundColor
+            }
+
             }
         }
     }
@@ -597,14 +661,49 @@ if (Get-Module -ListAvailable -Name ImportExcel)
             Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
             # HorizontalAlignment "Center" of columns A-D
             $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
+
+            # Iterating over the ApplicationPermission-Blacklist HashTable
+            foreach ($Permission in $ApplicationPermissionBlacklist_HashTable.Keys) 
+            {
+                $Severity = $ApplicationPermissionBlacklist_HashTable["$Permission"][1]
+                if ($Severity -eq "High"){$BackgroundColor = $HighColor}
+                if ($Severity -eq "Medium"){$BackgroundColor = $MediumColor}
+                if ($Severity -eq "Low"){$BackgroundColor = $LowColor}
+                $ConditionValue = '=AND($A1="Application",$B1="{0}")' -f $Permission
+                Add-ConditionalFormatting -Address $WorkSheet.Cells["B:B"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $BackgroundColor
+            }
+
+            # Iterating over the DelegatedPermission-Blacklist HashTable
+            foreach ($Permission in $DelegatedPermissionBlacklist_HashTable.Keys) 
+            {
+                $Severity = $DelegatedPermissionBlacklist_HashTable["$Permission"][1]
+                if ($Severity -eq "High"){$BackgroundColor = $HighColor}
+                if ($Severity -eq "Medium"){$BackgroundColor = $MediumColor}
+                if ($Severity -eq "Low"){$BackgroundColor = $LowColor}
+                $ConditionValue = '=AND($A1="Delegated",$B1="{0}")' -f $Permission
+                Add-ConditionalFormatting -Address $WorkSheet.Cells["B:B"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $BackgroundColor
+            }
+
             }
         }
     }
 }
 
 # PrincipalDisplayName (Stats)
-# Note: Permissions Count
-Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Select-Object PrincipalDisplayName | Where-Object {$_.PrincipalDisplayName -ne '' } | Where-Object { $null -ne ($_.PSObject.Properties | ForEach-Object {$_.Value})} | Group-Object PrincipalDisplayName | Select-Object Name,Count | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PrincipalDisplayName.csv" -NoTypeInformation -Encoding UTF8
+$Data = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8
+$PrincipalDisplayNames = ($Data | Select-Object PrincipalDisplayName | Where-Object {$_.PrincipalDisplayName -ne '' } | Where-Object { $null -ne ($_.PSObject.Properties | ForEach-Object {$_.Value})} | Select-Object PrincipalDisplayName -Unique | Sort-Object PrincipalDisplayName).PrincipalDisplayName
+
+ForEach($PrincipalDisplayName in $PrincipalDisplayNames)
+{
+    $Permissions  = ($Data | Where-Object {$_.PrincipalDisplayName -eq "$PrincipalDisplayName"} | Select-Object Permissions | Measure-Object).Count
+    $Applications = ($Data | Where-Object {$_.PrincipalDisplayName -eq "$PrincipalDisplayName"} | Select-Object AppId -Unique | Measure-Object).Count
+
+    New-Object -TypeName PSObject -Property ([ordered]@{
+        "PrincipalDisplayName" = $PrincipalDisplayName
+        "Applications"         = $Applications
+        "Permissions"          = $Permissions
+    }) | Export-Csv "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PrincipalDisplayName.csv" -NoTypeInformation -Encoding UTF8 -Append
+}
 
 # XLSX
 if (Get-Module -ListAvailable -Name ImportExcel)
@@ -618,9 +717,9 @@ if (Get-Module -ListAvailable -Name ImportExcel)
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:B1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of column B
-            $WorkSheet.Cells["B:B"].Style.HorizontalAlignment="Center"
+            Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of column B-C
+            $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
             }
         }
     }
@@ -735,44 +834,6 @@ foreach ($AppId in $ApplicationBlacklist_HashTable.Keys)
     }
 }
 
-#############################################################################################################################################################################################
-
-# Suspicious Application Permissions (AppRoleAssignments)
-# https://learn.microsoft.com/en-us/graph/permissions-reference
-# https://graphpermissions.merill.net/permission/
-
-$Data = Import-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\XLSX\ApplicationPermissions.xlsx"
-
-foreach ($Permission in $ApplicationPermissionBlacklist_HashTable.Keys) 
-{
-    $Import = $Data | Where-Object { $_.Permission -eq "$Permission" }
-    $Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
-    if ($Count -gt 0)
-    {
-        $Severity = $ApplicationPermissionBlacklist_HashTable["$Permission"][1]
-        Write-Host "[Alert] Suspicious Permission detected (Application): $Permission ($Count)" -ForegroundColor $Severity
-    }
-}
-
-#############################################################################################################################################################################################
-
-# Suspicious Delegated Permissions (OAuth2PermissionGrants)
-# https://learn.microsoft.com/en-us/graph/permissions-reference
-# https://graphpermissions.merill.net/permission/
-
-$Data = Import-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\XLSX\DelegatedPermissions.xlsx"
-
-foreach ($Permission in $DelegatedPermissionBlacklist_HashTable.Keys) 
-{
-    $Import = $Data | Where-Object { $_.Permission -eq "$Permission" }
-    $Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
-    if ($Count -gt 0)
-    {
-        $Severity = $DelegatedPermissionBlacklist_HashTable["$Permission"][1]
-        Write-Host "[Alert] Suspicious Permission detected (Delegated): $Permission ($Count)" -ForegroundColor $Severity
-    }
-}
-
 }
 
 Start-Processing
@@ -798,7 +859,7 @@ Write-Output "$ElapsedTime"
 # Stop logging
 Write-Host ""
 Stop-Transcript
-Start-Sleep 2
+Start-Sleep -Milliseconds 500
 
 # MessageBox UI
 $MessageBody = "Status: OAuth Permissions Analysis completed."
@@ -819,7 +880,5 @@ if ($Result -eq "OK" )
 #############################################################################################################################################################################################
 
 # TODO
-
-# Permissions Count vs. Application Count (Stats)
 
 # https://github.com/randomaccess3/detections/blob/main/M365_Oauth_Apps/MaliciousOauthAppDetections.json

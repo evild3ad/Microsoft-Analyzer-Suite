@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-04-17
+# @date:      2024-04-30
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -27,9 +27,8 @@
 # Initial Release
 #
 # Version 0.2
-# Release Date: 2024-04-14
-# Added:
-# Fixed: Other minor fixes and improvements
+# Release Date: 2024-04-30
+# Added: LastUpdatedDateTime
 #
 #
 #############################################################################################################################################################################################
@@ -42,7 +41,7 @@
 .DESCRIPTION
   MFA-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of the MFA Status of all users extracted via "Microsoft Extractor Suite" by Invictus Incident Response.
 
-  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v1.3.3)
+  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v1.3.4)
 
 .EXAMPLE
   PS> .\MFA-Analyzer.ps1
@@ -79,6 +78,7 @@ $Host.UI.RawUI.WindowTitle = "MFA-Analyzer v0.2 - Automated Analysis of Authenti
 if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
 {
     Write-Host "[Error] This PowerShell script must be run with admin rights." -ForegroundColor Red
+    $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
     Exit
 }
 
@@ -442,6 +442,21 @@ if (Test-Path "$UserRegistrationDetails")
 {
     $Data = Import-Csv -Path "$UserRegistrationDetails" -Delimiter ","
 
+    # Check Timestamp Format
+    $Timestamp = ($Data | Select-Object LastUpdatedDateTime -First 1).LastUpdatedDateTime
+
+    # de-DE
+    if ($Timestamp -match "\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}:\d{2}")
+    {
+        $script:TimestampFormat = "dd.MM.yyyy HH:mm:ss"
+    }
+
+    # en-US
+    if ($Timestamp -match "\d{1,2}/\d{1,2}/\d{4} \d{1,2}:\d{2}:\d{2} (AM|PM)")
+    {
+        $script:TimestampFormat = "M/d/yyyy h:mm:ss tt"
+    }
+
     $Results = @()
     ForEach($Record in $Data)
     {
@@ -461,6 +476,7 @@ if (Test-Path "$UserRegistrationDetails")
         "SystemPreferredAuthenticationMethods"          = $Record.SystemPreferredAuthenticationMethods # Collection of authentication methods that the system determined to be the most secure authentication methods among the registered methods for second factor authentication.
         "UserPreferredMethodForSecondaryAuthentication" = $Recrod.UserPreferredMethodForSecondaryAuthentication # The method the user selected as the default second-factor for performing multi-factor authentication.
         "UserType"                                      = $Record.UserType | ForEach-Object { $_.Replace("member","Member") } | ForEach-Object { $_.Replace("guest","Guest") } # Identifies whether the user is a member or guest in the tenant.
+        "LastUpdatedDateTime"                           = ($Record | Select-Object @{Name="LastUpdatedDateTime";Expression={([DateTime]::ParseExact($_.LastUpdatedDateTime, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}}).LastUpdatedDateTime # The date and time (UTC) when the record was last updated.
         "AdditionalProperties"                          = $Record.AdditionalProperties # Empty
         }
 
@@ -484,9 +500,9 @@ if (Get-Module -ListAvailable -Name ImportExcel)
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:O1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns B-O
-            $WorkSheet.Cells["B:O"].Style.HorizontalAlignment="Center"
+            Set-Format -Address $WorkSheet.Cells["A1:P1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns B-P
+            $WorkSheet.Cells["B:P"].Style.HorizontalAlignment="Center"
             }
         }
     }
@@ -588,69 +604,3 @@ $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
 
 #############################################################################################################################################################################################
 #############################################################################################################################################################################################
-
-# TODO
-
-# AuthenticationMethod Function
-# UserRegistrationDetails Function
-
-# Improve "Phone Authentication Method" --> authenticationPhoneType (mobile, alternateMobile, office), smsSignInState via authenticationMethodSignInState
-
-# https://portal.azure.com/#view/Microsoft_AAD_IAM/AuthenticationMethodsMenuBlade/~/AdminAuthMethods
-# FIDO2 Security Key
-# Microsoft Authenticator
-# SMS
-# Temporary Access Pass
-# Hardware OATH tokens (Preview)
-# Third-party software OATH tokens
-# Voice call
-# Email OTP
-# Certificate based authentication
-
-# FIDO2 Security Key = FIDO2 security keys are a phishing-resistant, standards-based passwordless authentication method available from a variety of vendors. FIDO2 keys are not usable in the Self-Service Password Reset flow.
-# Microsoft Authenticator = The Microsoft Authenticator app is a flagship authentication method, usable in passwordless or simple push notification approval modes. The app is free to download and use on Android/iOS mobile devices.
-# SMS = This authentication method delivers a one-time code via SMS to a user's phone, and the user then inputs that code to sign-in. SMS is usable for multi-factor authentication and Self-Service Password Reset; it can also be configured to be used as a first factor.
-# Temporary Access Pass = Temporary Access Pass, or TAP, is a time-limited or limited-use passcode that can be used by users for bootstrapping new accounts, account recovery, or when other auth methods are unavailable. TAP is issuable only by administrators, and is seen by the system as strong authentication. It is not usable for Self Service Password Reset.
-# Hardware OATH tokens (Preview) = Hardware OATH tokens are physical devices that use the OATH TOTP standard and a secret key to generate 6-digit codes used to authenticate. This policy control specifically manages the ability to register and use Hardware OATH tokens.
-# Third-party software OATH tokens = Software OATH tokens are applications that use the OATH TOTP standard and a secret key to generate 6-digit codes used to authenticate. This policy control specifically manages the ability to register and use non-Microsoft software OATH tokens. Microsoft Authenticator can also generate software OATH codes and is managed in the Microsoft Authenticator section of this policy. Software OATH token is not usable as a first-factor authentication method.
-# Voice call = This authentication method places a phone call to a user which the user must then approve using the telephone keypad. Voice call is not usable as a first-factor authentication method.
-# Email OTP = Email OTP sends a code to a user's email account which is then used to authenticate. For members of a tenant, email OTP is usable only for Self-Service Password Recovery. It may also be configured to be used for sign-in by guest users.
-# Certificate based authentication = Certificate-based authentication is a passwordless, phising-resistant authentication method that uses x.509 certificates and an enterprise public key infrastructure (PKI) for authentication.
-
-# Authentication methods --> User registration details
-# https://portal.azure.com/#view/Microsoft_AAD_IAM/AuthenticationMethodsMenuBlade/~/UserRegistrationDetails
-# https://learn.microsoft.com/en-us/graph/api/resources/userregistrationdetails?view=graph-rest-1.0
-
-# Authentication method     Description
-# Email                     Use an email address as part of the Self-Service Password Reset (SSPR) process.
-# Fido2                     Use a FIDO2 Security Key to sign-in to Azure AD.
-# Microsoft Authenticator   Use Microsoft Authenticator to sign-in or perform multi-factor authentication to Azure AD.
-# Phone                     The user can use a phone to authenticate using SMS or voice calls (as allowed by policy).
-# SoftwareOath              Use Microsoft Authenticator to sign in or perform multi-factor authentication to Azure AD.
-# TemporartAccessPass       Temporary Access Pass is a time-limited passcode that serves as a strong credential and allows onboarding of passwordless credentials.
-# WindowsHelloForBusiness   Windows Hello for Business is a passwordless sign-in method on Windows devices.
-
-# OneWaySMS - Text code authentication phone
-# TwoWayVoiceMobile - Call authentication phone
-# TwoWayVoiceOffice - Call office phone
-# PhoneAllOTP - Authenticator app or hardware token
-# PhoneAppNotification - Microsoft Authenticator App
-
-# MethodsRegistered
-# email
-# microsoftAuthenticatorPush
-# mobilePhone
-# softwareOneTimePasscode
-# ...
-
-# https://activedirectorypro.com/mfa-status-powershell/
-# https://www.alitajran.com/export-office-365-users-mfa-status-with-powershell/
-# https://o365info.com/export-all-microsoft-365-users-mfa-status/
-# https://support.microsoft.com/en-us/account-billing/set-up-an-email-address-as-your-verification-method-250b91e4-7627-4b60-b861-f2276a9c0e39
-# https://support.microsoft.com/en-us/account-billing/sign-in-to-your-work-or-school-account-using-your-two-step-verification-method-c7293464-ef5e-4705-a24b-c4a3ec0d6cf9
-
-# https://portal.azure.com/#view/Microsoft_AAD_IAM/AuthenticationMethodsMenuBlade/~/UserRegistrationDetails
-# https://learn.microsoft.com/en-us/graph/api/authenticationmethodsroot-list-userregistrationdetails?view=graph-rest-1.0&tabs=powershell
-# https://learn.microsoft.com/en-us/graph/api/userregistrationdetails-get?view=graph-rest-1.0&tabs=powershell
-# https://learn.microsoft.com/en-us/graph/api/phoneauthenticationmethod-get?view=graph-rest-1.0&tabs=powershell
-# https://learn.microsoft.com/en-us/powershell/module/microsoft.graph.identity.signins/get-mguserauthenticationmethod?view=graph-powershell-1.0

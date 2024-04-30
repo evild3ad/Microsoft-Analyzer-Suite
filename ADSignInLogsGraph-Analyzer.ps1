@@ -132,6 +132,7 @@ $Host.UI.RawUI.WindowTitle = "ADSignInLogsGraph-Analyzer v0.1 - Automated Proces
 if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
 {
     Write-Host "[Error] This PowerShell script must be run with admin rights." -ForegroundColor Red
+    $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
     Exit
 }
 
