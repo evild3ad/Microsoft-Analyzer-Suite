@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-04-28
+# @date:      2024-05-01
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -105,6 +105,7 @@ else
 }
 
 # Colors
+Add-Type -AssemblyName System.Drawing
 $script:HighColor   = [System.Drawing.Color]::FromArgb(255,0,0) # Red
 $script:MediumColor = [System.Drawing.Color]::FromArgb(255,192,0) # Orange
 $script:LowColor    = [System.Drawing.Color]::FromArgb(255,255,0) # Yellow
