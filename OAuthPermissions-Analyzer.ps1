@@ -319,7 +319,7 @@ if (Get-Module -ListAvailable -Name ImportExcel)
     {
         if([int](& $xsv count -d "," "$LogFile") -gt 0)
         {
-            $IMPORT = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Select-Object PermissionType,ClientDisplayName,AppId,ClientObjectId,ResourceDisplayName,ResourceObjectId,Permission,Description,ConsentType,PrincipalObjectId,Homepage,PublisherName,ReplyUrls,@{Name="ExpiryTime";Expression={([DateTime]::ParseExact($_.ExpiryTime, "dd.MM.yyyy HH:mm:ss", $null).ToString("yyyy-MM-dd HH:mm:ss"))}},PrincipalDisplayName,IsEnabled,@{Name="CreationTimestamp";Expression={([DateTime]::ParseExact($_.CreationTimestamp, "dd.MM.yyyy HH:mm:ss", $null).ToString("yyyy-MM-dd HH:mm:ss"))}}
+            $IMPORT = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Select-Object PermissionType,ClientDisplayName,AppId,ClientObjectId,ResourceDisplayName,ResourceObjectId,Permission,@{Name='Description';Expression={if($_.Description){$_.Description}else{Get-ScopeLink $_.Permission}}},ConsentType,PrincipalObjectId,Homepage,PublisherName,ReplyUrls,@{Name="ExpiryTime";Expression={([DateTime]::ParseExact($_.ExpiryTime, "dd.MM.yyyy HH:mm:ss", $null).ToString("yyyy-MM-dd HH:mm:ss"))}},PrincipalDisplayName,IsEnabled,@{Name="CreationTimestamp";Expression={([DateTime]::ParseExact($_.CreationTimestamp, "dd.MM.yyyy HH:mm:ss", $null).ToString("yyyy-MM-dd HH:mm:ss"))}}
             $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\XLSX\OAuthPermissions.xlsx" -NoHyperLinkConversion * -FreezePane 2,4 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "OAuthPermissions" -CellStyleSB {
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
@@ -330,6 +330,8 @@ if (Get-Module -ListAvailable -Name ImportExcel)
             $WorkSheet.Cells["I:J"].Style.HorizontalAlignment="Center"
             $WorkSheet.Cells["L:L"].Style.HorizontalAlignment="Center"
             $WorkSheet.Cells["N:Q"].Style.HorizontalAlignment="Center"
+            # Font Style "Underline" of column H (Link)
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["H:H"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Link",$H1)))' -Underline
 
             # Iterating over the Application-Blacklist HashTable
             foreach ($AppId in $ApplicationBlacklist_HashTable.Keys) 
