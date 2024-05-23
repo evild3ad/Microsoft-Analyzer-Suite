@@ -1,10 +1,10 @@
-﻿# Microsoft-Analyzer-Suite Updater v0.1
+﻿# Microsoft-Analyzer-Suite Updater v0.2
 #
 # @author:    Martin Willing
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-03-09
+# @date:      2024-05-22
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -20,13 +20,17 @@
 # Release Date: 2024-03-09
 # Initial Release
 #
+# Version 0.2
+# Release Date: 2024-05-23
+# Fixed: Minor fixes and improvements
+#
 #
 #############################################################################################################################################################################################
 #############################################################################################################################################################################################
 
 <#
 .SYNOPSIS
-  Microsoft-Analyzer-Suite Updater v0.1 - Automated Installer/Updater for the Microsoft-Analyzer-Suite
+  Microsoft-Analyzer-Suite Updater v0.2 - Automated Installer/Updater for the Microsoft-Analyzer-Suite
 
 .DESCRIPTION
   Updater.ps1 is a PowerShell script utilized to automate the installation and the update process of the "Microsoft-Extractor-Suite" by Invictus Incident Response (incl. all dependencies)
@@ -51,7 +55,7 @@
 
 # Set Progress Preference to Silently Continue
 $OriginalProgressPreference = $Global:ProgressPreference
-$Global:ProgressPreference = 'SilentlyContinue'
+$Script:ProgressPreference = 'SilentlyContinue'
 
 #endregion Initialisations
 
@@ -90,7 +94,7 @@ $script:xsv = "$PARENT_DIR\Tools\xsv\xsv.exe"
 
 # Windows Title
 $DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
-$Host.UI.RawUI.WindowTitle = "Microsoft Analyzer Suite Updater v0.1 - Automated Installer/Updater for the Microsoft-Analyzer-Suite"
+$Host.UI.RawUI.WindowTitle = "Microsoft Analyzer Suite Updater v0.2 - Automated Installer/Updater for the Microsoft-Analyzer-Suite"
 
 # Check if the PowerShell script is being run with admin rights
 if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
@@ -117,13 +121,12 @@ Write-Output "$Logo"
 Write-Output ""
 
 # Header
-Write-Output "Microsoft-Analyzer-Suite Updater v0.1 - Automated Installer/Updater for the Microsoft-Analyzer-Suite"
+Write-Output "Microsoft-Analyzer-Suite Updater v0.2 - Automated Installer/Updater for the Microsoft-Analyzer-Suite"
 Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
 Write-Output ""
 
 # Update date (ISO 8601)
-$script:Date = [datetime]::Now.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss") # YYYY-MM-DDThh:mm:ss
-$script:UpdateDate = $Date -replace "T", " " # YYYY-MM-DD hh:mm:ss
+$script:UpdateDate = [datetime]::Now.ToUniversalTime().ToString("yyyy-MM-dd HH:mm:ss")
 Write-Output "Update date: $UpdateDate UTC"
 Write-Output ""
 
@@ -298,7 +301,7 @@ if ($null -eq $CurrentVersion)
 }
 
 # Check if ImportExcel needs to be updated
-if ($CurrentVersion -ne $LatestRelease)
+if ($CurrentVersion -lt $LatestRelease)
 {
     # Update PowerShell module 'ImportExcel'
     try
