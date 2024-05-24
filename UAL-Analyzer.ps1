@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-05-04
+# @date:      2024-05-24
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -17,7 +17,7 @@
 #
 # Dependencies:
 #
-# ImportExcel v7.8.6 (2023-10-12)
+# ImportExcel v7.8.9 (2024-05-18)
 # https://github.com/dfinke/ImportExcel
 #
 # IPinfo CLI 3.3.1 (2024-03-01)
@@ -34,7 +34,7 @@
 # Initial Release
 #
 #
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.4291) and PowerShell 5.1 (5.1.19041.4291)
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.4412) and PowerShell 5.1 (5.1.19041.4412)
 #
 #
 #############################################################################################################################################################################################
@@ -2212,7 +2212,7 @@ if (Test-Path "$($IPinfo)")
                                 if([int](& $xsv count "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv") -gt 0)
                                 {
                                     $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter ","
-                                    $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\XLSX\Hunt.xlsx" -NoNumberConversion * -FreezePane 2,5 -BoldTopRow -AutoSize -AutoFilter -IncludePivotTable -PivotTableName "PivotTable" -WorkSheetname "Hunt" -CellStyleSB {
+                                    $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\XLSX\Hunt.xlsx" -NoHyperLinkConversion * -NoNumberConversion * -FreezePane 2,5 -BoldTopRow -AutoSize -AutoFilter -IncludePivotTable -PivotTableName "PivotTable" -WorkSheetname "Hunt" -CellStyleSB {
                                     param($WorkSheet)
                                     # BackgroundColor and FontColor for specific cells of TopRow
                                     $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
@@ -2489,7 +2489,6 @@ if (Test-Path "$($IPinfo)")
                                 # RecordType: AzureActiveDirectoryStsLogon --> Secure Token Service (STS) logon events in Azure Active Directory.
                                 # Operation: UserLoginFailed --> This property contains the Azure Active Directory STS (AADSTS) error code.
                                 $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "AzureActiveDirectoryStsLogon" } | Where-Object { $_.Operation -eq "UserLoginFailed" }
-                                $Total = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
                                 $Count = ($Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 10 | Measure-Object).Count
 
                                 if ($Count -ge 1)
@@ -2560,7 +2559,6 @@ if (Test-Path "$($IPinfo)")
                                 # RecordType: ExchangeItemGroup --> Events from an Exchange mailbox audit log for actions that can be performed on multiple items, such as moving or deleted one or more email messages.
                                 # Operation: MoveToDeletedItems --> A message was deleted and moved to the Deleted Items folder.
                                 $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeItemGroup" } | Where-Object { $_.OrgName -ne "Zscaler Switzerland GmbH" } | Where-Object { $_.Operation -eq "MoveToDeletedItems" }
-                                $Total = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
                                 $Count = ($Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 50 | Measure-Object).Count
 
                                 if ($Count -ge 1)
@@ -2621,7 +2619,6 @@ if (Test-Path "$($IPinfo)")
                                 # RecordType: ExchangeItemGroup --> Events from an Exchange mailbox audit log for actions that can be performed on multiple items, such as moving or deleted one or more email messages.
                                 # Operation: SoftDelete --> A message was permanently deleted or deleted from the Deleted Items folder. Soft-deleted items are moved to the Recoverable Items folder.
                                 $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeItemGroup" } | Where-Object { $_.OrgName -ne "Zscaler Switzerland GmbH" } | Where-Object { $_.Operation -eq "SoftDelete" }
-                                $Total = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
                                 $Count = ($Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 50 | Measure-Object).Count
                                 
                                 if ($Count -ge 1)
@@ -2682,7 +2679,6 @@ if (Test-Path "$($IPinfo)")
                                 # RecordType: ExchangeItemGroup --> Events from an Exchange mailbox audit log for actions that can be performed on multiple items, such as moving or deleted one or more email messages.
                                 # Operation: HardDelete --> A message was purged from the Recoverable Items folder.
                                 $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeItemGroup" } | Where-Object { $_.OrgName -ne "Zscaler Switzerland GmbH" } | Where-Object { $_.Operation -eq "HardDelete" }
-                                $Total = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
                                 $Count = ($Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 50 | Measure-Object).Count
 
                                 if ($Count -ge 1)
@@ -2742,7 +2738,6 @@ if (Test-Path "$($IPinfo)")
                                     # RecordType: ExchangeItem --> Events from an Exchange mailbox audit log for actions that are performed on a single item, such as creating or receiving an email message.
                                     # Operation: HardDelete --> A message was purged from the Recoverable Items folder.
                                     $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeItem" } | Where-Object { $_.OrgName -ne "Zscaler Switzerland GmbH" } | Where-Object { $_.Operation -eq "HardDelete" }
-                                    $Total = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
                                     $Count = ($Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 50 | Measure-Object).Count
 
                                     if ($Count -ge 1)
@@ -2803,7 +2798,6 @@ if (Test-Path "$($IPinfo)")
                                     # RecordType: ExchangeItem --> 	Events from an Exchange mailbox audit log for actions that are performed on a single item, such as creating or receiving an email message.
                                     # Operation: SendAs --> A message was sent using the SendAs permission. This permission allows another user to send the message as though it came from the mailbox owner.
                                     $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeItem" } | Where-Object { $_.OrgName -ne "Zscaler Switzerland GmbH" } | Where-Object { $_.Operation -eq "SendAs" }
-                                    $Total = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
                                     $Count = ($Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 10 | Measure-Object).Count
 
                                     if ($Count -ge 1)
@@ -2863,7 +2857,6 @@ if (Test-Path "$($IPinfo)")
                                         # RecordType: ExchangeItem --> 	Events from an Exchange mailbox audit log for actions that are performed on a single item, such as creating or receiving an email message.
                                         # Operation: Update --> A message or any of its properties was changed.
                                         $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeItem" } | Where-Object { $_.OrgName -ne "Zscaler Switzerland GmbH" } | Where-Object { $_.Operation -eq "Update" }
-                                        $Total = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
                                         $Count = ($Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 20 | Measure-Object).Count
 
                                         if ($Count -ge 1)
@@ -2938,7 +2931,6 @@ if (Test-Path "$($IPinfo)")
                                 # RecordType: SharePointSharingOperation --> SharePoint sharing events.
                                 # Operation: SharingInvitationCreated --> A user in your organization tried to share a resource (likely a site) with an external user. This results in an external sharing invitation sent to the target user. No access to the resource is granted at this point.
                                 $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "SharePointSharingOperation" } | Where-Object { $_.Operation -eq "SharingInvitationCreated" }
-                                $Total = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
                                 $Count = ($Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 10 | Measure-Object).Count
 
                                 if ($Count -ge 1)
@@ -2999,7 +2991,6 @@ if (Test-Path "$($IPinfo)")
                                 # RecordType: SharePointSharingOperation --> SharePoint sharing events.
                                 # Operation: AddedToSecureLink -->  A user was added to a specific people link. Use the TargetUserOrGroupName field in this event to identify the user added to the corresponding specific people link. This target user may be someone who is external to your organization.
                                 $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "SharePointSharingOperation" } | Where-Object { $_.Operation -eq "AddedToSecureLink" } | Sort-Object { $_.CreationDate -as [datetime] } -Descending
-                                $Total = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
                                 $Count = ($Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 50 | Measure-Object).Count
 
                                 if ($Count -ge 1)
@@ -3100,7 +3091,6 @@ if (Test-Path "$($IPinfo)")
                                 # RecordType: SharePointSharingOperation --> SharePoint sharing events.
                                 # Operation: SecureLinkUpdated --> For a SharePoint Item.
                                 $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "SharePointSharingOperation" } | Where-Object { $_.Operation -eq "SecureLinkUpdated" } | Sort-Object { $_.CreationDate -as [datetime] } -Descending
-                                $Total = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
                                 $Count = ($Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 5 | Measure-Object).Count
 
                                 if ($Count -ge 1)
@@ -3161,7 +3151,6 @@ if (Test-Path "$($IPinfo)")
                                 # RecordType: SharePointSharingOperation --> SharePoint sharing events.
                                 # Operation: SharingSet --> User (member or guest) shared a file, folder, or site in SharePoint or OneDrive for Business with a user in your organization's directory. The value in the Detail column for this activity identifies the name of the user the resource was shared with and whether this user is a member or a guest. This activity is often accompanied by a second event that describes how the user was granted access to the resource. For example, adding the user to a group that has access to the resource.
                                 $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "SharePointSharingOperation" } | Where-Object { $_.Operation -eq "SharingSet" } | Sort-Object { $_.CreationDate -as [datetime] } -Descending
-                                $Total = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
                                 $Count = ($Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 10 | Measure-Object).Count
 
                                 if ($Count -ge 1)
@@ -3264,7 +3253,6 @@ if (Test-Path "$($IPinfo)")
                                 # RecordType: SharePointFileOperation --> SharePoint file operation events.
                                 # Operation: FileDownloaded --> User downloads a document from a SharePoint or OneDrive for Business site
                                 $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "SharePointFileOperation" } | Where-Object { $_.Operation -eq "FileDownloaded" } | Sort-Object { $_.CreationDate -as [datetime] } -Descending
-                                $Total = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
                                 $Count = ($Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 50 | Measure-Object).Count
 
                                 if ($Count -ge 1)
