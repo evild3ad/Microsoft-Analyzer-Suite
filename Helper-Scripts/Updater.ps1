@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-05-22
+# @date:      2024-05-25
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -619,13 +619,13 @@ if ($CurrentVersion -ne $LatestVersion -Or $null -eq $CurrentVersion)
     if ($null -eq $CurrentVersion)
     {
         Write-Output "[Info]  Installing PowerShell module 'ExchangeOnlineManagement' ..."
-        Install-Module -Name ExchangeOnlineManagement -Repository PSGallery -Force
+        Install-Module -Name ExchangeOnlineManagement -Repository PSGallery -Force -AllowClobber
     }
     else
     {
         Write-Output "[Info]  Updating PowerShell module 'ExchangeOnlineManagement' ..."
         Uninstall-Module -Name ExchangeOnlineManagement -AllVersions
-        Install-Module -Name ExchangeOnlineManagement -Repository PSGallery -Force
+        Install-Module -Name ExchangeOnlineManagement -Repository PSGallery -Force -AllowClobber
     }
 }
 else
