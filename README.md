@@ -49,7 +49,10 @@ Automated Processing of Microsoft 365 Logs and Microsoft Entra ID Logs extracted
 **Fig 9:** RiskyUsers-Analyzer
 
 ![RiskyUsers](https://github.com/evild3ad/Microsoft-Analyzer-Suite/blob/bf004f386ed5af210a0b326c24dcf50fccc9adf4/Screenshots/10.png)  
-**Fig 10:** Risky Users
+**Fig 10:** Risky Users  
+
+![UAL-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/blob/8092610fb8576040fee6834c52d57b858c666248/Screenshots/11.png)  
+**Fig 11:** You can specify a file path or launch the File Browser Dialog to select your log file  
 
 ## Links  
 [Microsoft-Extractor-Suite by Invictus-IR](https://github.com/invictus-ir/Microsoft-Extractor-Suite)  
