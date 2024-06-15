@@ -194,7 +194,7 @@ Function Get-LogFile($InitialDirectory)
     [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") | Out-Null
     $OpenFileDialog = New-Object System.Windows.Forms.OpenFileDialog
     $OpenFileDialog.InitialDirectory = $InitialDirectory
-    $OpenFileDialog.Filter = "Unified Audit Log Files (*.csv)|*.csv|All Files (*.*)|*.*"
+    $OpenFileDialog.Filter = "Unified Audit Log Files (UAL-Combined.csv)|*.csv|All Files (*.*)|*.*"
     $OpenFileDialog.ShowDialog()
     $OpenFileDialog.Filename
     $OpenFileDialog.ShowHelp = $true
