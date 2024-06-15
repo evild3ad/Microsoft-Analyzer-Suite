@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-04-06
+# @date:      2024-06-15
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -72,6 +72,18 @@
 # Microsoft Entra ID P2       30 days
 
 # Note: You must have a Microsoft Entra ID P1 or P2 license to download sign-in logs using the Microsoft Graph API.
+
+#############################################################################################################################################################################################
+#############################################################################################################################################################################################
+
+#region CmdletBinding
+
+[CmdletBinding()]
+Param(
+	[string]$Path
+)
+
+#endregion CmdletBinding
 
 #############################################################################################################################################################################################
 #############################################################################################################################################################################################
@@ -163,28 +175,35 @@ Function Get-FileSize()
 }
 
 # Select Log File
-Function Get-LogFile($InitialDirectory)
-{ 
-    [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") | Out-Null
-    $OpenFileDialog = New-Object System.Windows.Forms.OpenFileDialog
-    $OpenFileDialog.InitialDirectory = $InitialDirectory
-    $OpenFileDialog.Filter = "Sign-In Logs|SignInLogs-Combined.json|All Files (*.*)|*.*"
-    $OpenFileDialog.ShowDialog()
-    $OpenFileDialog.Filename
-    $OpenFileDialog.ShowHelp = $true
-    $OpenFileDialog.Multiselect = $false
-}
-
-$Result = Get-LogFile
-
-if($Result -eq "OK")
+if(!($Path))
 {
-    $script:LogFile = $Result[1]
+    Function Get-LogFile($InitialDirectory)
+    { 
+        [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") | Out-Null
+        $OpenFileDialog = New-Object System.Windows.Forms.OpenFileDialog
+        $OpenFileDialog.InitialDirectory = $InitialDirectory
+        $OpenFileDialog.Filter = "Sign-In Logs|SignInLogs-Combined.json|All Files (*.*)|*.*"
+        $OpenFileDialog.ShowDialog()
+        $OpenFileDialog.Filename
+        $OpenFileDialog.ShowHelp = $true
+        $OpenFileDialog.Multiselect = $false
+    }
+
+    $Result = Get-LogFile
+
+    if($Result -eq "OK")
+    {
+        $script:LogFile = $Result[1]
+    }
+    else
+    {
+        $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
+        Exit
+    }
 }
 else
 {
-    $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
-    Exit
+    $script:LogFile = $Path
 }
 
 # Create a record of your PowerShell session to a text file

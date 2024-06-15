@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-03-09
+# @date:      2024-06-15
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -55,6 +55,18 @@
 .LINK
   https://lethal-forensics.com/
 #>
+
+#############################################################################################################################################################################################
+#############################################################################################################################################################################################
+
+#region CmdletBinding
+
+[CmdletBinding()]
+Param(
+	[string]$Path
+)
+
+#endregion CmdletBinding
 
 #############################################################################################################################################################################################
 #############################################################################################################################################################################################
@@ -120,28 +132,35 @@ Function Get-FileSize()
 }
 
 # Select Log File
-Function Get-LogFile($InitialDirectory)
-{ 
-    [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") | Out-Null
-    $OpenFileDialog = New-Object System.Windows.Forms.OpenFileDialog
-    $OpenFileDialog.InitialDirectory = $InitialDirectory
-    $OpenFileDialog.Filter = "Risky Users (RiskyUsers.csv)|RiskyUsers.csv|All Files (*.*)|*.*"
-    $OpenFileDialog.ShowDialog()
-    $OpenFileDialog.Filename
-    $OpenFileDialog.ShowHelp = $true
-    $OpenFileDialog.Multiselect = $false
-}
-
-$Result = Get-LogFile
-
-if($Result -eq "OK")
+if(!($Path))
 {
-    $script:LogFile = $Result[1]
+    Function Get-LogFile($InitialDirectory)
+    { 
+        [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") | Out-Null
+        $OpenFileDialog = New-Object System.Windows.Forms.OpenFileDialog
+        $OpenFileDialog.InitialDirectory = $InitialDirectory
+        $OpenFileDialog.Filter = "Risky Users (RiskyUsers.csv)|RiskyUsers.csv|All Files (*.*)|*.*"
+        $OpenFileDialog.ShowDialog()
+        $OpenFileDialog.Filename
+        $OpenFileDialog.ShowHelp = $true
+        $OpenFileDialog.Multiselect = $false
+    }
+
+    $Result = Get-LogFile
+
+    if($Result -eq "OK")
+    {
+        $script:LogFile = $Result[1]
+    }
+    else
+    {
+        $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
+        Exit
+    }
 }
 else
 {
-    $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
-    Exit
+    $script:LogFile = $Path
 }
 
 # Get Start Time
