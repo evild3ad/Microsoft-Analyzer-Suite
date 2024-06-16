@@ -1,10 +1,10 @@
-﻿# Create-Certificate v0.2
+﻿# Create-Certificate v0.3
 #
 # @author:    Martin Willing
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-03-22
+# @date:      2024-06-16
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -24,11 +24,23 @@
 # Release Date: 2024-03-22
 # Added: Prompt for User Input (FriendlyName)
 #
+# Version 0.3
+# Release Date: 2024-06-16
+# Added: Check if PowerShell Script is Running with Admin Privileges
+#
 #
 #############################################################################################################################################################################################
 #############################################################################################################################################################################################
 
 #region Header
+
+# Check if the PowerShell script is being run with admin rights
+if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
+{
+    Write-Host ""
+    Write-Host "[Error] This PowerShell script must be run with admin rights." -ForegroundColor Red
+    Exit
+}
 
 # Logo
 $Logo = @"
@@ -44,7 +56,7 @@ $Logo = @"
 Write-Output ""
 Write-Output "$Logo"
 Write-Output ""
-Write-Output "Create-Certificate v0.2 - Automated Creation of Self-Signed Certificate for Microsoft Graph API"
+Write-Output "Create-Certificate v0.3 - Automated Creation of Self-Signed Certificate for Microsoft Graph API"
 Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
 Write-Output ""
 Write-Host "Please enter Case Number (or Company Name)" -ForegroundColor Green
@@ -75,7 +87,7 @@ Write-Output "$Logo"
 Write-Output ""
 
 # Header
-Write-Output "Create-Certificate v0.2 - Automated Creation of Self-Signed Certificate for Microsoft Graph API"
+Write-Output "Create-Certificate v0.3 - Automated Creation of Self-Signed Certificate for Microsoft Graph API"
 Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
 Write-Output ""
 
