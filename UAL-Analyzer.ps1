@@ -4316,7 +4316,7 @@ Function Find-AiTMSuspiciousUserLogin
 
         $previousEvent = $null
 
-        $SuspicionProperty = '#Suspicious'
+        $SuspicionProperty = 'Suspicious Timespan'
         $CalcTSpanProperty = '#TimeStamp'
 
         $EnhanceObject = @{
@@ -4394,8 +4394,8 @@ if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoggedIn.csv")
 {
     if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoggedIn.csv") -gt 0)
     {
-        $Analyzed = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoggedIn.csv" -Delimiter "," -Encoding UTF8 | Sort-Object -Descending CreationDate | Find-AiTMSuspiciousUserLogin       
-        $Suspicious = $Analyzed | Where-Object -Property "#Suspicious"
+        $Analyzed = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoggedIn.csv" -Delimiter "," -Encoding UTF8 | Sort-Object -Descending CreationTime | Find-AiTMSuspiciousUserLogin       
+        $Suspicious = $Analyzed | Where-Object -Property "Suspicious Timespan"
 
         # CSV
         $Suspicious | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Find-AiTMSuspiciousUserLogin.csv" -NoTypeInformation -Encoding UTF8
@@ -5256,6 +5256,7 @@ Function Get-MicrosoftTeams {
 
 # Microsoft Teams
 
+# https://learn.microsoft.com/en-us/purview/audit-log-activities
 # https://learn.microsoft.com/en-us/purview/audit-log-activities#microsoft-teams-shifts-activities
 # https://learn.microsoft.com/en-us/purview/audit-teams-audit-log-events
 # https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-schema#microsoft-teams-schema
