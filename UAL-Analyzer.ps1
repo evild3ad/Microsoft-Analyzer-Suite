@@ -1,10 +1,10 @@
-﻿# UAL-Analyzer v0.2
+﻿# UAL-Analyzer v0.3
 #
 # @author:    Martin Willing
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-06-15
+# @date:      2024-07-22
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -41,8 +41,19 @@
 # Added: Sessions Duration
 # Fixed: Other minor fixes and improvements
 #
+# Version 0.9
+# Release Date: 2024-07-22
+# Added: CmdletBinding
+# Added: Improved Hunt.xlsx (DeviceName, DeviceId, RequestType added)
+# Added: Improved AiTM Detection (Suspicious-SessionIds.csv)
+# Added: UserLoggedIn.xlsx
+# Added: Find-AiTMSuspiciousUserLogin (Timespan)
+# Added: DeviceProperties (Stats)
+# Added: RequestType (Stats)
+# Fixed: Other minor fixes and improvements
 #
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.4529) and PowerShell 5.1 (5.1.19041.4522)
+#
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.4651) and PowerShell 5.1 (5.1.19041.4648)
 #
 #
 #############################################################################################################################################################################################
@@ -50,7 +61,7 @@
 
 <#
 .SYNOPSIS
-  UAL-Analyzer v0.2 - Automated Processing of M365 Unified Audit Logs for DFIR
+  UAL-Analyzer v0.3 - Automated Processing of M365 Unified Audit Logs for DFIR
 
 .DESCRIPTION
   UAL-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of M365 Unified Audit Logs extracted via "Microsoft Extractor Suite" by Invictus Incident Response.
@@ -59,8 +70,20 @@
 
   Single User Audit
 
+.PARAMETER OutputDir
+  Specifies the output directory. Default is "$env:USERPROFILE\Desktop\UAL-Analyzer".
+
+.PARAMETER Path
+  Specifies the path to the CSV-based input file (UAL-Combined.csv).
+
 .EXAMPLE
   PS> .\UAL-Analyzer.ps1
+
+.EXAMPLE
+  PS> .\UAL-Analyzer.ps1 -Path "$env:USERPROFILE\Desktop\UAL-Combined.csv"
+
+.EXAMPLE
+  PS> .\UAL-Analyzer.ps1 -Path "H:\Microsoft-Extractor-Suite\UAL-Combined.csv" -OutputDir "H:\Microsoft-Analyzer-Suite\UAL-Analyzer"
 
 .NOTES
   Author - Martin Willing
@@ -103,7 +126,8 @@
 
 [CmdletBinding()]
 Param(
-	[string]$Path
+    [String]$Path,
+    [String]$OutputDir
 )
 
 #endregion CmdletBinding
@@ -139,7 +163,22 @@ else
 }
 
 # Output Directory
-$OUTPUT_FOLDER = "$env:USERPROFILE\Desktop\UAL-Analyzer"
+if (!($OutputDir))
+{
+    $script:OUTPUT_FOLDER = "$env:USERPROFILE\Desktop\UAL-Analyzer" # Default
+}
+else
+{
+    if ($OutputDir -cnotmatch '.+(?=\\)') 
+    {
+        Write-Host "[Error] You must provide a valid directory path." -ForegroundColor Red
+        Exit
+    }
+    else
+    {
+        $script:OUTPUT_FOLDER = $OutputDir
+    }
+}
 
 # Tools
 
@@ -164,7 +203,7 @@ $script:Whitelist = (Import-Csv "$SCRIPT_DIR\Whitelists\ASN-Whitelist.csv" -Deli
 
 # Windows Title
 $DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
-$Host.UI.RawUI.WindowTitle = "UAL-Analyzer v0.2 - Automated Processing of M365 Unified Audit Logs for DFIR"
+$Host.UI.RawUI.WindowTitle = "UAL-Analyzer v0.3 - Automated Processing of M365 Unified Audit Logs for DFIR"
 
 # Check if the PowerShell script is being run with admin rights
 if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
@@ -253,8 +292,8 @@ Write-Output "$Logo"
 Write-Output ""
 
 # Header
-Write-Output "UAL-Analyzer v0.2 - Automated Processing of M365 Unified Audit Logs for DFIR"
-Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
+Write-Output "UAL-Analyzer v0.3 - Automated Processing of M365 Unified Audit Logs for DFIR"
+Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/"
 Write-Output ""
 
 # Analysis date (ISO 8601)
@@ -318,7 +357,7 @@ Function Start-Processing {
 $StartTime_Processing = (Get-Date)
 
 # Input-Check
-if (!(Test-Path "$LogFile"))
+if (!(Test-Path "$LogFile" -PathType Leaf))
 {
     Write-Host "[Error] $LogFile does not exist." -ForegroundColor Red
     Write-Host ""
@@ -341,7 +380,7 @@ if (!($Extension -eq ".csv" ))
 # Check IPinfo CLI Access Token 
 if ("$Token" -eq "access_token")
 {
-    Write-Host "[Error] No IPinfo CLI Access Token provided. Please add your personal access token in Line 138." -ForegroundColor Red
+    Write-Host "[Error] No IPinfo CLI Access Token provided. Please add your personal access token in Line 189" -ForegroundColor Red
     Write-Host ""
     Stop-Transcript
     $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
@@ -457,7 +496,7 @@ if (Get-Module -ListAvailable -Name ImportExcel)
         if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\AuditData.csv") -gt 0)
         {
             $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\AuditData.csv" -Delimiter ","
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\XLSX\AuditData.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "AuditData" -CellStyleSB {
+            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\XLSX\AuditData.xlsx" -NoHyperLinkConversion * -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "AuditData" -CellStyleSB {
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
@@ -470,7 +509,7 @@ if (Get-Module -ListAvailable -Name ImportExcel)
 }
 
 # Custom CSV
-$Data = Import-Csv -Path "$LogFile" -Delimiter "," | Sort-Object { $_.CreationDate -as [datetime] } -Descending
+$Data = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Sort-Object { $_.CreationDate -as [datetime] } -Descending
 
 $Results = @()
 ForEach($Record in $Data)
@@ -499,11 +538,16 @@ ForEach($Record in $Data)
     "ClientIP"              = $ClientIP
     "ClientIPAddress"       = $AuditData.ClientIPAddress
     "UserAgent"             = $AuditData.UserAgent
+    #"UserAgent"             = ($AuditData | Select-Object -ExpandProperty ExtendedProperties | Where-Object {$_.Name -eq 'UserAgent'}).Value
     "ClientInfoString"      = $AuditData.ClientInfoString
+    "RequestType"           = ($AuditData | Where-Object { $_.Operation -eq "UserLoggedIn" } | Select-Object -ExpandProperty ExtendedProperties | Where-Object {$_.Name -eq 'RequestType'}).Value
     "SessionId"             = $SessionId
     "InterSystemsId"        = $AuditData.InterSystemsId # The GUID that track the actions across components within the Office 365 service
+    "DeviceName"            = ($AuditData | Where-Object { $_.Operation -eq "UserLoggedIn" } | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'DisplayName'}).Value
+    "DeviceId"              = ($AuditData | Where-Object { $_.Operation -eq "UserLoggedIn" } | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'Id'}).Value
     "OS"                    = ($AuditData | Where-Object { $_.Operation -eq "UserLoggedIn" } | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'OS'}).Value
     "BrowserType"           = ($AuditData | Where-Object { $_.Operation -eq "UserLoggedIn" } | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'BrowserType'}).Value
+    "IsCompliant"           = ($AuditData | Where-Object { $_.Operation -eq "UserLoggedIn" } | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'IsCompliant'}).Value
     "IsCompliantAndManaged" = ($AuditData | Where-Object { $_.Operation -eq "UserLoggedIn" } | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'IsCompliantAndManaged'}).Value
     "Workload"              = $AuditData.Workload
     }
@@ -511,7 +555,7 @@ ForEach($Record in $Data)
     $Results += $Line
 }
 
-$Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Custom.csv" -NoTypeInformation
+$Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Custom.csv" -NoTypeInformation -Encoding UTF8
 
 # Custom XLSX
 if (Get-Module -ListAvailable -Name ImportExcel)
@@ -521,57 +565,16 @@ if (Get-Module -ListAvailable -Name ImportExcel)
         if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Custom.csv") -gt 0)
         {
             $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Custom.csv" -Delimiter ","
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\XLSX\Custom.xlsx" -NoNumberConversion * -FreezePane 2,5 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Custom View" -CellStyleSB {
+            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\XLSX\Custom.xlsx" -NoHyperLinkConversion * -NoNumberConversion * -FreezePane 2,5 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Custom View" -CellStyleSB {
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:O1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-D and F-O
+            Set-Format -Address $WorkSheet.Cells["A1:S1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-D and F-S
             $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
-            $WorkSheet.Cells["F:N"].Style.HorizontalAlignment="Center"
+            $WorkSheet.Cells["F:S"].Style.HorizontalAlignment="Center"
             }
         }
-    }
-}
-
-# Session Cookie Theft
-
-# Adversary-in-The-Middle (AiTM) Phishing Attack
-
-# Step 1: User enters credentials on the phishing page.
-# Step 2: AiTM server relays credentials to the Microsoft server and authenticates.
-# Step 3: User is redirected to the Microsoft portal.
-
-# In the Unified Audit Logs (UAL), steps 2 and 3 are recorded as consecutive logins from different IPs which occur within about 30 seconds of each other—and often within only a couple of seconds. 
-# The first login will be the AiTM server (step 2), with the second login being from the user’s legitimate IP address (step 3).
-
-# SessionCookieTheft.csv
-if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Custom.csv")
-{
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Custom.csv") -gt 0)
-    {
-        Write-output "[Info]  Hunting for Session Cookie Theft ..."
-
-        $Import = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Custom.csv" -Delimiter "," | Where-Object { $_.Operation -eq "UserLoggedIn" } | Where-Object { $_.SessionId -ne "" } | Select-Object -ExpandProperty SessionId -Unique
-
-        $Total = ($Import | Measure-Object).Count
-
-        $Results = @()
-        ForEach($SessionId in $Import)
-        {
-            $Line = [PSCustomObject]@{
-            "SessionId"   = $SessionId # This SessionId is NOT available in Microsoft Entra ID Sign-In Logs!
-            "ClientIP"    = (Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Custom.csv" -Delimiter "," | Where-Object { $_.SessionId -eq "$SessionId" } | Select-Object ClientIP -Unique | Measure-Object).Count # ClientIPAddress NOT needed
-            "OS"          = (Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Custom.csv" -Delimiter "," | Where-Object { $_.SessionId -eq "$SessionId" } | Select-Object OS -Unique | Measure-Object).Count
-            "BrowserType" = (Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Custom.csv" -Delimiter "," | Where-Object { $_.SessionId -eq "$SessionId" } | Select-Object BrowserType -Unique | Measure-Object).Count
-            }
-
-            $Results += $Line
-        }
-
-        $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\SessionCookieTheft.csv" -NoTypeInformation
-
-        Write-Output "[Info]  $Total SessionIds found"
     }
 }
 
@@ -600,12 +603,6 @@ if (Get-Module -ListAvailable -Name ImportExcel)
     }
 }
 
-# ObjectId
-# 00000002-0000-0ff1-ce00-000000000000   Office 365 Exchange Online
-# 394866fc-eedb-4f01-8536-3ff84b16be2a   Microsoft People Cards Service
-# 00000003-0000-0ff1-ce00-000000000000   Office 365 SharePoint Online
-# 4765445b-32c6-49b0-83e6-1d93765276ca   OfficeHome --> Suspicious
-
 # Stats
 New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Stats\CSV" -ItemType Directory -Force | Out-Null
 New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Stats\XLSX" -ItemType Directory -Force | Out-Null
@@ -632,6 +629,34 @@ if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Stats\CSV\ClientInfoString.csv")
         }
     }
 }
+
+# DeviceProperties (Stats)
+$Data = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Custom.csv" -Delimiter "," | Select-Object DeviceId
+$Devices = ($Data | Where-Object {$_.DeviceId -ne '' } | Select-Object DeviceId -Unique | Measure-Object).Count
+$Total = ($Data | Measure-Object).Count
+Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Custom.csv" -Delimiter "," -Encoding UTF8 | Select-Object DeviceName,DeviceId | Group-Object DeviceName,DeviceId | Select-Object @{Name='DeviceName'; Expression={if($_.Values[0]){$_.Values[0]}else{'N/A'}}},@{Name='DeviceId'; Expression={if($_.Values[1]){$_.Values[0]}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Stats\CSV\DeviceProperties.csv" -NoTypeInformation -Encoding UTF8
+
+# XLSX
+if (Get-Module -ListAvailable -Name ImportExcel)
+{
+    if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Stats\CSV\DeviceProperties.csv")
+    {
+        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Stats\CSV\DeviceProperties.csv") -gt 0)
+        {
+            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Stats\CSV\DeviceProperties.csv" -Delimiter ","
+            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Stats\XLSX\DeviceProperties.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "DeviceProperties" -CellStyleSB {
+            param($WorkSheet)
+            # BackgroundColor and FontColor for specific cells of TopRow
+            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+            Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of column B-D
+            $WorkSheet.Cells["B:D"].Style.HorizontalAlignment="Center"
+            }
+        }
+    }
+}
+
+Write-Output "[Info]  $Devices Device Identities found ($Total)"
 
 # Operations (Stats)
 # https://learn.microsoft.com/en-us/purview/audit-log-activities
@@ -749,6 +774,53 @@ if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Stats\CSV\RecordType.csv")
 }
 
 Write-Output "[Info]  $RecordTypes RecordTypes and $Operations Operations found"
+
+# RequestType (Stats)
+$Total = (Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Custom.csv" -Delimiter "," | Select-Object RequestType | Where-Object {$_.RequestType -ne '' } | Measure-Object).Count
+Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Custom.csv" -Delimiter "," | Select-Object RequestType | Where-Object {$_.RequestType -ne '' } | Where-Object {$null -ne ($_.PSObject.Properties | ForEach-Object {$_.Value})} | Group-Object RequestType | Select-Object @{Name='RequestType'; Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Stats\CSV\RequestType.csv" -NoTypeInformation -Encoding UTF8
+
+# XLSX
+if (Get-Module -ListAvailable -Name ImportExcel)
+{
+    if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Stats\CSV\RequestType.csv")
+    {
+        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Stats\CSV\RequestType.csv") -gt 0)
+        {
+            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Stats\CSV\RequestType.csv" -Delimiter ","
+            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Stats\XLSX\RequestType.xlsx" -NoHyperLinkConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "RequestType" -CellStyleSB {
+            param($WorkSheet)
+            # BackgroundColor and FontColor for specific cells of TopRow
+            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+            Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of column B-C
+            $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
+            }
+        }
+    }
+}
+
+# RequestTypes --> Type of Authentication (Microsoft Entra Authentication)???
+# Cmsi:Cmsi              Check My Sign In (CMSI). For security reasons, user confirmation is required for this request. Indicates use of device code auth. 
+# Consent:Set            ???
+# Kmsi:kmsi              Keep Me Signed In (KMSI) prompt --> Stay signed in?
+# Login:login            ???
+# Login:reprocess        This likely indicates that the user's session has expired. When the user attempts to access the application or service again, he is prompted to reauthenticate.
+# Login:resume           ???
+# OAuth2:Authorize       ???
+# OAuth2:Login*          This usually happens when a user is trying to sign into an application that uses Office 365 resources, and the application is requesting to authenticate the user by redirecting them to the OAuth 2.0 login process.
+# OAuth2:Token           This likely indicates a token request action in the OAuth 2.0 authorization framework. This token is then used to access protected resources on behalf of the user. When an application has successfully authenticated with the user's credentials, it will make a token request to receive an access token that allows it to access the user's resources in Office 365.
+# OrgIdWsTrust2:process  ???
+# PermitSso:PermitSso    ???
+# Saml2:processrequest   ???
+# SAS:BeginAuth          ???
+# SAS:EndAuth            ???
+# SAS:ProcessAuth        ???
+# SSPR:end               ???
+# WindowsAuthenticationControllerusernamemixed       ???
+# WindowsAuthewnticationControllerwindowstransport   ???
+
+# EndpointCall (AADSignInEventsBeta)
+# Information about the AAD endpoint that the request was sent to and the type of request sent during sign in.
 
 # User-Agent (Stats)
 $Total = (Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Custom.csv" -Delimiter "," | Select-Object UserAgent | Where-Object {$_.UserAgent -ne '' } | Measure-Object).Count
@@ -2477,7 +2549,7 @@ if (Test-Path "$($IPinfo)")
                         }
 
                         # Create HashTable and import 'IPinfo-Custom.csv'
-                        $HashTable = @{}
+                        $script:HashTable = @{}
                         if (Test-Path "$OUTPUT_FOLDER\ClientIP\IPinfo\IPinfo-Custom.csv")
                         {
                             if([int](& $xsv count "$OUTPUT_FOLDER\ClientIP\IPinfo\IPinfo-Custom.csv") -gt 0)
@@ -2551,16 +2623,18 @@ if (Test-Path "$($IPinfo)")
                                         "Region"                = $Region
                                         "Country"               = $Country
                                         "Country Name"          = $CountryName
-                                        "EU"                    = $EU
                                         "Location"              = $Location
                                         "ASN"                   = $ASN
                                         "OrgName"               = $OrgName
-                                        "Postal Code"           = $PostalCode
                                         "Timezone"              = $Timezone
                                         "SessionId"             = $Record.SessionId
                                         "InterSystemsId"        = $Record.InterSystemsId
+                                        "RequestType"           = $Record.RequestType
+                                        "DeviceName"            = $Record.DeviceName
+                                        "DeviceId"              = $Record.DeviceId
                                         "OS"                    = $Record.OS
                                         "BrowserType"           = $Record.BrowserType
+                                        "IsCompliant"           = $Record.IsCompliant
                                         "IsCompliantAndManaged" = $Record.IsCompliantAndManaged
                                         "Workload"              = $Record.Workload
                                     }
@@ -2584,16 +2658,27 @@ if (Test-Path "$($IPinfo)")
                                     param($WorkSheet)
                                     # BackgroundColor and FontColor for specific cells of TopRow
                                     $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                                    Set-Format -Address $WorkSheet.Cells["A1:Y1"] -BackgroundColor $BackgroundColor -FontColor White
-                                    # HorizontalAlignment "Center" of columns A-D and F-Y
+                                    Set-Format -Address $WorkSheet.Cells["A1:AA1"] -BackgroundColor $BackgroundColor -FontColor White
+                                    # HorizontalAlignment "Center" of columns A-D and F-AA
                                     $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
-                                    $WorkSheet.Cells["F:Y"].Style.HorizontalAlignment="Center"
+                                    $WorkSheet.Cells["F:AA"].Style.HorizontalAlignment="Center"
+
+                                    # Iterating over the Application-Blacklist HashTable
+                                    foreach ($AppId in $ApplicationBlacklist_HashTable.Keys) 
+                                    {
+                                        $Severity = $ApplicationBlacklist_HashTable["$AppId"][1]
+                                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$E1)))' -f $AppId
+                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["E:E"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
+                                    }
 
                                     # Iterating over the ASN-Blacklist HashTable
                                     foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
                                     {
-                                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$P1)))' -f $ASN
-                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["P:P"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$O1)))' -f $ASN
+                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["O:O"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+
+                                        $ConditionValue = '=AND(NOT(ISERROR(FIND("{0}",$O1))),$R1<>"")' -f $ASN
+                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["R:R"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red # Colorize also the corresponding SessionId
                                     }
 
                                     # Iterating over the Country-Blacklist HashTable
@@ -2603,8 +2688,6 @@ if (Test-Path "$($IPinfo)")
                                         Add-ConditionalFormatting -Address $WorkSheet.Cells["M:M"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
                                     }
 
-                                    # ConditionalFormatting - ObjectId
-                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["E:E"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("e9a7fea1-1cc0-4cd9-a31b-9137ca5deedd",$E1)))' -BackgroundColor Red # eM Client
                                     # ConditionalFormatting - Suspicious Operations
                                     $Cells = "D:D"
                                     Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add app role assignment grant to user",$D1)))' -BackgroundColor Red # BEC
@@ -2629,8 +2712,19 @@ if (Test-Path "$($IPinfo)")
                                     Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("New-UnifiedAuditLogRetentionPolicy",$D1)))' -BackgroundColor Red # Anti-Forensics
                                     Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Set-UnifiedAuditLogRetentionPolicy",$D1)))' -BackgroundColor Red # Anti-Forensics
                                     Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Remove-UnifiedAuditLogRetentionPolicy",$D1)))' -BackgroundColor Red # Anti-Forensics
+
                                     # ConditionalFormatting - Suspicious ClientInfoString
                                     Add-ConditionalFormatting -Address $WorkSheet.Cells["I:I"] -WorkSheet $WorkSheet -RuleType 'Expression' '=AND($I1="Client=OWA;Action=ViaProxy",$P1<>"AS53813",$P1<>"AS62044")' -BackgroundColor Red # AiTM Proxy Server
+
+                                    # ConditionalFormatting - UserAgent
+                                    $Cells = "H:H"
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("AADInternals",$H1)))' -BackgroundColor Red # Offensive Tool
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("azurehound",$H1)))' -BackgroundColor Red # Offensive Tool
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("python-requests",$H1)))' -BackgroundColor Red # Offensive Tool
+
+                                    # ConditionalFormatting - BrowserType
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["X:X"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Other",$X1)))' -BackgroundColor Red
+
                                     }
                                 }
                             }
@@ -3748,6 +3842,284 @@ Function Get-Analytics {
 
 $StartTime_Analytics = (Get-Date)
 
+# UserLoggedIn
+# https://learn.microsoft.com/en-us/purview/audit-log-detailed-properties
+# https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-schema#enum-authenticationmethod---type-edmint32
+$UserLoggedInRecords = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "AzureActiveDirectoryStsLogon" } | Where-Object { $_.Operations -eq "UserLoggedIn" }
+
+# AuditData
+$AuditData = $UserLoggedInRecords | Select-Object -ExpandProperty AuditData | ConvertFrom-Json | Sort-Object { $_.CreationDate -as [datetime] } -Descending
+
+New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV" -ItemType Directory -Force | Out-Null
+New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\XLSX" -ItemType Directory -Force | Out-Null
+
+# Create HashTable and import 'Status.csv'
+$ErrorNumber_HashTable = @{}
+if(Test-Path "$SCRIPT_DIR\Config\Status.csv")
+{
+    if([int](& $xsv count "$SCRIPT_DIR\Config\Status.csv") -gt 0)
+    {
+        Import-Csv "$SCRIPT_DIR\Config\Status.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $ErrorNumber_HashTable[$_.ErrorCode] = $_.Status, $_.Message }
+    }
+}
+
+# Create HashTable and import 'TrustType.csv'
+$TrustType_HashTable = @{}
+if(Test-Path "$SCRIPT_DIR\Config\TrustType.csv")
+{
+    if([int](& $xsv count "$SCRIPT_DIR\Config\TrustType.csv") -gt 0)
+    {
+        Import-Csv "$SCRIPT_DIR\Config\TrustType.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $TrustType_HashTable[$_.Value] = $_.Description }
+    }
+}
+
+# Create HashTable and import 'UserType.csv'
+$UserType_HashTable = @{}
+if(Test-Path "$SCRIPT_DIR\Config\UserType.csv")
+{
+    if([int](& $xsv count "$SCRIPT_DIR\Config\UserType.csv") -gt 0)
+    {
+        Import-Csv "$SCRIPT_DIR\Config\UserType.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $UserType_HashTable[$_.Value] = $_.Member, $_.Description }
+    }
+}
+
+# Custom CSV
+$Results = @()
+ForEach($Record in $UserLoggedInRecords)
+{
+
+    $AuditData = ConvertFrom-Json $Record.AuditData
+
+    # ErrorNumber
+    [int]$ErrorNumber = $AuditData.ErrorNumber
+
+    # Check if HashTable contains ErrorNumber
+    if($ErrorNumber_HashTable.ContainsKey("$ErrorNumber"))
+    {
+        $Message   = $ErrorNumber_HashTable["$ErrorNumber"][1]
+    }
+
+    # TrustType (Value --> Description)
+    [int]$TrustTypeValue = ($AuditData | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'TrustType'}).Value
+
+    # Check if HashTable contains Value
+    if($TrustType_HashTable.ContainsKey("$TrustTypeValue"))
+    {
+        $TrustType = $TrustType_HashTable["$TrustTypeValue"]
+    }
+    else
+    {
+        $TrustType = ""
+    }
+
+    # UserType (Value --> Member Name)
+    [int]$UserTypeValue = $AuditData.UserType
+
+    # Check if HashTable contains Value
+    if($UserType_HashTable.ContainsKey("$UserTypeValue"))
+    {
+        $UserType = $UserType_HashTable["$UserTypeValue"][0]
+    }
+
+    # ClientIP
+    $ClientIP = $AuditData.ClientIP
+
+    # Check if HashTable contains ClientIP
+    if($HashTable.ContainsKey("$ClientIP"))
+    {
+        $City        = $HashTable["$ClientIP"][0]
+        $Region      = $HashTable["$ClientIP"][1]
+        $Country     = $HashTable["$ClientIP"][2]
+        $CountryName = $HashTable["$ClientIP"][3]
+        $EU          = $HashTable["$ClientIP"][4]
+        $Location    = $HashTable["$ClientIP"][5]
+        $ASN         = $HashTable["$ClientIP"][6]
+        $OrgName     = $HashTable["$ClientIP"][7]
+        $PostalCode  = $HashTable["$ClientIP"][8]
+        $Timezone    = $HashTable["$ClientIP"][9]
+    }
+    else
+    {
+        $City        = ""
+        $Region      = ""
+        $Country     = ""
+        $CountryName = ""
+        $EU          = ""
+        $Location    = ""
+        $ASN         = ""
+        $OrgName     = ""
+        $PostalCode  = ""
+        $Timezone    = ""
+    }
+
+    # IsCompliant
+    $IsCompliantValue = ($AuditData | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'IsCompliant'}).Value
+    if($IsCompliantValue -ne "True")
+    {
+        $IsCompliant = "False"
+    }
+    else
+    {
+        $IsCompliant = "True"
+    }
+
+    # IsCompliantAndManaged
+    $IsCompliantAndManagedValue = ($AuditData | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'IsCompliantAndManaged'}).Value
+    if($IsCompliantAndManagedValue -ne "True")
+    {
+        $IsCompliantAndManaged = "False"
+    }
+    else
+    {
+        $IsCompliantAndManaged = "True"
+    }
+
+    $Line = [PSCustomObject]@{
+        CreationTime       = ($AuditData | Select-Object @{Name="CreationTime";Expression={([DateTime]::Parse($_.CreationTime).ToString("yyyy-MM-dd HH:mm:ss"))}}).CreationTime # The date and time in Coordinated Universal Time (UTC) when the audit log record was generated.
+        Id                 = $AuditData.Id # Unique identifier of an audit record.
+        UserId             = $AuditData.UserId # The UPN (User Principal Name) of the user who performed the action (specified in the Operation property) that resulted in the record being logged.
+        UserType           = $UserType # The type of user that performed the operation.
+        RecordType         = "AzureActiveDirectoryStsLogon" # The type of operation indicated by the record.
+        Operation          = $AuditData.Operation # The name of the user or admin activity. For a description of the most common operations/activities.
+        ObjectId           = $AuditData.ObjectId # For SharePoint and OneDrive for Business activity, the full path name of the file or folder accessed by the user. For Exchange admin audit logging, the name of the object that was modified by the cmdlet.
+        #OrganizationId     = $AuditData.OrganizationId # The GUID for the organization's tenant.
+        #RecordType         = $AuditData.RecordType # The type of operation indicated by the record.
+        #ResultStatus       = $AuditData.ResultStatus # Indicates whether the action (specified in the Operation property) was successful or not. Possible values are Succeeded, PartiallySucceeded, or Failed. For Exchange admin activity, the value is either True or False.
+        #UserKey            = $AuditData.UserKey # An alternative ID for the user identified in the UserId property. This property is populated with the passport unique ID (PUID) for events performed by users in SharePoint, OneDrive for Business, and Exchange.
+        #Version            = $AuditData.Version # Indicates the version number of the activity (identified by the Operation property) that's logged.
+        #Workload           = $AuditData.Workload # The Office 365 service where the activity occurred.
+        ClientIP           = $ClientIP # The IP address of the device that was used when the activity was logged. The IP address is displayed in either an IPv4 or IPv6 address format.
+        #AzureActiveDirectoryEventType = $AuditData.AzureActiveDirectoryEventType
+
+        # ExtendedProperties --> The extended properties of the Microsoft Entra event.
+        UserAgent          = ($AuditData | Select-Object -ExpandProperty ExtendedProperties | Where-Object {$_.Name -eq 'UserAgent'}).Value # Information about the user's browser. This information is provided by the browser.
+        RequestType        = ($AuditData | Select-Object -ExpandProperty ExtendedProperties | Where-Object {$_.Name -eq 'RequestType'}).Value
+        ResultStatusDetail = ($AuditData | Select-Object -ExpandProperty ExtendedProperties | Where-Object {$_.Name -eq 'ResultStatusDetail'}).Value
+
+        # IP Data Enrichment
+        "City"                  = $City
+        "Region"                = $Region
+        "Country"               = $Country
+        "Country Name"          = $CountryName
+        "ASN"                   = $ASN
+        "OrgName"               = $OrgName
+
+        # ModifiedProperties --> This property is included for admin events. The property includes the name of the property that was modified, the new value of the modified property, and the previous value of the modified property.
+        #ModifiedProperties = $AuditData | Select-Object -ExpandProperty ModifiedProperties
+
+        # Actor --> The user or service principal that performed the action.
+        #ActorId            = ($AuditData | Select-Object -ExpandProperty Actor | Select-Object ID).ID -join "`r`n"
+        #ActorType          = ($AuditData | Select-Object -ExpandProperty Actor | Select-Object Type).Type -join "`r`n"
+
+        #ActorContextId     = $AuditData.ActorContextId # The GUID of the organization that the actor belongs to.
+        #ActorIpAddress     = $AuditData.ActorIpAddress # The actor's IP address in IPV4 or IPV6 address format.
+        #IntraSystemId      = $AuditData.IntraSystemId # The GUID that's generated by Azure Active Directory to track the action.
+        #SupportTicketId    = $AuditData.SupportTicketId # The customer support ticket ID for the action in "act-on-behalf-of" situations.
+
+        # Target --> The user that the action (identified by the Operation property) was performed on.
+        #TargetId           = ($AuditData | Select-Object -ExpandProperty Target | Select-Object ID).ID -join "`r`n"
+        #TargetType         = ($AuditData | Select-Object -ExpandProperty Target | Select-Object Type).Type -join "`r`n"
+
+        #TargetContextId    = $AuditData.TargetContextId # The GUID of the organization that the targeted user belongs to.
+        ApplicationId      = $AuditData.ApplicationId # The ID of the application performing the operation.
+
+        # DeviceProperties --> 	This property includes various device details, including Id, Display name, OS, Browser, IsCompliant, IsCompliantAndManaged, SessionId, and DeviceTrustType.
+        DeviceName         = ($AuditData | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'DisplayName'}).Value
+        DeviceId           = ($AuditData | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'Id'}).Value
+        OS                 = ($AuditData | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'OS'}).Value
+        BrowserType        = ($AuditData | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'BrowserType'}).Value
+        TrustType          = $TrustType
+        IsCompliant        = $IsCompliant
+        IsCompliantAndManaged = $IsCompliantAndManaged
+        SessionId          = ($AuditData | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'SessionId'}).Value
+
+        InterSystemsId     = $AuditData.InterSystemsId # The GUID that track the actions across components within the Office 365 service.
+        ErrorNumber        = $ErrorNumber # Microsoft Entra authentication and authorization error code
+        Message            = $Message # Error Code Message
+    }
+
+    $Results += $Line
+}
+
+$Results | Sort-Object { $_.CreationTime -as [datetime] } -Descending | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoggedIn.csv" -NoTypeInformation -Encoding UTF8
+
+# ApplicationId
+# 89bee1f7-5e6e-4d8a-9f3d-ecd601259da7 --> Office365-Shell-WCSS-Client
+
+# ObjectId (ResourceId)
+# 5f09333a-842c-47da-a157-57da27fcbca5 --> Office365 Shell WCSS-Server???
+
+# UserLoggedIn.xlsx
+if (Get-Module -ListAvailable -Name ImportExcel)
+{
+    if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoggedIn.csv")
+    {
+        if([int](& $xsv count "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoggedIn.csv") -gt 0)
+        {
+            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoggedIn.csv" -Delimiter "," -Encoding UTF8
+            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\XLSX\UserLoggedIn.xlsx" -NoHyperLinkConversion * -NoNumberConversion * -FreezePane 2,4 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "UserLoggedIn" -CellStyleSB {
+            param($WorkSheet)
+            # BackgroundColor and FontColor for specific cells of TopRow
+            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+            Set-Format -Address $WorkSheet.Cells["A1:AC1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-AC
+            $WorkSheet.Cells["A:AC"].Style.HorizontalAlignment="Center"
+
+            # Iterating over the Application-Blacklist HashTable - ObjectId
+            foreach ($AppId in $ApplicationBlacklist_HashTable.Keys) 
+            {
+                $Severity = $ApplicationBlacklist_HashTable["$AppId"][1]
+                $ConditionValue = 'NOT(ISERROR(FIND("{0}",$G1)))' -f $AppId
+                Add-ConditionalFormatting -Address $WorkSheet.Cells["G:G"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
+            }
+
+            # Iterating over the Application-Blacklist HashTable - ApplicationId
+            foreach ($AppId in $ApplicationBlacklist_HashTable.Keys) 
+            {
+                $Severity = $ApplicationBlacklist_HashTable["$AppId"][1]
+                $ConditionValue = 'NOT(ISERROR(FIND("{0}",$R1)))' -f $AppId
+                Add-ConditionalFormatting -Address $WorkSheet.Cells["R:R"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
+            }
+
+            # Iterating over the ASN-Blacklist HashTable
+            foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
+            {
+                $ConditionValue = 'NOT(ISERROR(FIND("{0}",$P1)))' -f $ASN
+                Add-ConditionalFormatting -Address $WorkSheet.Cells["P:P"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+
+                $ConditionValue = '=AND(NOT(ISERROR(FIND("{0}",$P1))),$Z1<>"")' -f $ASN
+                Add-ConditionalFormatting -Address $WorkSheet.Cells["Z:Z"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red # Colorize also the corresponding SessionId
+            }
+
+            # Iterating over the Country-Blacklist HashTable
+            foreach ($Country in $CountryBlacklist_HashTable.Keys) 
+            {
+                $ConditionValue = 'NOT(ISERROR(FIND("{0}",$O1)))' -f $Country
+                Add-ConditionalFormatting -Address $WorkSheet.Cells["O:O"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+            }
+
+            # ConditionalFormatting - ObjectId
+            $Cells = "G:G"
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("4765445b-32c6-49b0-83e6-1d93765276ca",$G1)))' -BackgroundColor Yellow # OfficeHome (AiTM)
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("00000002-0000-0ff1-ce00-000000000000",$G1)))' -BackgroundColor Yellow # Office 365 Exchange Online (AiTM)
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("72782ba9-4490-4f03-8d82-562370ea3566",$G1)))' -BackgroundColor Yellow # Office 365 (AiTM)
+            
+            # ConditionalFormatting - UserAgent
+            $Cells = "I:I"
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("AADInternals",$I1)))' -BackgroundColor Red # Offensive Tool
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("azurehound",$I1)))' -BackgroundColor Red # Offensive Tool
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("python-requests",$I1)))' -BackgroundColor Red # Offensive Tool
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("axios/",$I1)))' -BackgroundColor Red # Password Spraying Attack
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("agentaxios",$I1)))' -BackgroundColor Red # Password Spraying Attack
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("BAV2ROPC",$I1)))' -BackgroundColor Red # Password Spraying Attack
+
+            # ConditionalFormatting - BrowserType
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["V:V"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Other",$V1)))' -BackgroundColor Red
+            }
+        }
+    }
+}
+
 # AiTM Proxy Server
 if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv")
 {
@@ -3763,34 +4135,59 @@ if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv")
     }
 }
 
-# Hunting for Suspicious SessionIds
+# Session Cookie Theft
+
+# Hunting for Session Cookie Theft --> Initial Access [TA0001]
 if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv")
 {
     if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv") -gt 0)
     {
-        Write-output "[Info]  Hunting for Suspicious SessionIds ..."
+        Write-Output "[Info]  Hunting for Session Cookie Theft ..."
 
-        $SessionIds = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.Operation -eq "UserLoggedIn" } | Where-Object { $_.SessionId -ne "" } | Select-Object -ExpandProperty SessionId -Unique
-
+        $Import = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter ","
+        $UserLoggedIn = $Import | Where-Object { $_.Operation -eq "UserLoggedIn" }
+        $Data = $UserLoggedIn | Where-Object { $_.SessionId -ne "" }
+        $SessionIds = $Data | Select-Object -ExpandProperty SessionId -Unique
+        
+        $OfficeHomeSessionIds = ($Data | Where-Object { $_.ObjectId -eq "4765445b-32c6-49b0-83e6-1d93765276ca" } | Select-Object -ExpandProperty SessionId -Unique | Measure-Object).Count
         $Total = ($SessionIds | Measure-Object).Count
 
         $Results = @()
         ForEach($SessionId in $SessionIds)
         {
+            $Session = $Import | Where-Object { $_.SessionId -eq "$SessionId" } | Where-Object { ($_.ObjectId -eq "4765445b-32c6-49b0-83e6-1d93765276ca") -or ($_.ObjectId -eq "72782ba9-4490-4f03-8d82-562370ea3566") -or ($_.ObjectId -eq "00000002-0000-0ff1-ce00-000000000000") } 
+            # 4765445b-32c6-49b0-83e6-1d93765276ca # OfficeHome (Evilginx, Tycoon, Caffeine)
+            # 72782ba9-4490-4f03-8d82-562370ea3566 # Office 365 (EvilProxy)
+            # 00000002-0000-0ff1-ce00-000000000000 # Office 365 Exchange Online (Naked Pages, SakaiPages)
+
+            # DeviceProperties
+            $Count = ($Import | Where-Object { $_.SessionId -eq "$SessionId" } | Where-Object { $_.DeviceId -ne "" } | Select-Object DeviceId -Unique | Measure-Object).Count
+            if ($Count)
+            {
+                [int]$DeviceProperties = $Count
+            }
+            else
+            {
+                [string]$DeviceProperties = "No"
+            }
+
             $Line = [PSCustomObject]@{
-            "SessionId"      = $SessionId
-            "ClientIP"       = (Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.SessionId -eq "$SessionId" } | Select-Object ClientIP -Unique | Measure-Object).Count
-            "Country"        = (Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.SessionId -eq "$SessionId" } | Select-Object Country -Unique | Measure-Object).Count
-            "ASN"            = (Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.SessionId -eq "$SessionId" } | Select-Object ASN -Unique | Measure-Object).Count
-            "OS"             = (Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.SessionId -eq "$SessionId" } | Select-Object OS -Unique | Measure-Object).Count
-            "BrowserType"    = (Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.SessionId -eq "$SessionId" } | Select-Object BrowserType -Unique | Measure-Object).Count
-            "InterSystemsId" = (Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.SessionId -eq "$SessionId" } | Select-Object InterSystemsId -Unique | Measure-Object).Count
+            "SessionId"        = $SessionId
+            "ClientIP"         = ($Session | Select-Object ClientIP -Unique | Measure-Object).Count # Unique Count per SessionId (Location)
+            "Country"          = ($Session | Select-Object Country -Unique | Measure-Object).Count # Unique Count per SessionId (Location)
+            "ASN"              = ($Session | Select-Object ASN -Unique | Measure-Object).Count # Unique Count per SessionId (Location)
+            "OS"               = ($Session | Select-Object OS -Unique | Measure-Object).Count # Unique Count per SessionId (Device Properties)
+            "BrowserType"      = ($Session | Where-Object { $_.BrowserType -ne "" }| Select-Object BrowserType -Unique | Measure-Object).Count # Unique Count per SessionId (Device Properties)
+            "UserAgent"        = ($Session | Where-Object { $_.UserAgent -ne "" } | Select-Object UserAgent -Unique | Measure-Object).Count # Unique Count per SessionId (Device Properties)
+            "DeviceProperties" = $DeviceProperties # Count of 'DeviceProperties' per SessionId (Device Properties)
+            "ClientInfoString" = ($Session | Where-Object { $_.ClientInfoString -ne "" } | Select-Object ClientInfoString -Unique | Measure-Object).Count
+            "UserLoggedIn"     = ($Session | Where-Object { $_.Operation -eq "UserLoggedIn" } | Measure-Object).Count # Count of 'UserLoggedIn' operations per SessionId
             }
 
             $Results += $Line
         }
 
-        $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Suspicious-SessionIds.csv" -NoTypeInformation
+        $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Suspicious-SessionIds.csv" -NoTypeInformation -Encoding UTF8
     }
 }
 
@@ -3806,31 +4203,33 @@ if (Get-Module -ListAvailable -Name ImportExcel)
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:G1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of column A-G
-            $WorkSheet.Cells["A:G"].Style.HorizontalAlignment="Center"
-            # ConditionalFormatting - Different IP addresses (and User-Agents) indicate Session Cookie Theft
+            Set-Format -Address $WorkSheet.Cells["A1:J1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of column A-J
+            $WorkSheet.Cells["A:J"].Style.HorizontalAlignment="Center"
+            # ConditionalFormatting - Different IP addresses (and User-Agents) or missing Device Properties indicate Session Cookie Theft
             $LastRow = $WorkSheet.Dimension.End.Row
             Add-ConditionalFormatting -Address $WorkSheet.Cells["B2:B$LastRow"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '=$B2>=2' -BackgroundColor Red # ClientIP
             Add-ConditionalFormatting -Address $WorkSheet.Cells["C2:C$LastRow"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '=$C2>=2' -BackgroundColor Red # Country
             Add-ConditionalFormatting -Address $WorkSheet.Cells["D2:D$LastRow"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '=$D2>=2' -BackgroundColor Red # ASN
             Add-ConditionalFormatting -Address $WorkSheet.Cells["E2:E$LastRow"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '=$E2>=2' -BackgroundColor Red # OS
             Add-ConditionalFormatting -Address $WorkSheet.Cells["F2:F$LastRow"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '=$F2>=2' -BackgroundColor Red # BrowserType
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["H:H"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("No",$H1)))' -BackgroundColor Red # DeviceProperties
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["I2:I$LastRow"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '=$I2>=3' -BackgroundColor Red # ClientInfoString   
             Add-ConditionalFormatting -Address $WorkSheet.Cells["A2:A$LastRow"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '=AND($B2>=2,$D2>=2)' -BackgroundColor Red # ClientIP + ASN = Suspicious SessionId
             }
         }
     }
 }
 
-# Suspicious SessionIds
+# Potential Adversary-in-The-Middle [T1557]
 $SuspiciousSessionIds = ($IMPORT | Where-Object { $_.ClientIP -ge "2" } | Where-Object { $_.ASN -ge "2" } | Measure-Object).Count
 if ($SuspiciousSessionIds -gt 0)
 {
-    Write-Host "[Info]  $SuspiciousSessionIds Suspicious SessionIds found ($Total)" -ForegroundColor Red
+    Write-Host "[Info]  $SuspiciousSessionIds Potential Adversary-in-The-Middle found (Total: $Total / OfficeHome: $OfficeHomeSessionIds)" -ForegroundColor Red
 }
 else
 {
-    Write-Host "[Info]  $Total SessionIds found"
+    Write-Host "[Info]  $Total SessionIds found (Total: $Total / OfficeHome: $OfficeHomeSessionIds)"
 }
 
 # Sessions (Duration)
@@ -3843,8 +4242,10 @@ if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv")
         $Results = @()
         ForEach($SessionId in $SessionIds)
         {
-            $StartDate  = (Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.SessionId -eq "$SessionId" } | Select-Object CreationDate | Sort-Object { $_.CreationDate -as [datetime] } -Descending | Select-Object -Last 1).CreationDate
-            $EndDate    = (Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.SessionId -eq "$SessionId" } | Select-Object CreationDate | Sort-Object { $_.CreationDate -as [datetime] } -Descending | Select-Object -First 1).CreationDate
+            $Session = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.SessionId -eq "$SessionId" } | Select-Object CreationDate | Sort-Object { $_.CreationDate -as [datetime] } -Descending
+
+            $StartDate  = ($Session | Select-Object -Last 1).CreationDate
+            $EndDate    = ($Session | Select-Object -First 1).CreationDate
             $Difference = New-TimeSpan -Start $StartDate -End $EndDate
 
             $Line = [PSCustomObject]@{
@@ -3877,6 +4278,197 @@ if (Get-Module -ListAvailable -Name ImportExcel)
             Set-Format -Address $WorkSheet.Cells["A1:E1"] -BackgroundColor $BackgroundColor -FontColor White
             # HorizontalAlignment "Center" of column A-E
             $WorkSheet.Cells["A:E"].Style.HorizontalAlignment="Center"
+            }
+        }
+    }
+}
+
+# Adversary-in-The-Middle (AiTM) Phishing Attack
+
+# Step 1: User enters credentials on the phishing page.
+# Step 2: AiTM server relays credentials to the Microsoft server and authenticates.
+# Step 3: User is redirected to the Microsoft portal or a fake landing page.
+
+# In the Unified Audit Logs (UAL), steps 2 and 3 are recorded as consecutive logins from different IPs which occur within about 30 seconds of each other—and often within only a couple of seconds. 
+# The first login will be the AiTM server (step 2), with the second login being from the user’s legitimate IP address (step 3).
+
+# Note: Based on my own research it takes sometimes a little bit more time for the adversary to copy the session token from the AiTM server to a different machine.
+
+# Function Find-AiTMSuspiciousUserLogin by @Flittermelint
+Function Find-AiTMSuspiciousUserLogin
+{
+    [CmdletBinding()]
+    param(
+        [Parameter(ValueFromPipeline)][object[]]$InputObject,
+
+                                      [string[]]$ByProperty        = @('ClientIP', 'ASN'),
+
+        [Alias('Within')]             [timespan]$TimeSpan          = [timespan]'00:00:30',
+
+                                      [string]  $GroupBy           = 'UserId',
+
+                                      [string]  $TimestampProperty = 'CreationTime',
+
+                                      [string]  $TimestampFormat   = 'yyyy-MM-dd HH:mm:ss'
+    )
+
+    Begin {
+
+        $previousEvent = $null
+
+        $SuspicionProperty = '#Suspicious'
+        $CalcTSpanProperty = '#TimeStamp'
+
+        $EnhanceObject = @{
+
+            Property = @(
+
+                @{ Name = $SuspicionProperty; Expression = { "" } }
+                @{ Name = $CalcTSpanProperty; Expression = { [datetime]::ParseExact($_.$TimestampProperty, $TimestampFormat, [CultureInfo]::InvariantCulture) } }
+
+                '*'
+            )
+        }
+
+        Function Test-AiTMSuspiciousTimespan($Object1, $Object2, $ByProperty, $TimeSpan)
+        {
+            [math]::Abs(($Object1.$ByProperty - $Object2.$ByProperty).Ticks) -le $TimeSpan.Ticks
+        }
+
+        Function Get-AiTMSuspiciousProperty($Object1, $Object2, $ByProperty)
+        {
+            foreach($p in $ByProperty)
+            {
+                if($Object1.$p -ne $Object2.$p) { $p }
+            }
+        }
+
+        Function Out-AiTMEvent($Event)
+        {
+            if($Event)
+            {
+                $Event.$SuspicionProperty = ("$($Event.$SuspicionProperty)".Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries) | Select-Object -Unique | Sort-Object -Descending) -join ', '
+
+                $Event | Select-Object -Property * -ExcludeProperty $CalcTSpanProperty
+            }
+        }
+    }
+
+    Process {
+
+        foreach($event in $InputObject)
+        {
+            $currentEvent = $event | Select-Object @EnhanceObject
+
+            if($previousEvent)
+            {
+                if($previousEvent.$GroupingProperty -eq $currentEvent.$GroupingProperty)
+                {
+                    if(Test-AiTMSuspiciousTimespan $previousEvent $currentEvent $CalcTSpanProperty $TimeSpan)
+                    {
+                        $SuspiciousProperties = Get-AiTMSuspiciousProperty $previousEvent $currentEvent $ByProperty
+
+                        if($SuspiciousProperties)
+                        {
+                            $previousEvent.$SuspicionProperty = "$($previousEvent.$SuspicionProperty) $(@($SuspiciousProperties) -join ' ')"
+                             $currentEvent.$SuspicionProperty = "$( $currentEvent.$SuspicionProperty) $(@($SuspiciousProperties) -join ' ')"
+                        }
+                    }
+                }
+            }
+
+            Out-AiTMEvent $previousEvent
+
+            $previousEvent = $currentEvent
+        }
+    }
+
+    End {
+
+        Out-AiTMEvent $currentEvent
+    }
+}
+
+# Find-AiTMSuspiciousUserLogin
+if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoggedIn.csv")
+{
+    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoggedIn.csv") -gt 0)
+    {
+        $Analyzed = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoggedIn.csv" -Delimiter "," -Encoding UTF8 | Sort-Object -Descending CreationDate | Find-AiTMSuspiciousUserLogin       
+        $Suspicious = $Analyzed | Where-Object -Property "#Suspicious"
+
+        # CSV
+        $Suspicious | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Find-AiTMSuspiciousUserLogin.csv" -NoTypeInformation -Encoding UTF8
+
+        # XLSX
+        if (Get-Module -ListAvailable -Name ImportExcel)
+        {
+            if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Find-AiTMSuspiciousUserLogin.csv")
+            {
+                if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Find-AiTMSuspiciousUserLogin.csv") -gt 0)
+                {
+                    $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Find-AiTMSuspiciousUserLogin.csv" -Delimiter "," -Encoding UTF8 | Sort-Object { $_.CreationTime -as [datetime] } -Descending
+                    $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\XLSX\Find-AiTMSuspiciousUserLogin.xlsx" -NoNumberConversion * -NoHyperLinkConversion * -FreezePane 2,3 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "AiTMSuspiciousUserLogin" -CellStyleSB {
+                    param($WorkSheet)
+                    # BackgroundColor and FontColor for specific cells of TopRow
+                    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+                    Set-Format -Address $WorkSheet.Cells["A1:AD1"] -BackgroundColor $BackgroundColor -FontColor White
+                    # HorizontalAlignment "Center" of columns A-AD
+                    $WorkSheet.Cells["A:AD"].Style.HorizontalAlignment="Center"
+
+                    # Iterating over the Application-Blacklist HashTable - ObjectId
+                    foreach ($AppId in $ApplicationBlacklist_HashTable.Keys) 
+                    {
+                        $Severity = $ApplicationBlacklist_HashTable["$AppId"][1]
+                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$H1)))' -f $AppId
+                        Add-ConditionalFormatting -Address $WorkSheet.Cells["H:H"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
+                    }
+
+                    # Iterating over the Application-Blacklist HashTable - ApplicationId
+                    foreach ($AppId in $ApplicationBlacklist_HashTable.Keys) 
+                    {
+                        $Severity = $ApplicationBlacklist_HashTable["$AppId"][1]
+                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$S1)))' -f $AppId
+                        Add-ConditionalFormatting -Address $WorkSheet.Cells["S:S"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
+                    }
+
+                    # Iterating over the ASN-Blacklist HashTable
+                    foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
+                    {
+                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$Q1)))' -f $ASN
+                        Add-ConditionalFormatting -Address $WorkSheet.Cells["Q:Q"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+
+                        $ConditionValue = '=AND(NOT(ISERROR(FIND("{0}",$Q1))),$AA1<>"")' -f $ASN
+                        Add-ConditionalFormatting -Address $WorkSheet.Cells["AA:AA"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red # Colorize also the corresponding SessionId
+                    }
+
+                    # Iterating over the Country-Blacklist HashTable
+                    foreach ($Country in $CountryBlacklist_HashTable.Keys) 
+                    {
+                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$P1)))' -f $Country
+                        Add-ConditionalFormatting -Address $WorkSheet.Cells["P:P"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                    }
+
+                    # ConditionalFormatting - ObjectId
+                    $Cells = "H:H"
+                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("4765445b-32c6-49b0-83e6-1d93765276ca",$H1)))' -BackgroundColor Yellow # OfficeHome (AiTM)
+                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("00000002-0000-0ff1-ce00-000000000000",$H1)))' -BackgroundColor Yellow # Office 365 Exchange Online (AiTM)
+                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("72782ba9-4490-4f03-8d82-562370ea3566",$H1)))' -BackgroundColor Yellow # Office 365 (AiTM)
+            
+                    # ConditionalFormatting - UserAgent
+                    $Cells = "J:J"
+                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("AADInternals",$J1)))' -BackgroundColor Red # Offensive Tool
+                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("azurehound",$J1)))' -BackgroundColor Red # Offensive Tool
+                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("python-requests",$J1)))' -BackgroundColor Red # Offensive Tool
+                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("axios/",$J1)))' -BackgroundColor Red # Password Spraying Attack
+                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("agentaxios",$J1)))' -BackgroundColor Red # Password Spraying Attack
+                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("BAV2ROPC",$J1)))' -BackgroundColor Red # Password Spraying Attack
+
+                    # ConditionalFormatting - BrowserType
+                    Add-ConditionalFormatting -Address $WorkSheet.Cells["W:W"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Other",$W1)))' -BackgroundColor Red
+
+                    }
+                }
             }
         }
     }
@@ -4634,97 +5226,6 @@ Function Get-DeviceCodeAuthentication {
 
 $StartTime_DeviceCodeAuthentication = (Get-Date)
 
-# UserLoggedIn
-$UserLoggedInRecords = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "AzureActiveDirectoryStsLogon" } | Where-Object { $_.Operations -eq "UserLoggedIn" }
-
-# AuditData
-$AuditData = $UserLoggedInRecords | Select-Object -ExpandProperty AuditData | ConvertFrom-Json | Sort-Object { $_.CreationDate -as [datetime] } -Descending
-
-New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Device-Code-Authentication\CSV" -ItemType Directory -Force | Out-Null
-New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Device-Code-Authentication\XLSX" -ItemType Directory -Force | Out-Null
-
-# Custom CSV
-$Results = @()
-ForEach($Record in $UserLoggedInRecords)
-{
-
-    $AuditData = ConvertFrom-Json $Record.AuditData
-
-    $Line = [PSCustomObject]@{
-        CreationTime       = ($AuditData | Select-Object @{Name="CreationTime";Expression={([DateTime]::Parse($_.CreationTime).ToString("yyyy-MM-dd HH:mm:ss"))}}).CreationTime
-        Id                 = $AuditData.Id
-        Operation          = $AuditData.Operation
-        OrganizationId     = $AuditData.OrganizationId
-        RecordType         = $AuditData.RecordType
-        ResultStatus       = $AuditData.ResultStatus
-        UserKey            = $AuditData.UserKey
-        UserType           = $AuditData.UserType
-        Version            = $AuditData.Version
-        Workload           = $AuditData.Workload
-        ClientIP           = $AuditData.ClientIP
-        ObjectId           = $AuditData.ObjectId
-        UserId             = $AuditData.UserId
-        AzureActiveDirectoryEventType = $AuditData.AzureActiveDirectoryEventType
-
-        # ExtendedProperties
-        ResultStatusDetail = ($AuditData | Select-Object -ExpandProperty ExtendedProperties | Where-Object {$_.Name -eq 'ResultStatusDetail'}).Value
-        UserAgent          = ($AuditData | Select-Object -ExpandProperty ExtendedProperties | Where-Object {$_.Name -eq 'UserAgent'}).Value
-        RequestType        = ($AuditData | Select-Object -ExpandProperty ExtendedProperties | Where-Object {$_.Name -eq 'RequestType'}).Value
-
-        # ModifiedProperties
-        ModifiedProperties = $AuditData | Select-Object -ExpandProperty ModifiedProperties
-
-        # Actor
-        ActorId            = ($AuditData | Select-Object -ExpandProperty Actor | Select-Object ID).ID -join "`r`n"
-        ActorType          = ($AuditData | Select-Object -ExpandProperty Actor | Select-Object Type).Type -join "`r`n"
-
-        ActorContextId     = $AuditData.ActorContextId
-        ActorIpAddress     = $AuditData.ActorIpAddress
-        InterSystemsId     = $AuditData.InterSystemsId
-        IntraSystemId      = $AuditData.IntraSystemId
-        SupportTicketId    = $AuditData.SupportTicketId
-
-        # Target
-        TargetId           = ($AuditData | Select-Object -ExpandProperty Target | Select-Object ID).ID -join "`r`n"
-        TargetType         = ($AuditData | Select-Object -ExpandProperty Target | Select-Object Type).Type -join "`r`n"
-
-        TargetContextId    = $AuditData.TargetContextId
-        ApplicationId      = $AuditData.ApplicationId
-
-        # DeviceProperties
-        OS                 = ($AuditData | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'OS'}).Value
-        BrowserType        = ($AuditData | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'BrowserType'}).Value
-        IsCompliantAndManaged = ($AuditData | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'IsCompliantAndManaged'}).Value
-        SessionId          = ($AuditData | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'SessionId'}).Value
-
-        ErrorNumber        = $AuditData.ErrorNumber
-    }
-
-    $Results += $Line
-}
-
-$Results | Sort-Object { $_.CreationTime -as [datetime] } -Descending | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Device-Code-Authentication\CSV\UserLoggedIn.csv" -NoTypeInformation -Encoding UTF8
-
-# UserLoggedIn.xlsx
-if (Get-Module -ListAvailable -Name ImportExcel)
-{
-    if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Device-Code-Authentication\CSV\UserLoggedIn.csv")
-    {
-        if([int](& $xsv count "$OUTPUT_FOLDER\UnifiedAuditLogs\Device-Code-Authentication\CSV\UserLoggedIn.csv") -gt 0)
-        {
-            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Device-Code-Authentication\CSV\UserLoggedIn.csv" -Delimiter ","
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Device-Code-Authentication\XLSX\UserLoggedIn.xlsx" -NoNumberConversion * -NoHyperLinkConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "UserLoggedIn" -CellStyleSB {
-            param($WorkSheet)
-            # BackgroundColor and FontColor for specific cells of TopRow
-            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:AH1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-AH
-            $WorkSheet.Cells["A:AH"].Style.HorizontalAlignment="Center"
-            }
-        }
-    }
-}
-
 # M365 Device Code Phishing Attacks (OAuth2)
 # Device Code Phishing exploits the device authorization grant flow in the Microsoft identity platform to allow an attacker's device or application access to the target user's account or system.
 # Note: The device code is valid for only 15 minutes, giving the user a limited time window to view the phishing email and enter the device code for authentication on "https://microsoft.com/devicelogin”.
@@ -4733,43 +5234,12 @@ if (Get-Module -ListAvailable -Name ImportExcel)
 
 # RecordType: AzureActiveDirectoryStsLogon --> Secure Token Service (STS) logon events in Azure Active Directory.
 # Operation: UserLoggedIn --> A user signed in to their Microsoft 365 user account.
-# RequestType: Cmsi:Cmsi --> ???
-$DeviceCodeAuthenticationRecords = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Device-Code-Authentication\CSV\UserLoggedIn.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "AzureActiveDirectoryStsLogon" } | Where-Object { $_.Operations -eq "UserLoggedIn" } | Where-Object { $_.RequestType -eq "Cmsi:Cmsi" } | Sort-Object { $_.CreationDate -as [datetime] } -Descending
+# RequestType: Cmsi:Cmsi --> Check My Sign In
+$DeviceCodeAuthenticationRecords = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoggedIn.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "AzureActiveDirectoryStsLogon" } | Where-Object { $_.Operations -eq "UserLoggedIn" } | Where-Object { $_.RequestType -eq "Cmsi:Cmsi" } | Sort-Object { $_.CreationDate -as [datetime] } -Descending
 $Count = [string]::Format('{0:N0}',($DeviceCodeAuthenticationRecords | Measure-Object).Count)
 if ($Count -gt 0)
 {
     Write-Host "[Alert] Potential Device Code Phishing Attack(s) detected ($Count)" -ForegroundColor Red
-}
-
-# Stats
-New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Device-Code-Authentication\Stats\CSV" -ItemType Directory -Force | Out-Null
-New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Device-Code-Authentication\Stats\XLSX" -ItemType Directory -Force | Out-Null
-
-# RequestType (Stats)
-if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Device-Code-Authentication\CSV\UserLoggedIn.csv")
-{
-    if([int](& $xsv count "$OUTPUT_FOLDER\UnifiedAuditLogs\Device-Code-Authentication\CSV\UserLoggedIn.csv") -gt 0)
-    {
-        $Total = (Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Device-Code-Authentication\CSV\UserLoggedIn.csv" -Delimiter "," | Select-Object RequestType | Measure-Object).Count
-        Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Device-Code-Authentication\CSV\UserLoggedIn.csv" -Delimiter "," | Group-Object RequestType | Select-Object @{Name='RequestType'; Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}}| Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Device-Code-Authentication\Stats\CSV\RequestType.csv" -NoTypeInformation -Encoding UTF8
-    }
-}
-
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Device-Code-Authentication\Stats\CSV\RequestType.csv")
-{
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Device-Code-Authentication\Stats\CSV\RequestType.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Device-Code-Authentication\Stats\CSV\RequestType.csv" -Delimiter ","
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Device-Code-Authentication\Stats\XLSX\RequestType.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "RequestType" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of column A-C
-        $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
-        }
-    }
 }
 
 $EndTime_DeviceCodeAuthentication = (Get-Date)
@@ -4779,14 +5249,6 @@ $Time_DeviceCodeAuthentication = ($EndTime_DeviceCodeAuthentication-$StartTime_D
 }
 
 Get-DeviceCodeAuthentication
-
-# RequestTypes --> Description??? Undocumented???
-# Cmsi:Cmsi --> Device Code Authentication
-# Kmsi:kmsi --> Keep Me Signed In feature???
-# SAS:ProcessAuth
-# OAuth2:Authorize
-# Login:reprocess
-# OAuth2:Token
 
 #############################################################################################################################################################################################
 
@@ -4805,7 +5267,7 @@ $StartTime_MicrosoftTeams = (Get-Date)
 $MicrosoftTeamsRecords = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "MicrosoftTeams" }
 
 # Check if Microsoft Teams Records exist
-$Count = [string]::Format('{0:N0}',($MicrosoftTeamsRecords | Measure-Object).Count)
+$Count = [string]::Format('{0:N0}',($MicrosoftTeamsRecords).Count)
 if ($Count -eq 0)
 {
     Return
@@ -4879,9 +5341,9 @@ if (Get-Module -ListAvailable -Name ImportExcel)
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:AC1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-AC
-            $WorkSheet.Cells["A:AC"].Style.HorizontalAlignment="Center"
+            Set-Format -Address $WorkSheet.Cells["A1:AF1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-AF
+            $WorkSheet.Cells["A:AF"].Style.HorizontalAlignment="Center"
             }
         }
     }
@@ -4958,11 +5420,11 @@ if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\MicrosoftTeams\Stats\CSV\Communic
 New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\MicrosoftTeams\Stats\XLSX\LineCharts" -ItemType Directory -Force | Out-Null
 
 # MicrosoftTeams - Operations per day (Line Chart)
-$Import = Import-Csv -Path "$LogFile" -Delimiter "," | Where-Object { $_.RecordType -eq "MicrosoftTeams" } | Select-Object @{Name="CreationDate";Expression={([DateTime]::Parse($_.CreationDate).ToString("yyyy-MM-dd"))}} | Group-Object{($_.CreationDate -split "\s+")[0]} | Select-Object Count,@{Name='CreationDate'; Expression={ $_.Values[0] }} | Sort-Object { $_.CreationDate -as [datetime] }
+$Import = Import-Csv -Path "$LogFile" -Delimiter "," | Where-Object { $_.RecordType -eq "MicrosoftTeams" } | Select-Object @{Name="CreationTime";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd"))}} | Group-Object{($_.CreationTime -split "\s+")[0]} | Select-Object Count,@{Name='CreationTime'; Expression={ $_.Values[0] }} | Sort-Object { $_.CreationTime -as [datetime] }
 $Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
 if ($Count -gt 0)
 {
-    $ChartDefinition = New-ExcelChartDefinition -XRange CreationDate -YRange Count -Title "Microsoft Teams" -ChartType Line -NoLegend -Width 1200
+    $ChartDefinition = New-ExcelChartDefinition -XRange CreationTime -YRange Count -Title "Microsoft Teams" -ChartType Line -NoLegend -Width 1200
     $Import | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\MicrosoftTeams\Stats\XLSX\LineCharts\MicrosoftTeams.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
 }
 
@@ -5048,7 +5510,7 @@ if (Get-Module -ListAvailable -Name ImportExcel)
     {
         if([int](& $xsv count "$OUTPUT_FOLDER\UnifiedAuditLogs\MicrosoftTeams\CSV\MessageSent.csv") -gt 0)
         {
-            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\MicrosoftTeams\CSV\MessageSent.csv" -Delimiter ","
+            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\MicrosoftTeams\CSV\MessageSent.csv" -Delimiter "," -Encoding UTF8
             $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\MicrosoftTeams\XLSX\MessageSent.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "MessageSent" -CellStyleSB {
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
@@ -5132,7 +5594,7 @@ if (Get-Module -ListAvailable -Name ImportExcel)
     {
         if([int](& $xsv count "$OUTPUT_FOLDER\UnifiedAuditLogs\MicrosoftTeams\CSV\MessageCreatedHasLink.csv") -gt 0)
         {
-            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\MicrosoftTeams\CSV\MessageCreatedHasLink.csv" -Delimiter ","
+            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\MicrosoftTeams\CSV\MessageCreatedHasLink.csv" -Delimiter "," -Encoding UTF8
             $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\MicrosoftTeams\XLSX\MessageCreatedHasLink.xlsx" -NoNumberConversion * -NoHyperLinkConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "MessageCreatedHasLink" -CellStyleSB {
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
