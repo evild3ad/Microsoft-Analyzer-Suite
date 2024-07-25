@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-07-22
+# @date:      2024-07-25
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -523,10 +523,12 @@ ForEach($Record in $Data)
     if ($null -ne $UserLoggedIn)
     {
         $SessionId = ($AuditData | Where-Object { $_.Operation -eq "UserLoggedIn" } | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'SessionId'}).Value
+        $UserAgent = ($AuditData | Where-Object { $_.Operation -eq "UserLoggedIn" } | Select-Object -ExpandProperty ExtendedProperties | Where-Object {$_.Name -eq 'UserAgent'}).Value
     }
     else
     {
         $SessionId = ($AuditData | Select-Object SessionId).SessionId
+        $UserAgent = $AuditData.UserAgent
     }
 
     $Line = [PSCustomObject]@{
@@ -537,8 +539,7 @@ ForEach($Record in $Data)
     "ObjectId"              = $AuditData.ObjectId
     "ClientIP"              = $ClientIP
     "ClientIPAddress"       = $AuditData.ClientIPAddress
-    "UserAgent"             = $AuditData.UserAgent
-    #"UserAgent"             = ($AuditData | Select-Object -ExpandProperty ExtendedProperties | Where-Object {$_.Name -eq 'UserAgent'}).Value
+    "UserAgent"             = $UserAgent
     "ClientInfoString"      = $AuditData.ClientInfoString
     "RequestType"           = ($AuditData | Where-Object { $_.Operation -eq "UserLoggedIn" } | Select-Object -ExpandProperty ExtendedProperties | Where-Object {$_.Name -eq 'RequestType'}).Value
     "SessionId"             = $SessionId
@@ -818,6 +819,7 @@ if (Get-Module -ListAvailable -Name ImportExcel)
 # SSPR:end               ???
 # WindowsAuthenticationControllerusernamemixed       ???
 # WindowsAuthewnticationControllerwindowstransport   ???
+# WsFederation:wsfederation   ???
 
 # EndpointCall (AADSignInEventsBeta)
 # Information about the AAD endpoint that the request was sent to and the type of request sent during sign in.
@@ -2588,11 +2590,9 @@ if (Test-Path "$($IPinfo)")
                                         $Region      = $HashTable["$IP"][1]
                                         $Country     = $HashTable["$IP"][2]
                                         $CountryName = $HashTable["$IP"][3]
-                                        $EU          = $HashTable["$IP"][4]
                                         $Location    = $HashTable["$IP"][5]
                                         $ASN         = $HashTable["$IP"][6]
                                         $OrgName     = $HashTable["$IP"][7]
-                                        $PostalCode  = $HashTable["$IP"][8]
                                         $Timezone    = $HashTable["$IP"][9]
                                     }
                                     else
@@ -2601,11 +2601,9 @@ if (Test-Path "$($IPinfo)")
                                         $Region      = ""
                                         $Country     = ""
                                         $CountryName = ""
-                                        $EU          = ""
                                         $Location    = ""
                                         $ASN         = ""
                                         $OrgName     = ""
-                                        $PostalCode  = ""
                                         $Timezone    = ""
                                     }
 
@@ -3931,12 +3929,8 @@ ForEach($Record in $UserLoggedInRecords)
         $Region      = $HashTable["$ClientIP"][1]
         $Country     = $HashTable["$ClientIP"][2]
         $CountryName = $HashTable["$ClientIP"][3]
-        $EU          = $HashTable["$ClientIP"][4]
-        $Location    = $HashTable["$ClientIP"][5]
         $ASN         = $HashTable["$ClientIP"][6]
         $OrgName     = $HashTable["$ClientIP"][7]
-        $PostalCode  = $HashTable["$ClientIP"][8]
-        $Timezone    = $HashTable["$ClientIP"][9]
     }
     else
     {
@@ -3944,12 +3938,8 @@ ForEach($Record in $UserLoggedInRecords)
         $Region      = ""
         $Country     = ""
         $CountryName = ""
-        $EU          = ""
-        $Location    = ""
         $ASN         = ""
         $OrgName     = ""
-        $PostalCode  = ""
-        $Timezone    = ""
     }
 
     # IsCompliant
@@ -4138,30 +4128,31 @@ if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv")
 # Session Cookie Theft
 
 # Hunting for Session Cookie Theft --> Initial Access [TA0001]
-if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv")
+if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoggedIn.csv")
 {
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv") -gt 0)
+    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoggedIn.csv") -gt 0)
     {
         Write-Output "[Info]  Hunting for Session Cookie Theft ..."
 
-        $Import = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter ","
-        $UserLoggedIn = $Import | Where-Object { $_.Operation -eq "UserLoggedIn" }
-        $Data = $UserLoggedIn | Where-Object { $_.SessionId -ne "" }
-        $SessionIds = $Data | Select-Object -ExpandProperty SessionId -Unique
+        $UserLoggedIn = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoggedIn.csv" -Delimiter ","
+        $SessionIds = $UserLoggedIn | Select-Object -ExpandProperty SessionId -Unique
         
-        $OfficeHomeSessionIds = ($Data | Where-Object { $_.ObjectId -eq "4765445b-32c6-49b0-83e6-1d93765276ca" } | Select-Object -ExpandProperty SessionId -Unique | Measure-Object).Count
         $Total = ($SessionIds | Measure-Object).Count
+        $OfficeHome = ($UserLoggedIn | Where-Object { $_.ObjectId -eq "4765445b-32c6-49b0-83e6-1d93765276ca" } | Select-Object -ExpandProperty SessionId -Unique | Measure-Object).Count
+        $Office365 = ($UserLoggedIn | Where-Object { $_.ObjectId -eq "72782ba9-4490-4f03-8d82-562370ea3566" } | Select-Object -ExpandProperty SessionId -Unique | Measure-Object).Count
+        $Office365ExchangeOnline = ($UserLoggedIn | Where-Object { $_.ObjectId -eq "00000002-0000-0ff1-ce00-000000000000" } | Select-Object -ExpandProperty SessionId -Unique | Measure-Object).Count
 
         $Results = @()
         ForEach($SessionId in $SessionIds)
         {
-            $Session = $Import | Where-Object { $_.SessionId -eq "$SessionId" } | Where-Object { ($_.ObjectId -eq "4765445b-32c6-49b0-83e6-1d93765276ca") -or ($_.ObjectId -eq "72782ba9-4490-4f03-8d82-562370ea3566") -or ($_.ObjectId -eq "00000002-0000-0ff1-ce00-000000000000") } 
+            # Filter
+            $Data = $UserLoggedIn | Where-Object { $_.SessionId -eq "$SessionId" } | Where-Object { ($_.ObjectId -eq "4765445b-32c6-49b0-83e6-1d93765276ca") -or ($_.ObjectId -eq "72782ba9-4490-4f03-8d82-562370ea3566") -or ($_.ObjectId -eq "00000002-0000-0ff1-ce00-000000000000") } 
             # 4765445b-32c6-49b0-83e6-1d93765276ca # OfficeHome (Evilginx, Tycoon, Caffeine)
             # 72782ba9-4490-4f03-8d82-562370ea3566 # Office 365 (EvilProxy)
             # 00000002-0000-0ff1-ce00-000000000000 # Office 365 Exchange Online (Naked Pages, SakaiPages)
 
             # DeviceProperties
-            $Count = ($Import | Where-Object { $_.SessionId -eq "$SessionId" } | Where-Object { $_.DeviceId -ne "" } | Select-Object DeviceId -Unique | Measure-Object).Count
+            $Count = ($Data | Where-Object { $_.SessionId -eq "$SessionId" } | Where-Object { $_.DeviceId -ne "" } | Select-Object DeviceId -Unique | Measure-Object).Count
             if ($Count)
             {
                 [int]$DeviceProperties = $Count
@@ -4173,15 +4164,14 @@ if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv")
 
             $Line = [PSCustomObject]@{
             "SessionId"        = $SessionId
-            "ClientIP"         = ($Session | Select-Object ClientIP -Unique | Measure-Object).Count # Unique Count per SessionId (Location)
-            "Country"          = ($Session | Select-Object Country -Unique | Measure-Object).Count # Unique Count per SessionId (Location)
-            "ASN"              = ($Session | Select-Object ASN -Unique | Measure-Object).Count # Unique Count per SessionId (Location)
-            "OS"               = ($Session | Select-Object OS -Unique | Measure-Object).Count # Unique Count per SessionId (Device Properties)
-            "BrowserType"      = ($Session | Where-Object { $_.BrowserType -ne "" }| Select-Object BrowserType -Unique | Measure-Object).Count # Unique Count per SessionId (Device Properties)
-            "UserAgent"        = ($Session | Where-Object { $_.UserAgent -ne "" } | Select-Object UserAgent -Unique | Measure-Object).Count # Unique Count per SessionId (Device Properties)
-            "DeviceProperties" = $DeviceProperties # Count of 'DeviceProperties' per SessionId (Device Properties)
-            "ClientInfoString" = ($Session | Where-Object { $_.ClientInfoString -ne "" } | Select-Object ClientInfoString -Unique | Measure-Object).Count
-            "UserLoggedIn"     = ($Session | Where-Object { $_.Operation -eq "UserLoggedIn" } | Measure-Object).Count # Count of 'UserLoggedIn' operations per SessionId
+            "ClientIP"         = ($Data | Select-Object ClientIP -Unique | Measure-Object).Count # Unique Count per SessionId (Location)
+            "Country"          = ($Data | Select-Object Country -Unique | Measure-Object).Count # Unique Count per SessionId (Location)
+            "ASN"              = ($Data | Select-Object ASN -Unique | Measure-Object).Count # Unique Count per SessionId (Location)
+            "OS"               = ($Data | Select-Object OS -Unique | Measure-Object).Count # Unique Count per SessionId (Device Properties)
+            "BrowserType"      = ($Data | Where-Object { $_.BrowserType -ne "" }| Select-Object BrowserType -Unique | Measure-Object).Count # Unique Count per SessionId (Device Properties)
+            "UserAgent"        = ($Data | Where-Object { $_.UserAgent -ne "" } | Select-Object UserAgent -Unique | Measure-Object).Count # Unique Count per SessionId (Device Properties)
+            "DeviceProperties" = $DeviceProperties # Unique Count of 'DeviceProperties' per SessionId (Device Properties)
+            "UserLoggedIn"     = ($Data | Where-Object { $_.Operation -eq "UserLoggedIn" } | Measure-Object).Count # Count of 'UserLoggedIn' operations per SessionId
             }
 
             $Results += $Line
@@ -4203,9 +4193,9 @@ if (Get-Module -ListAvailable -Name ImportExcel)
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:J1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of column A-J
-            $WorkSheet.Cells["A:J"].Style.HorizontalAlignment="Center"
+            Set-Format -Address $WorkSheet.Cells["A1:I1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of column A-I
+            $WorkSheet.Cells["A:I"].Style.HorizontalAlignment="Center"
             # ConditionalFormatting - Different IP addresses (and User-Agents) or missing Device Properties indicate Session Cookie Theft
             $LastRow = $WorkSheet.Dimension.End.Row
             Add-ConditionalFormatting -Address $WorkSheet.Cells["B2:B$LastRow"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '=$B2>=2' -BackgroundColor Red # ClientIP
@@ -4213,8 +4203,7 @@ if (Get-Module -ListAvailable -Name ImportExcel)
             Add-ConditionalFormatting -Address $WorkSheet.Cells["D2:D$LastRow"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '=$D2>=2' -BackgroundColor Red # ASN
             Add-ConditionalFormatting -Address $WorkSheet.Cells["E2:E$LastRow"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '=$E2>=2' -BackgroundColor Red # OS
             Add-ConditionalFormatting -Address $WorkSheet.Cells["F2:F$LastRow"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '=$F2>=2' -BackgroundColor Red # BrowserType
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["H:H"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("No",$H1)))' -BackgroundColor Red # DeviceProperties
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["I2:I$LastRow"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '=$I2>=3' -BackgroundColor Red # ClientInfoString   
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["H:H"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("No",$H1)))' -BackgroundColor Red # DeviceProperties  
             Add-ConditionalFormatting -Address $WorkSheet.Cells["A2:A$LastRow"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '=AND($B2>=2,$D2>=2)' -BackgroundColor Red # ClientIP + ASN = Suspicious SessionId
             }
         }
@@ -4222,14 +4211,14 @@ if (Get-Module -ListAvailable -Name ImportExcel)
 }
 
 # Potential Adversary-in-The-Middle [T1557]
-$SuspiciousSessionIds = ($IMPORT | Where-Object { $_.ClientIP -ge "2" } | Where-Object { $_.ASN -ge "2" } | Measure-Object).Count
+$SuspiciousSessionIds = ($IMPORT | Where-Object { [int]$_.ClientIP -ge "2" } | Where-Object { [int]$_.ASN -ge "2" } | Measure-Object).Count
 if ($SuspiciousSessionIds -gt 0)
 {
-    Write-Host "[Info]  $SuspiciousSessionIds Potential Adversary-in-The-Middle found (Total: $Total / OfficeHome: $OfficeHomeSessionIds)" -ForegroundColor Red
+    Write-Host "[Info]  $SuspiciousSessionIds Potential Adversary-in-The-Middle found (Total: $Total / OfficeHome: $OfficeHome / Office 365: $Office365 / Office 365 Exchange Online: $Office365ExchangeOnline)" -ForegroundColor Red
 }
 else
 {
-    Write-Host "[Info]  $Total SessionIds found (Total: $Total / OfficeHome: $OfficeHomeSessionIds)"
+    Write-Host "[Info]  $Total SessionIds found (OfficeHome: $OfficeHome / Office 365: $Office365 / Office 365 Exchange Online: $Office365ExchangeOnline)"
 }
 
 # Sessions (Duration)
@@ -4316,7 +4305,7 @@ Function Find-AiTMSuspiciousUserLogin
 
         $previousEvent = $null
 
-        $SuspicionProperty = 'Suspicious Timespan'
+        $SuspicionProperty = '#Suspicious'
         $CalcTSpanProperty = '#TimeStamp'
 
         $EnhanceObject = @{
@@ -4343,22 +4332,22 @@ Function Find-AiTMSuspiciousUserLogin
             }
         }
 
-        Function Out-AiTMEvent($Event)
+        Function Out-AiTMEvent($AiTMEvent)
         {
-            if($Event)
+            if($AiTMEvent)
             {
-                $Event.$SuspicionProperty = ("$($Event.$SuspicionProperty)".Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries) | Select-Object -Unique | Sort-Object -Descending) -join ', '
+                $AiTMEvent.$SuspicionProperty = ("$($AiTMEvent.$SuspicionProperty)".Split(' ', [System.StringSplitOptions]::RemoveEmptyEntries) | Select-Object -Unique | Sort-Object -Descending) -join ', '
 
-                $Event | Select-Object -Property * -ExcludeProperty $CalcTSpanProperty
+                $AiTMEvent | Select-Object -Property * -ExcludeProperty $CalcTSpanProperty
             }
         }
     }
 
     Process {
 
-        foreach($event in $InputObject)
+        foreach($AiTMEvent in $InputObject)
         {
-            $currentEvent = $event | Select-Object @EnhanceObject
+            $currentEvent = $AiTMEvent | Select-Object @EnhanceObject
 
             if($previousEvent)
             {
@@ -4394,8 +4383,8 @@ if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoggedIn.csv")
 {
     if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoggedIn.csv") -gt 0)
     {
-        $Analyzed = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoggedIn.csv" -Delimiter "," -Encoding UTF8 | Sort-Object -Descending CreationTime | Find-AiTMSuspiciousUserLogin       
-        $Suspicious = $Analyzed | Where-Object -Property "Suspicious Timespan"
+        $Analyzed = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoggedIn.csv" -Delimiter "," -Encoding UTF8 | Sort-Object -Descending CreationTime| Find-AiTMSuspiciousUserLogin       
+        $Suspicious = $Analyzed | Where-Object -Property "#Suspicious"
 
         # CSV
         $Suspicious | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Find-AiTMSuspiciousUserLogin.csv" -NoTypeInformation -Encoding UTF8
