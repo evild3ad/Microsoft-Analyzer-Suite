@@ -293,7 +293,7 @@ Write-Output ""
 
 # Header
 Write-Output "UAL-Analyzer v0.3 - Automated Processing of M365 Unified Audit Logs for DFIR"
-Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/"
+Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
 Write-Output ""
 
 # Analysis date (ISO 8601)
