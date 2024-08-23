@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-08-20
+# @date:      2024-08-23
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -30,7 +30,7 @@
 #
 # Changelog:
 # Version 0.1
-# Release Date: 2024-08-20
+# Release Date: 2024-08-23
 # Initial Release
 #
 #
@@ -439,7 +439,7 @@ Write-Output "[Info]  Outgoing Messages: $OutgoingMessagesCount (Internal: $Outg
 
 # CSV (Stats)
 $Total = (Import-Csv -Path "$LogFile" -Delimiter "," | Where-Object {$_.RecipientAddress -eq "$UserId" } | Select-Object Subject | Measure-Object).Count
-Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object {$_.RecipientAddress -eq "$UserId" } | Group-Object Subject | Sort-Object Count -Descending | Select-Object @{Name='Subject'; Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Export-Csv -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Subjects.csv" -NoTypeInformation -Encoding UTF8
+Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object {$_.RecipientAddress -eq "$UserId" } | Group-Object Subject | Sort-Object Count -Descending | Select-Object @{Name='Subject'; Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Export-Csv -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Subject.csv" -NoTypeInformation -Encoding UTF8
 
 $SubjectCount = (Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object {$_.RecipientAddress -eq "$UserId" } | Select-Object Subject | Sort-Object Subject -Unique | Measure-Object).Count
 Write-Output "[Info]  Subjects (Inbound): $SubjectCount"
@@ -447,12 +447,12 @@ Write-Output "[Info]  Subjects (Inbound): $SubjectCount"
 # XLSX (Stats)
 if (Get-Module -ListAvailable -Name ImportExcel)
 {
-    if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Subjects.csv")
+    if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Subject.csv")
     {
-        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Subjects.csv") -gt 0)
+        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Subject.csv") -gt 0)
         {
-            $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Subjects.csv" -Delimiter ","
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\Inbound\Subjects.xlsx" -NoHyperLinkConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Subject (Inbound)" -CellStyleSB {
+            $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Subject.csv" -Delimiter ","
+            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\Inbound\Subject.xlsx" -NoHyperLinkConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Subject (Inbound)" -CellStyleSB {
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
@@ -464,11 +464,37 @@ if (Get-Module -ListAvailable -Name ImportExcel)
     }
 }
 
+# Subject / Status (Inbound)
+
+# CSV (Stats)
+$Total = (Import-Csv -Path "$LogFile" -Delimiter "," | Where-Object {$_.RecipientAddress -eq "$UserId" } | Select-Object Subject | Measure-Object).Count
+Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object {$_.RecipientAddress -eq "$UserId" } | Group-Object Subject,Status | Select-Object @{Name='Subject'; Expression={ $_.Values[0] }},@{Name='Status'; Expression={ $_.Values[1] }},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Subject-Status.csv" -NoTypeInformation -Encoding UTF8
+
+# XLSX (Stats)
+if (Get-Module -ListAvailable -Name ImportExcel)
+{
+    if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Subject-Status.csv")
+    {
+        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Subject-Status.csv") -gt 0)
+        {
+            $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Subject-Status.csv" -Delimiter ","
+            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\Inbound\Subject-Status.xlsx" -NoHyperLinkConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Subject (Inbound)" -CellStyleSB {
+            param($WorkSheet)
+            # BackgroundColor and FontColor for specific cells of TopRow
+            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+            Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns B-D
+            $WorkSheet.Cells["B:D"].Style.HorizontalAlignment="Center"
+            }
+        }
+    }
+}
+
 # Subject (Outbound)
 
 # CSV (Stats)
 $Total = (Import-Csv -Path "$LogFile" -Delimiter "," | Where-Object {$_.SenderAddress -eq "$UserId" } | Select-Object Subject | Measure-Object).Count
-Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object {$_.SenderAddress -eq "$UserId" } | Group-Object Subject | Sort-Object Count -Descending | Select-Object @{Name='Subject'; Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Export-Csv -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Subjects.csv" -NoTypeInformation -Encoding UTF8
+Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object {$_.SenderAddress -eq "$UserId" } | Group-Object Subject | Sort-Object Count -Descending | Select-Object @{Name='Subject'; Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Export-Csv -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Subject.csv" -NoTypeInformation -Encoding UTF8
 
 $SubjectCount = (Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object {$_.SenderAddress -eq "$UserId" } | Select-Object Subject | Sort-Object Subject -Unique | Measure-Object).Count
 Write-Output "[Info]  Subjects (Outbound): $SubjectCount"
@@ -476,18 +502,44 @@ Write-Output "[Info]  Subjects (Outbound): $SubjectCount"
 # XLSX (Stats)
 if (Get-Module -ListAvailable -Name ImportExcel)
 {
-    if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Subjects.csv")
+    if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Subject.csv")
     {
-        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Subjects.csv") -gt 0)
+        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Subject.csv") -gt 0)
         {
-            $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Subjects.csv" -Delimiter ","
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\Outbound\Subjects.xlsx" -NoHyperLinkConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Subject (Outbound)" -CellStyleSB {
+            $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Subject.csv" -Delimiter ","
+            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\Outbound\Subject.xlsx" -NoHyperLinkConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Subject (Outbound)" -CellStyleSB {
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
             Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
             # HorizontalAlignment "Center" of columns B-C
             $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
+            }
+        }
+    }
+}
+
+# Subject / Status (Outbound)
+
+# CSV (Stats)
+$Total = (Import-Csv -Path "$LogFile" -Delimiter "," | Where-Object {$_.SenderAddress -eq "$UserId" } | Select-Object Subject | Measure-Object).Count
+Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object {$_.SenderAddress -eq "$UserId" } | Group-Object Subject,Status | Select-Object @{Name='Subject'; Expression={ $_.Values[0] }},@{Name='Status'; Expression={ $_.Values[1] }},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Subject-Status.csv" -NoTypeInformation -Encoding UTF8
+
+# XLSX (Stats)
+if (Get-Module -ListAvailable -Name ImportExcel)
+{
+    if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Subject-Status.csv")
+    {
+        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Subject-Status.csv") -gt 0)
+        {
+            $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Subject-Status.csv" -Delimiter ","
+            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\Outbound\Subject-Status.xlsx" -NoHyperLinkConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Subject (Outbound)" -CellStyleSB {
+            param($WorkSheet)
+            # BackgroundColor and FontColor for specific cells of TopRow
+            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+            Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns B-D
+            $WorkSheet.Cells["B:D"].Style.HorizontalAlignment="Center"
             }
         }
     }
@@ -1331,7 +1383,7 @@ Start-Sleep 1
 
 # MessageBox UI
 $MessageBody = "Status: Message Trace Log Analysis completed."
-$MessageTitle = "UAL-Analyzer.ps1 (https://lethal-forensics.com/)"
+$MessageTitle = "MTL-Analyzer.ps1 (https://lethal-forensics.com/)"
 $ButtonType = "OK"
 $MessageIcon = "Information"
 $Result = [System.Windows.Forms.MessageBox]::Show($MessageBody, $MessageTitle, $ButtonType, $MessageIcon)
