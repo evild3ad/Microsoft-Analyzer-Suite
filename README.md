@@ -18,7 +18,7 @@ Automated Processing of Microsoft 365 Logs and Microsoft Entra ID Logs extracted
   * [Get-RiskyUsers](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/GetUserInfo.html#retrieves-the-risky-users) &#8594; [RiskyUsers-Analyzer v0.2](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/RiskyUsers%E2%80%90Analyzer)  
   * [Get-UALAll](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/UnifiedAuditLog.html) &#8594; [UAL-Analyzer v0.4](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/UAL%E2%80%90Analyzer)  
   * [Get-Users](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/GetUserInfo.html) &#8594; [Users-Analyzer v0.2](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/Users%E2%80%90Analyzer)  
-  * [Get-TransportRules](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/TransportRules.html) &#8594; [TransportRules-Analyzer v0.1](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/TransportRules%E2%80%90Analyzer)  
+  * [Get-TransportRules](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/TransportRules.html) &#8594; [TransportRules-Analyzer v0.2](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/TransportRules%E2%80%90Analyzer)  
   
   <br>
 

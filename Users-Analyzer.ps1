@@ -57,10 +57,10 @@
 .EXAMPLE
   PS> .\Users-Analyzer.ps1
 
-  .EXAMPLE
+.EXAMPLE
   PS> .\Users-Analyzer.ps1 -Path "$env:USERPROFILE\Desktop\Users.csv"
 
-  .EXAMPLE
+.EXAMPLE
   PS> .\Users-Analyzer.ps1 -Path "H:\Microsoft-Extractor-Suite\Users.csv" -OutputDir "H:\Microsoft-Analyzer-Suite"
 
 .NOTES
