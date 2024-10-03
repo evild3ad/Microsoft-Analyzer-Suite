@@ -1,10 +1,10 @@
-﻿# MFA-Analyzer v0.2
+﻿# MFA-Analyzer v0.3
 #
 # @author:    Martin Willing
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-06-15
+# @date:      2024-10-03
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -17,18 +17,27 @@
 #
 # Dependencies:
 #
-# ImportExcel v7.8.6 (2023-10-13)
+# ImportExcel v7.8.9 (2024-05-18)
 # https://github.com/dfinke/ImportExcel
 #
 #
 # Changelog:
 # Version 0.1
-# Release Date: 2024-02-21
+# Release Date: 2024-04-22
 # Initial Release
 #
 # Version 0.2
-# Release Date: 2024-04-30
+# Release Date: 2024-04-29
 # Added: LastUpdatedDateTime
+#
+# Version 0.3
+# Release Date: 2024-10-03
+# Added: CmdletBinding
+# Added: PowerShell 7 Support
+#
+#
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.4894) and PowerShell 5.1 (5.1.19041.4894)
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.4780) and PowerShell 7.4.5
 #
 #
 #############################################################################################################################################################################################
@@ -36,12 +45,20 @@
 
 <#
 .SYNOPSIS
-  MFA-Analyzer v0.2 - Automated Analysis of Authentication Methods and User Registration Details for DFIR
+  MFA-Analyzer v0.3 - Automated Analysis of Authentication Methods and User Registration Details for DFIR
 
 .DESCRIPTION
   MFA-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of the MFA Status of all users extracted via "Microsoft Extractor Suite" by Invictus Incident Response.
 
-  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v1.3.4)
+  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v2.1.0)
+
+.PARAMETER OutputDir
+  Specifies the output directory. Default is "$env:USERPROFILE\Desktop\MFA-Analyzer".
+
+  Note: The subdirectory 'MFA-Analyzer' is automatically created.
+
+.PARAMETER Path
+  Specifies the path to the CSV-based input file (*-AuthenticationMethods.csv).
 
 .EXAMPLE
   PS> .\MFA-Analyzer.ps1
@@ -60,7 +77,8 @@
 
 [CmdletBinding()]
 Param(
-	[string]$Path
+    [String]$Path,
+    [String]$OutputDir
 )
 
 #endregion CmdletBinding
@@ -73,7 +91,22 @@ Param(
 # Declarations
 
 # Output Directory
-$OUTPUT_FOLDER = "$env:USERPROFILE\Desktop\MFA-Analyzer"
+if (!($OutputDir))
+{
+    $script:OUTPUT_FOLDER = "$env:USERPROFILE\Desktop\MFA-Analyzer" # Default
+}
+else
+{
+    if ($OutputDir -cnotmatch '.+(?=\\)') 
+    {
+        Write-Host "[Error] You must provide a valid directory path." -ForegroundColor Red
+        Exit
+    }
+    else
+    {
+        $script:OUTPUT_FOLDER = "$OutputDir\MFA-Analyzer" # Custom
+    }
+}
 
 #endregion Declarations
 
@@ -84,7 +117,7 @@ $OUTPUT_FOLDER = "$env:USERPROFILE\Desktop\MFA-Analyzer"
 
 # Windows Title
 $DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
-$Host.UI.RawUI.WindowTitle = "MFA-Analyzer v0.2 - Automated Analysis of Authentication Methods and User Registration Details for DFIR"
+$Host.UI.RawUI.WindowTitle = "MFA-Analyzer v0.3 - Automated Analysis of Authentication Methods and User Registration Details for DFIR"
 
 # Check if the PowerShell script is being run with admin rights
 if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
@@ -170,7 +203,7 @@ Write-Output "$Logo"
 Write-Output ""
 
 # Header
-Write-Output "MFA-Analyzer v0.2 - Automated Analysis of Authentication Methods and User Registration Details for DFIR"
+Write-Output "MFA-Analyzer v0.3 - Automated Analysis of Authentication Methods and User Registration Details for DFIR"
 Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
 Write-Output ""
 
@@ -429,7 +462,7 @@ Write-Output "[Info]  Processing User Registration Details ..."
 $File = Get-Item "$AuthenticationMethods"
 $Prefix = $File.Name | ForEach-Object{($_ -split "-")[0]}
 $FilePath = $File.Directory
-$UserRegistrationDetails = "$FilePath" + "\" + "$Prefix" + "-MFA" + "-UserRegistrationDetails.csv"
+$UserRegistrationDetails = "$FilePath" + "\" + "$Prefix" + "-UserRegistrationDetails.csv"
 
 # Input-Check
 if (!(Test-Path "$UserRegistrationDetails"))
@@ -459,7 +492,7 @@ Write-Output "[Info]  Total Lines: $Rows"
 # CSV
 if (Test-Path "$UserRegistrationDetails")
 {
-    $Data = Import-Csv -Path "$UserRegistrationDetails" -Delimiter ","
+    $Data = Import-Csv -Path "$UserRegistrationDetails" -Delimiter "," -Encoding UTF8
 
     # Check Timestamp Format
     $Timestamp = ($Data | Select-Object LastUpdatedDateTime -First 1).LastUpdatedDateTime
@@ -496,7 +529,6 @@ if (Test-Path "$UserRegistrationDetails")
         "UserPreferredMethodForSecondaryAuthentication" = $Recrod.UserPreferredMethodForSecondaryAuthentication # The method the user selected as the default second-factor for performing multi-factor authentication.
         "UserType"                                      = $Record.UserType | ForEach-Object { $_.Replace("member","Member") } | ForEach-Object { $_.Replace("guest","Guest") } # Identifies whether the user is a member or guest in the tenant.
         "LastUpdatedDateTime"                           = ($Record | Select-Object @{Name="LastUpdatedDateTime";Expression={([DateTime]::ParseExact($_.LastUpdatedDateTime, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}}).LastUpdatedDateTime # The date and time (UTC) when the record was last updated.
-        "AdditionalProperties"                          = $Record.AdditionalProperties # Empty
         }
 
         $Results += $Line
@@ -504,8 +536,6 @@ if (Test-Path "$UserRegistrationDetails")
 
     $Results | Export-Csv -Path "$OUTPUT_FOLDER\CSV\UserRegistrationDetails.csv" -NoTypeInformation
 }
-
-# lastUpdatedDateTime???
 
 # XLSX
 if (Get-Module -ListAvailable -Name ImportExcel)
