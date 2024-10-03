@@ -1,10 +1,10 @@
-﻿# ADSignInLogsGraph-Analyzer v0.1
+﻿# ADSignInLogsGraph-Analyzer v0.1.1
 #
 # @author:    Martin Willing
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-06-15
+# @date:      2024-10-03
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -17,7 +17,7 @@
 #
 # Dependencies:
 #
-# ImportExcel v7.8.6 (2023-10-12)
+# ImportExcel v7.8.9 (2024-05-18)
 # https://github.com/dfinke/ImportExcel
 #
 # IPinfo CLI 3.3.1 (2024-03-01)
@@ -34,8 +34,8 @@
 # Initial Release
 #
 #
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.4170) and PowerShell 5.1 (5.1.19041.4170)
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.4170) and PowerShell 7.4.1
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.4894) and PowerShell 5.1 (5.1.19041.4894)
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.4780) and PowerShell 7.4.5
 #
 #
 #############################################################################################################################################################################################
@@ -43,12 +43,12 @@
 
 <#
 .SYNOPSIS
-  ADSignInLogsGraph-Analyzer v0.1 - Automated Processing of Microsoft Entra ID Sign-In Logs for DFIR
+  ADSignInLogsGraph-Analyzer v0.1.1 - Automated Processing of Microsoft Entra ID Sign-In Logs for DFIR
 
 .DESCRIPTION
   ADSignInLogsGraph-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of Microsoft Entra ID Sign-In Logs extracted via "Microsoft Extractor Suite" by Invictus Incident Response.
 
-  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v1.3.2)
+  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v2.1.0)
 
   https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/AzureSignInLogsGraph.html
 
@@ -80,7 +80,8 @@
 
 [CmdletBinding()]
 Param(
-	[string]$Path
+    [String]$Path,
+    [String]$OutputDir
 )
 
 #endregion CmdletBinding
@@ -116,7 +117,22 @@ else
 }
 
 # Output Directory
-$OUTPUT_FOLDER = "$env:USERPROFILE\Desktop\ADSignInLogsGraph-Analyzer"
+if (!($OutputDir))
+{
+    $script:OUTPUT_FOLDER = "$env:USERPROFILE\Desktop\ADSignInLogsGraph-Analyzer" # Default
+}
+else
+{
+    if ($OutputDir -cnotmatch '.+(?=\\)') 
+    {
+        Write-Host "[Error] You must provide a valid directory path." -ForegroundColor Red
+        Exit
+    }
+    else
+    {
+        $script:OUTPUT_FOLDER = "$OutputDir\ADSignInLogsGraph-Analyzer" # Custom
+    }
+}
 
 # Tools
 
@@ -138,13 +154,12 @@ $script:xsv = "$SCRIPT_DIR\Tools\xsv\xsv.exe"
 
 # Windows Title
 $DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
-$Host.UI.RawUI.WindowTitle = "ADSignInLogsGraph-Analyzer v0.1 - Automated Processing of Microsoft Entra ID Sign-In Logs for DFIR"
+$Host.UI.RawUI.WindowTitle = "ADSignInLogsGraph-Analyzer v0.1.1 - Automated Processing of Microsoft Entra ID Sign-In Logs for DFIR"
 
 # Check if the PowerShell script is being run with admin rights
 if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
 {
     Write-Host "[Error] This PowerShell script must be run with admin rights." -ForegroundColor Red
-    $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
     Exit
 }
 
@@ -227,7 +242,7 @@ Write-Output "$Logo"
 Write-Output ""
 
 # Header
-Write-Output "ADSignInLogsGraph-Analyzer v0.1 - Automated Processing of Microsoft Entra ID Sign-In Logs for DFIR"
+Write-Output "ADSignInLogsGraph-Analyzer v0.1.1 - Automated Processing of Microsoft Entra ID Sign-In Logs for DFIR"
 Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
 Write-Output ""
 
@@ -338,11 +353,13 @@ New-Item "$OUTPUT_FOLDER\SignInLogsGraph\CSV" -ItemType Directory -Force | Out-N
 New-Item "$OUTPUT_FOLDER\SignInLogsGraph\XLSX" -ItemType Directory -Force | Out-Null
 
 # Import JSON
-$Data = Get-Content -Path "$LogFile" -Raw | ConvertFrom-Json | Sort-Object { $_.CreatedDateTime -as [datetime] } -Descending
+$Data = Get-Content -Path "$LogFile" -Raw | ConvertFrom-Json | Sort-Object { $_.createdDateTime -as [datetime] } -Descending
 
 # Time Frame
-$StartDate = (($Data | Sort-Object { $_.CreatedDateTime -as [datetime] } -Descending | Select-Object -Last 1).CreatedDateTime).ToString("yyyy-MM-dd HH:mm:ss")
-$EndDate = (($Data | Sort-Object { $_.CreatedDateTime -as [datetime] } -Descending | Select-Object -First 1).CreatedDateTime).ToString("yyyy-MM-dd HH:mm:ss")
+$Last  = ($Data | Sort-Object { $_.createdDateTime -as [datetime] } -Descending | Select-Object -Last 1).createdDateTime
+$First = ($Data | Sort-Object { $_.createdDateTime -as [datetime] } -Descending | Select-Object -First 1).createdDateTime
+$StartDate = (Get-Date $Last).ToString("yyyy-MM-dd HH:mm:ss")
+$EndDate = (Get-Date $First).ToString("yyyy-MM-dd HH:mm:ss")
 Write-Output "[Info]  Log data from $StartDate UTC until $EndDate UTC"
 
 # Untouched
@@ -353,41 +370,43 @@ Write-Output "[Info]  Log data from $StartDate UTC until $EndDate UTC"
 $Results = @()
 ForEach($Record in $Data)
 {
+    $CreatedDateTime = $Record | Select-Object -ExpandProperty createdDateTime
+
     $Line = [PSCustomObject]@{
     "Id"                             = $Record.Id # The identifier representing the sign-in activity.
-    "CreatedDateTime"                = ($Record | Select-Object -ExpandProperty CreatedDateTime).ToString("yyyy-MM-dd HH:mm:ss")
-    "UserDisplayName"                = $Record.UserDisplayName # The display name of the user.
-    "UserPrincipalName"              = $Record.UserPrincipalName # The UPN of the user.
-    "UserId"                         = $Record.UserId # The identifier of the user.
-    "AppDisplayName"                 = $Record.AppDisplayName # The application name displayed in the Microsoft Entra admin center.
-    "AppId"                          = $Record.AppId # The application identifier in Microsoft Entra ID.
-    "ClientAppUsed"                  = $Record.ClientAppUsed # The legacy client used for sign-in activity.
-    "IpAddress"                      = $Record.IpAddress # The IP address of the client from where the sign-in occurred.
+    "CreatedDateTime"                = (Get-Date $CreatedDateTime).ToString("yyyy-MM-dd HH:mm:ss.fff") 
+    "UserDisplayName"                = $Record.userDisplayName # The display name of the user.
+    "UserPrincipalName"              = $Record.userPrincipalName # The UPN of the user.
+    "UserId"                         = $Record.userId # The identifier of the user.
+    "AppDisplayName"                 = $Record.appDisplayName # The application name displayed in the Microsoft Entra admin center.
+    "AppId"                          = $Record.appId # The application identifier in Microsoft Entra ID.
+    "ClientAppUsed"                  = $Record.clientAppUsed # The legacy client used for sign-in activity.
+    "IpAddress"                      = $Record.ipAddress # The IP address of the client from where the sign-in occurred.
     "ASN"                            = $Record.AutonomousSystemNumber # The Autonomous System Number (ASN) of the network used by the actor.
     "IPAddressFromResourceProvider"  = $Record.IPAddressFromResourceProvider # The IP address a user used to reach a resource provider, used to determine Conditional Access compliance for some policies. For example, when a user interacts with Exchange Online, the IP address that Microsoft Exchange receives from the user can be recorded here. This value is often null.
-    "City"                           = $Record | Select-Object -ExpandProperty Location | Select-Object -ExpandProperty City # The city from where the sign-in occurred.
-    "State"                          = $Record | Select-Object -ExpandProperty Location | Select-Object -ExpandProperty State # The state from where the sign-in occurred.
-    "CountryOrRegion"                = $Record | Select-Object -ExpandProperty Location | Select-Object -ExpandProperty CountryOrRegion # The two letter country code from where the sign-in occurred.
-    "Latitude"                       = $Record | Select-Object -ExpandProperty Location | Select-Object -ExpandProperty GeoCoordinates | Select-Object -ExpandProperty Latitude
-    "Longitude"                      = $Record | Select-Object -ExpandProperty Location | Select-Object -ExpandProperty GeoCoordinates | Select-Object -ExpandProperty Longitude
+    "City"                           = $Record | Select-Object -ExpandProperty location | Select-Object -ExpandProperty city # The city from where the sign-in occurred.
+    "State"                          = $Record | Select-Object -ExpandProperty location | Select-Object -ExpandProperty state # The state from where the sign-in occurred.
+    "CountryOrRegion"                = $Record | Select-Object -ExpandProperty location | Select-Object -ExpandProperty countryOrRegion # The two letter country code from where the sign-in occurred.
+    "Latitude"                       = $Record | Select-Object -ExpandProperty location | Select-Object -ExpandProperty geoCoordinates | Select-Object -ExpandProperty Latitude
+    "Longitude"                      = $Record | Select-Object -ExpandProperty location | Select-Object -ExpandProperty geoCoordinates | Select-Object -ExpandProperty Longitude
     "AuthenticationRequirement"      = $Record.AuthenticationRequirement # This holds the highest level of authentication needed through all the sign-in steps, for sign-in to succeed.
     "SignInEventTypes"               = $Record | Select-Object -ExpandProperty SignInEventTypes # Indicates the category of sign in that the event represents.
     "AuthenticationMethodsUsed"      = $Record | Select-Object -ExpandProperty AuthenticationMethodsUsed # The authentication methods used.
 
     # Status - The sign-in status. Includes the error code and description of the error (for a sign-in failure).
     # https://learn.microsoft.com/nb-no/graph/api/resources/signinstatus?view=graph-rest-beta
-    "ErrorCode"                      = $Record | Select-Object -ExpandProperty Status | Select-Object -ExpandProperty ErrorCode # Provides the 5-6 digit error code that's generated during a sign-in failure.
-    "FailureReason"                  = $Record | Select-Object -ExpandProperty Status | Select-Object -ExpandProperty FailureReason # Provides the error message or the reason for failure for the corresponding sign-in activity.
-    "AdditionalDetails"              = $Record | Select-Object -ExpandProperty Status | Select-Object -ExpandProperty AdditionalDetails # Provides additional details on the sign-in activity.
+    "ErrorCode"                      = $Record | Select-Object -ExpandProperty status | Select-Object -ExpandProperty errorCode # Provides the 5-6 digit error code that's generated during a sign-in failure.
+    "FailureReason"                  = $Record | Select-Object -ExpandProperty status | Select-Object -ExpandProperty failureReason # Provides the error message or the reason for failure for the corresponding sign-in activity.
+    "AdditionalDetails"              = $Record | Select-Object -ExpandProperty status | Select-Object -ExpandProperty additionalDetails # Provides additional details on the sign-in activity.
 
     # AuthenticationDetails - The result of the authentication attempt and more details on the authentication method.
     # https://learn.microsoft.com/nb-no/graph/api/resources/authenticationdetail?view=graph-rest-beta
-    "AuthenticationMethod"           = ($Record | Select-Object -ExpandProperty AuthenticationDetails | Select-Object -ExpandProperty AuthenticationMethod -Unique) -join ", " # The type of authentication method used to perform this step of authentication.
-    "AuthenticationMethodDetail"     = ($Record | Select-Object -ExpandProperty AuthenticationDetails | Select-Object -ExpandProperty AuthenticationMethodDetail -Unique) -join ", " # Details about the authentication method used to perform this authentication step.
-    "AuthenticationStepDateTime"     = ($Record | Select-Object -ExpandProperty AuthenticationDetails | Select-Object -ExpandProperty AuthenticationStepDateTime -Unique | ForEach-Object { ($_).ToString("yyyy-MM-dd HH:mm:ss") }) -join ", " # Represents date and time information using ISO 8601 format and is always in UTC time.
-    "AuthenticationStepRequirement"  = ($Record | Select-Object -ExpandProperty AuthenticationDetails | Select-Object -ExpandProperty AuthenticationStepRequirement -Unique) -join ", " # The step of authentication that this satisfied. 
-    "AuthenticationStepResultDetail" = ($Record | Select-Object -ExpandProperty AuthenticationDetails | Select-Object -ExpandProperty AuthenticationStepResultDetail -Unique) -join ", " # Details about why the step succeeded or failed. 
-    "Succeeded"                      = ($Record | Select-Object -ExpandProperty AuthenticationDetails | Select-Object -ExpandProperty Succeeded -Unique) -join ", " # Indicates the status of the authentication step.
+    "AuthenticationMethod"           = $Record.AuthDetailsAuthenticationMethod # The type of authentication method used to perform this step of authentication.
+    "AuthenticationMethodDetail"     = $Record.AuthDetailsAuthenticationMethodDetail # Details about the authentication method used to perform this authentication step.
+    "AuthenticationStepDateTime"     = $Record.AuthDetailsAuthenticationStepDateTime # Represents date and time information using ISO 8601 format and is always in UTC time.
+    "AuthenticationStepRequirement"  = $Record.AuthDetailsAuthenticationStepRequirement # The step of authentication that this satisfied. 
+    "AuthenticationStepResultDetail" = $Record.AuthDetailsAuthenticationStepResultDetail # Details about why the step succeeded or failed. 
+    "Succeeded"                      = $Record.AuthDetailsSucceeded # Indicates the status of the authentication step.
 
     # AuthenticationProcessingDetails - More authentication processing details, such as the agent name for PTA and PHS, or a server or farm name for federated authentication.
     "Domain Hint Present"            = ($Record | Select-Object -ExpandProperty AuthenticationProcessingDetails | Where-Object {$_.Key -eq 'Domain Hint Present'}).Value
@@ -408,7 +427,7 @@ ForEach($Record in $Data)
     "ResourceServicePrincipalId"     = $Record.ResourceServicePrincipalId # The identifier of the service principal representing the target resource in the sign-in event.
     "ResourceTenantId"               = $Record.ResourceTenantId # The tenant identifier of the resource referenced in the sign in.
     "RiskDetail"                     = $Record.RiskDetail # The reason behind a specific state of a risky user, sign-in, or a risk event.
-    "RiskEventTypesV2"               = $Record | Select-Object -ExpandProperty RiskEventTypesV2 # The list of risk event types associated with the sign-in.
+    "RiskEventTypesV2"               = $Record | Select-Object -ExpandProperty riskEventTypes_v2 # The list of risk event types associated with the sign-in.
     "RiskLevelAggregated"            = $Record.RiskLevelAggregated # The aggregated risk level. The value hidden means the user or sign-in wasn't enabled for Microsoft Entra ID Protection.
     "RiskLevelDuringSignIn"          = $Record.RiskLevelDuringSignIn # The risk level during sign-in. The value hidden means the user or sign-in wasn't enabled for Microsoft Entra ID Protection.
     "RiskState"                      = $Record.RiskState # The risk state of a risky user, sign-in, or a risk event.
@@ -774,7 +793,7 @@ if (Test-Path "$($IPinfo)")
 
                                     $Line = [PSCustomObject]@{
                                         "Id"                           = $Record.Id
-                                        "CreatedDateTime"              = $Record.CreatedDateTime
+                                        "CreatedDateTime"              = $CreatedDateTime
                                         "UserDisplayName"              = $Record.UserDisplayName
                                         "UserPrincipalName"            = $Record.UserPrincipalName
                                         "UserId"                       = $Record.UserId
@@ -821,6 +840,7 @@ if (Test-Path "$($IPinfo)")
                                         "OrgName"                      = $OrgName
                                         "Postal Code"                  = $PostalCode
                                         "Timezone"                     = $Timezone
+                                        "UserAgent"                    = $Record.UserAgent
                                         "UserType"                     = $Record.UserType
                                     }
 
@@ -843,34 +863,45 @@ if (Test-Path "$($IPinfo)")
                                     param($WorkSheet)
                                     # BackgroundColor and FontColor for specific cells of TopRow
                                     $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                                    Set-Format -Address $WorkSheet.Cells["A1:AW1"] -BackgroundColor $BackgroundColor -FontColor White
-                                    # HorizontalAlignment "Center" of columns A-AW
-                                    $WorkSheet.Cells["A:AW"].Style.HorizontalAlignment="Center"
-                                    # ConditionalFormatting - Suspicious Error Codes
-                                    $Cells = "X:Y"
-                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("50053",$X1)))' -BackgroundColor Red # Sign-in was blocked because it came from an IP address with malicious activity
-                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("90095",$X1)))' -BackgroundColor Red # Admin consent is required for the permissions requested by this application. An admin consent request may be sent to the admin.
+                                    Set-Format -Address $WorkSheet.Cells["A1:AY1"] -BackgroundColor $BackgroundColor -FontColor White
+                                    # HorizontalAlignment "Center" of columns A-AY
+                                    $WorkSheet.Cells["A:AY"].Style.HorizontalAlignment="Center"
+                                    # ConditionalFormatting - AppId
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["G:H"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("29d9ed98-a469-4536-ade2-f981bc1d605e",$G1)))' -BackgroundColor Red # Microsoft Authentication Broker
+                                    # ConditionalFormatting - AuthenticationProtocol
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["AL:AL"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("deviceCode",$AL1)))' -BackgroundColor Red # Device Code Authentication
+                                    # ConditionalFormatting - Browser
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["AF:AF"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Python Requests",$AF1)))' -BackgroundColor Red # Offensive Tool
+                                    # ConditionalFormatting - Error Codes
+                                    $Cells = "Y:Z"
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("50053",$Y1)))' -BackgroundColor Red # Sign-in was blocked because it came from an IP address with malicious activity
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("90095",$Y1)))' -BackgroundColor Red # Admin consent is required for the permissions requested by this application. An admin consent request may be sent to the admin.
+                                    # ConditionalFormatting - UserAgent
+                                    $Cells = "AX:AX"
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("AADInternals",$AX1)))' -BackgroundColor Red # Offensive Tool
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("azurehound",$AX1)))' -BackgroundColor Red # Offensive Tool
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("python-requests",$AX1)))' -BackgroundColor Red # Offensive Tool
 
                                     # Iterating over the Application-Blacklist HashTable
                                     foreach ($AppId in $ApplicationBlacklist_HashTable.Keys) 
                                     {
                                         $Severity = $ApplicationBlacklist_HashTable["$AppId"][1]
-                                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$F1)))' -f $AppId
-                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["F:G"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
+                                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$G1)))' -f $AppId
+                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["G:H"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
                                     }
 
                                     # Iterating over the ASN-Blacklist HashTable
                                     foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
                                     {
-                                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$AS1)))' -f $ASN
-                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["AS:AT"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$AT1)))' -f $ASN
+                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["AT:AU"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
                                     }
 
                                     # Iterating over the Country-Blacklist HashTable
                                     foreach ($Country in $CountryBlacklist_HashTable.Keys) 
                                     {
-                                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$AP1)))' -f $Country
-                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["AO:AP"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$AQ1)))' -f $Country
+                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["AP:AQ"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
                                     }
 
                                     }
@@ -953,7 +984,7 @@ if (Test-Path "$OUTPUT_FOLDER\SignInLogsGraph\CSV\Hunt.csv")
     if([int](& $xsv count "$OUTPUT_FOLDER\SignInLogsGraph\CSV\Hunt.csv") -gt 0)
     {
         $Total = (Import-Csv -Path "$OUTPUT_FOLDER\SignInLogsGraph\CSV\Hunt.csv" -Delimiter "," | Select-Object ASN | Measure-Object).Count
-        Import-Csv "$OUTPUT_FOLDER\SignInLogsGraph\CSV\Hunt.csv" -Delimiter "," | Select-Object ASN,OrgName,Status | Where-Object {$_.ASN -ne '' } | Where-Object { $null -ne ($_.PSObject.Properties | ForEach-Object {$_.Value})} | Group-Object ASN,OrgName,Status | Select-Object @{Name='ASN'; Expression={ $_.Values[0] }},@{Name='OrgName'; Expression={ $_.Values[1] }},@{Name='Status'; Expression={ $_.Values[2] }},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\SignInLogsGraph\Stats\CSV\ASN.csv" -NoTypeInformation -Encoding UTF8
+        Import-Csv "$OUTPUT_FOLDER\SignInLogsGraph\CSV\Hunt.csv" -Delimiter "," | Select-Object ASN,OrgName,Status | Where-Object {$_.ASN -ne '' } | Where-Object { $null -ne ($_.PSObject.Properties | ForEach-Object {$_.Value}) } | Group-Object ASN,OrgName,Status | Select-Object @{Name='ASN'; Expression={ $_.Values[0] }},@{Name='OrgName'; Expression={ $_.Values[1] }},@{Name='Status'; Expression={ $_.Values[2] }},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\SignInLogsGraph\Stats\CSV\ASN.csv" -NoTypeInformation -Encoding UTF8
     }
 }
 
@@ -1067,6 +1098,8 @@ if (Test-Path "$OUTPUT_FOLDER\SignInLogsGraph\Stats\CSV\Browser.csv")
         Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
         # HorizontalAlignment "Center" of columns B-C
         $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
+        # ConditionalFormatting - Browser
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Python Requests",$A1)))' -BackgroundColor Red
         }
     }
 }
@@ -1477,6 +1510,10 @@ if (Test-Path "$OUTPUT_FOLDER\SignInLogsGraph\Stats\CSV\UserAgent.csv")
         Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
         # HorizontalAlignment "Center" of columns B-C
         $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
+        # ConditionalFormatting - UserAgent
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("AADInternals",$A1)))' -BackgroundColor Red # Offensive Tool
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("azurehound",$A1)))' -BackgroundColor Red # Offensive Tool
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("python-requests",$A1)))' -BackgroundColor Red # Offensive Tool
         }
     }
 }
@@ -1595,8 +1632,11 @@ Write-Output "[Info]  $UniqueFailures failed Sign-Ins found ($Total)"
 
 # Authentication: Failure (Line Chart) --> Failed Sign-Ins per day
 $Import = Import-Csv "$OUTPUT_FOLDER\SignInLogsGraph\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.Status -eq 'Failure' } | Group-Object{($_.CreatedDateTime -split "\s+")[0]} | Select-Object Count,@{Name='CreatedDateTime'; Expression={ $_.Values[0] }} | Sort-Object { $_.CreatedDateTime -as [datetime] }
-$ChartDefinition = New-ExcelChartDefinition -XRange CreatedDateTime -YRange Count -Title "Failed Sign-Ins" -ChartType Line -NoLegend -Width 1200
-$Import | Export-Excel -Path "$OUTPUT_FOLDER\SignInLogsGraph\Stats\XLSX\LineCharts\Failure.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
+if ($Count -gt 5)
+{
+    $ChartDefinition = New-ExcelChartDefinition -XRange CreatedDateTime -YRange Count -Title "Failed Sign-Ins" -ChartType Line -NoLegend -Width 1200
+    $Import | Export-Excel -Path "$OUTPUT_FOLDER\SignInLogsGraph\Stats\XLSX\LineCharts\Failure.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
+}
 
 # Failure (Map)
 if (Test-Path "$($IPinfo)")
@@ -1635,8 +1675,12 @@ Import-Csv -Path "$OUTPUT_FOLDER\SignInLogsGraph\CSV\Hunt.csv" -Delimiter "," | 
 
 # Authentication: Success (Line Chart) --> Successful Sign-Ins per day
 $Import = Import-Csv "$OUTPUT_FOLDER\SignInLogsGraph\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.Status -eq 'Success' } | Group-Object{($_.CreatedDateTime -split "\s+")[0]} | Select-Object Count,@{Name='CreatedDateTime'; Expression={ $_.Values[0] }} | Sort-Object { $_.CreatedDateTime -as [datetime] }
-$ChartDefinition = New-ExcelChartDefinition -XRange CreatedDateTime -YRange Count -Title "Successful Sign-Ins" -ChartType Line -NoLegend -Width 1200
-$Import | Export-Excel -Path "$OUTPUT_FOLDER\SignInLogsGraph\Stats\XLSX\LineCharts\Success.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
+$Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
+if ($Count -gt 5)
+{
+    $ChartDefinition = New-ExcelChartDefinition -XRange CreatedDateTime -YRange Count -Title "Successful Sign-Ins" -ChartType Line -NoLegend -Width 1200
+    $Import | Export-Excel -Path "$OUTPUT_FOLDER\SignInLogsGraph\Stats\XLSX\LineCharts\Success.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
+}
 
 # Success (Map)
 if (Test-Path "$OUTPUT_FOLDER\IpAddress\Success.txt")
@@ -1673,7 +1717,7 @@ Import-Csv -Path "$OUTPUT_FOLDER\SignInLogsGraph\CSV\Hunt.csv" -Delimiter "," | 
 # Authentication: Interrupted (Line Chart) --> Interrupted Sign-Ins per day
 $Count = (Import-Csv -Path "$OUTPUT_FOLDER\SignInLogsGraph\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.Status -eq 'Interrupted' } | Measure-Object).Count
 
-if ($Count -ge 1)
+if ($Count -ge 5)
 {
     $Import = Import-Csv "$OUTPUT_FOLDER\SignInLogsGraph\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.Status -eq 'Interrupted' } | Group-Object{($_.CreatedDateTime -split "\s+")[0]} | Select-Object Count,@{Name='CreatedDateTime'; Expression={ $_.Values[0] }} | Sort-Object { $_.CreatedDateTime -as [datetime] }
     $ChartDefinition = New-ExcelChartDefinition -XRange CreatedDateTime -YRange Count -Title "Interrupted Sign-Ins" -ChartType Line -NoLegend -Width 1200
@@ -1769,7 +1813,7 @@ if ($Count -ge 1)
     Write-Host "[Alert] Very Risky Authentication(s) detected ($Count)" -ForegroundColor Red
 }
 
-# Adversary-in-the-Middle (AiTM) Phishing / MFA Attack [T1557]
+# Adversary-in-the-Middle (AitM) Phishing / MFA Attack [T1557]
 # Note: "OfficeHome" is a pretty reliable application for detecting threat actors, in particular when the DeviceId is empty. --> Check for unusual IP address (outside the country, not typical for that user, etc.)
 $Import = Import-Csv -Path "$OUTPUT_FOLDER\SignInLogsGraph\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.AppDisplayName -eq "OfficeHome" } | Where-Object { $_.DeviceId -eq "" } | Where-Object {($_.ErrorCode -eq "0" -or $_.ErrorCode -eq "50074" -or $_.ErrorCode -eq "50140" -or $_.ErrorCode -eq "53000")}
 $Count = ($Import | Measure-Object).Count
@@ -1781,7 +1825,7 @@ $Users = ($Import | Select-Object UserId -Unique | Measure-Object).Count
 
 if ($Count -ge 1)
 {
-    Write-Host "[Alert] Potential Adversary-in-the-Middle (AitM) Phishing Attack(s) detected ($Users account credentials, $Count events)" -ForegroundColor Red
+    Write-Host "[Alert] Potential Adversary-in-the-Middle (AitM) Phishing Attack(s) detected ($Users credentials, $Count events)" -ForegroundColor Red
     New-Item "$OUTPUT_FOLDER\SignInLogsGraph\AiTM\CSV" -ItemType Directory -Force | Out-Null
     New-Item "$OUTPUT_FOLDER\SignInLogsGraph\AiTM\XLSX" -ItemType Directory -Force | Out-Null
 
@@ -1855,6 +1899,9 @@ if ($Count -ge 1)
                 Set-Format -Address $WorkSheet.Cells["A1:I1"] -BackgroundColor $BackgroundColor -FontColor White
                 # HorizontalAlignment "Center" of columns A-I
                 $WorkSheet.Cells["A:I"].Style.HorizontalAlignment="Center"
+                # ConditionalFormatting - AuthenticationProtocol
+                Add-ConditionalFormatting -Address $WorkSheet.Cells["AK:AK"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("deviceCode",$AK1)))' -BackgroundColor Red # Device Code Authentication
+        
 
                 # Iterating over the ASN-Blacklist HashTable
                 foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
@@ -1876,9 +1923,86 @@ if ($Count -ge 1)
     }
 }
 
-# Device Code Phishing --> Detect Malicious OAuth Device Code Phishing --> not seen yet
+# Device Code Phishing --> Detect Malicious OAuth Device Code Phishing
 # https://login.microsoftonline.com/common/oauth2/devicecode?api-version=1.0
-$Import = Import-Csv -Path "$OUTPUT_FOLDER\SignInLogsGraph\CSV\Untouched.csv" -Delimiter "," | Where-Object { $_.ClientAppUsed -eq "Mobile Apps and Desktop clients" } | Where-Object { $_.AuthenticationProtocol -eq "deviceCode" } | Where-Object { $_.AuthenticationRequirement -eq "singleFactorAuthentication" }
+
+# Alert #1 - Identify Device Code Usage
+$Import = Import-Csv -Path "$OUTPUT_FOLDER\SignInLogsGraph\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.AuthenticationProtocol -eq "deviceCode" }
+
+$Count = ($Import | Measure-Object).Count
+$Users = ($Import | Select-Object UserId -Unique | Measure-Object).Count
+
+if ($Count -ge 1)
+{
+    Write-Host "[Alert] Potential Device Code Usage detected: deviceCode ($Users credentials, $Count events)" -ForegroundColor Red
+    New-Item "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\CSV" -ItemType Directory -Force | Out-Null
+    New-Item "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\XLSX" -ItemType Directory -Force | Out-Null
+
+    # CSV
+    $Import | Export-Csv -Path "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\CSV\DeviceCode-Alert1.csv" -NoTypeInformation -Encoding UTF8
+
+    # XLSX
+    if (Get-Module -ListAvailable -Name ImportExcel)
+    {
+        if (Test-Path "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\CSV\DeviceCode-Alert1.csv")
+        {
+            if([int](& $xsv count "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\CSV\DeviceCode-Alert1.csv") -gt 0)
+            {
+                $IMPORT = Import-Csv "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\CSV\DeviceCode-Alert1.csv" -Delimiter "," | Sort-Object { $_.CreatedDateTime -as [datetime] } -Descending
+                $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\XLSX\DeviceCode-Alert1.xlsx" -NoNumberConversion * -FreezePane 2,5 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Alert #1" -CellStyleSB {
+                param($WorkSheet)
+                # BackgroundColor and FontColor for specific cells of TopRow
+                $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+                Set-Format -Address $WorkSheet.Cells["A1:AY1"] -BackgroundColor $BackgroundColor -FontColor White
+                # HorizontalAlignment "Center" of columns A-AY
+                $WorkSheet.Cells["A:AY"].Style.HorizontalAlignment="Center"
+                # ConditionalFormatting - AuthenticationProtocol
+                Add-ConditionalFormatting -Address $WorkSheet.Cells["AL:AL"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("deviceCode",$AL1)))' -BackgroundColor Red # Device Code Authentication
+                }
+            }
+        }
+    }
+}
+
+# Alert #2 - AppId: 29d9ed98-a469-4536-ade2-f981bc1d605e // Microsoft Authentication Broker
+$Import = Import-Csv -Path "$OUTPUT_FOLDER\SignInLogsGraph\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.AppId -eq "29d9ed98-a469-4536-ade2-f981bc1d605e" }
+
+$Count = ($Import | Measure-Object).Count
+$Users = ($Import | Select-Object UserId -Unique | Measure-Object).Count
+
+if ($Count -ge 1)
+{
+    Write-Host "[Alert] Potential Device Code Usage detected: Microsoft Authentication Broker ($Users credentials, $Count events)" -ForegroundColor Yellow
+    New-Item "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\CSV" -ItemType Directory -Force | Out-Null
+    New-Item "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\XLSX" -ItemType Directory -Force | Out-Null
+
+    # CSV
+    $Import | Export-Csv -Path "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\CSV\DeviceCode-Alert2.csv" -NoTypeInformation -Encoding UTF8
+
+    # XLSX
+    if (Get-Module -ListAvailable -Name ImportExcel)
+    {
+        if (Test-Path "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\CSV\DeviceCode-Alert2.csv")
+        {
+            if([int](& $xsv count "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\CSV\DeviceCode-Alert2.csv") -gt 0)
+            {
+                $IMPORT = Import-Csv "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\CSV\DeviceCode-Alert2.csv" -Delimiter ","
+                $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\XLSX\DeviceCode-Alert2.xlsx" -NoNumberConversion * -FreezePane 2,5 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Alert #2" -CellStyleSB {
+                param($WorkSheet)
+                # BackgroundColor and FontColor for specific cells of TopRow
+                $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+                Set-Format -Address $WorkSheet.Cells["A1:BO1"] -BackgroundColor $BackgroundColor -FontColor White
+                # HorizontalAlignment "Center" of columns A-BO
+                $WorkSheet.Cells["A:BO"].Style.HorizontalAlignment="Center"
+                }
+            }
+        }
+    }
+}
+
+# Alert #3 - ???
+$Import = Import-Csv -Path "$OUTPUT_FOLDER\SignInLogsGraph\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.AppId -eq "29d9ed98-a469-4536-ade2-f981bc1d605e" } | Where-Object { $_.AuthenticationProtocol -eq "deviceCode" }
+
 $Count = ($Import | Measure-Object).Count
 $Users = ($Import | Select-Object UserId -Unique | Measure-Object).Count
 
@@ -1889,21 +2013,21 @@ if ($Count -ge 1)
     New-Item "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\XLSX" -ItemType Directory -Force | Out-Null
 
     # CSV
-    $Import | Export-Csv -Path "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\CSV\DeviceCode.csv" -NoTypeInformation -Encoding UTF8
+    $Import | Export-Csv -Path "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\CSV\DeviceCode-Alert3.csv" -NoTypeInformation -Encoding UTF8
 
     # XLSX
     if (Get-Module -ListAvailable -Name ImportExcel)
     {
-        if (Test-Path "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\CSV\DeviceCode.csv")
+        if (Test-Path "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\CSV\DeviceCode-Alert3.csv")
         {
-            if([int](& $xsv count "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\CSV\DeviceCode.csv") -gt 0)
+            if([int](& $xsv count "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\CSV\DeviceCode-Alert3.csv") -gt 0)
             {
-                $IMPORT = Import-Csv "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\CSV\DeviceCode.csv" -Delimiter ","
-                $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\XLSX\DeviceCode.xlsx" -NoNumberConversion * -FreezePane 2,5 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Device Code Auth" -CellStyleSB {
+                $IMPORT = Import-Csv "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\CSV\DeviceCode-Alert3.csv" -Delimiter ","
+                $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\XLSX\DeviceCode-Alert3.xlsx" -NoNumberConversion * -FreezePane 2,5 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Alert #3" -CellStyleSB {
                 param($WorkSheet)
                 # BackgroundColor and FontColor for specific cells of TopRow
                 $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                Set-Format -Address $WorkSheet.Cells["A1:BO"] -BackgroundColor $BackgroundColor -FontColor White
+                Set-Format -Address $WorkSheet.Cells["A1:BO1"] -BackgroundColor $BackgroundColor -FontColor White
                 # HorizontalAlignment "Center" of columns A-BO
                 $WorkSheet.Cells["A:BO"].Style.HorizontalAlignment="Center"
                 }
@@ -1912,12 +2036,78 @@ if ($Count -ge 1)
     }
 }
 
+# Alert #4 - ???
+$Import = Import-Csv -Path "$OUTPUT_FOLDER\SignInLogsGraph\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.AppId -eq "29d9ed98-a469-4536-ade2-f981bc1d605e" } | Where-Object { $_.AdditionalDetails -eq "MFA requirement satisfied by claim in the token" }
+
+$Count = ($Import | Measure-Object).Count
+$Users = ($Import | Select-Object UserId -Unique | Measure-Object).Count
+
+if ($Count -ge 1)
+{
+    Write-Host "[Alert] Potential Device Code Usage detected: Microsoft Authentication Broker + MFA requirement satisfied by claim in the token ($Users account credentials, $Count events)" -ForegroundColor Red
+    New-Item "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\CSV" -ItemType Directory -Force | Out-Null
+    New-Item "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\XLSX" -ItemType Directory -Force | Out-Null
+
+    # CSV
+    $Import | Export-Csv -Path "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\CSV\DeviceCode-Alert4.csv" -NoTypeInformation -Encoding UTF8
+
+    # XLSX
+    if (Get-Module -ListAvailable -Name ImportExcel)
+    {
+        if (Test-Path "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\CSV\DeviceCode-Alert4.csv")
+        {
+            if([int](& $xsv count "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\CSV\DeviceCode-Alert4.csv") -gt 0)
+            {
+                $IMPORT = Import-Csv "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\CSV\DeviceCode-Alert4.csv" -Delimiter ","
+                $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\SignInLogsGraph\DeviceCode\XLSX\DeviceCode-Alert4.xlsx" -NoNumberConversion * -FreezePane 2,5 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Alert #4" -CellStyleSB {
+                param($WorkSheet)
+                # BackgroundColor and FontColor for specific cells of TopRow
+                $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+                Set-Format -Address $WorkSheet.Cells["A1:BO1"] -BackgroundColor $BackgroundColor -FontColor White
+                # HorizontalAlignment "Center" of columns A-BO
+                $WorkSheet.Cells["A:BO"].Style.HorizontalAlignment="Center"
+                }
+            }
+        }
+    }
+}
+
+# TODO
+# Successful or not?
+
+# AppId: 29d9ed98-a469-4536-ade2-f981bc1d605e
+# AppDisplayName: Microsoft Authentication Broker
+# ClientAppUsed: Mobile Apps and Desktop clients
+# AuthenticationProtocol: deviceCode
+# AdditionalDetails: MFA requirement satisfied by claim in the token
+# OriginalTransferMethod: deviceCodeFlow
+
+# Alert #1 - Identify Device Code Usage
+# AuthenticationProtocol: deviceCode
+
+# Alert #2 - AADInternals
+# AppId: 29d9ed98-a469-4536-ade2-f981bc1d605e
+
+# Alert #3 - Abuse of Device Code Authentication (PRT Phishing)
+# AppId: 29d9ed98-a469-4536-ade2-f981bc1d605e // Microsoft Authentication Broker
+# AuthenticationProtocol: deviceCode
+
+# Alert #4
+# AppId: 29d9ed98-a469-4536-ade2-f981bc1d605e
+# AdditionalDetails: MFA requirement satisfied by claim in the token
+
+# Phishing with device code authentication
+# Device Code Flow Abuse
+# xxx
+
+# https://microsoft.com/devicelogin --> https://login.microsoftonline.com/common/oauth2/deviceauth
+
 # PRT = Primary Refresh Token
 
 # Detection Methodology
 # ClientAppUsed: Mobile Apps and Desktop clients
 # AuthenticationProtocol: deviceCode
-# AuthenticationRequirement: singleFactorAuthentication
+# AuthenticationRequirement: singleFactorAuthentication or multiFactorAuthentication
 # AdditionalDetails: MFA requirement satisfied by claim in the token
 # OriginalTransferMethod: deviceCodeFlow
 # AppId: 29d9ed98-a469-4536-ade2-f981bc1d605e // Microsoft Authentication Broker
@@ -1927,6 +2117,36 @@ if ($Count -ge 1)
 # https://www.invictus-ir.com/news/do-not-use-the-get-mgauditlogsignin-for-your-investigations
 # https://www.inversecos.com/2022/12/how-to-detect-malicious-oauth-device.html
 # https://github.com/pushsecurity/saas-attacks/blob/main/techniques/device_code_phishing/examples/microsoft.md
+# https://aadinternals.com/post/phishing/
+# https://cloudbrothers.info/en/protect-users-device-code-flow-abuse/
+
+# Detect MFASweep usage (Default Scan) --> xxx
+# https://github.com/dafthack/MFASweep
+# https://zolder.io/detecting-mfasweep-using-azure-sentinel/
+# https://www.blackhillsinfosec.com/exploiting-mfa-inconsistencies-on-microsoft-services/
+# https://www.splunk.com/en_us/blog/security/hunting-m365-invaders-blue-team-s-guide-to-initial-access-vectors.html
+#
+# This rule will trigger once MFASweep is used against an existing M365 account
+# Tactics: InitialAccess
+# TA0001
+#
+# AppId
+# 1b730954-1685-4b74-9bfd-dac224a7b894 // Azure Active Directory PowerShell
+# 1950a258-227b-4e31-a9cf-717495945fc2 // Microsoft Azure PowerShell
+# 00000002-0000-0ff1-ce00-000000000000 // Office 365 Exchange Online
+#
+# ClientAppUsed
+# Browser
+# Exchange ActiveSync
+# Mobile Apps and Desktop clients
+# Exchange Web Services
+#
+# ResultType 0 means a successful login, while 50126 is a failed login attempt
+
+# Device Registration Attack
+# AppDisplayName: Microsoft Device Registration Client
+# ResourceId: 01cb2876-7ebd-4aa4-9cc9-d28bd4d359a9
+# ResourceDisplayName: Device Registration Service
 
 #############################################################################################################################################################################################
 
@@ -2081,3 +2301,19 @@ if ($Result -eq "OK" )
 
 #############################################################################################################################################################################################
 #############################################################################################################################################################################################
+
+# TODO
+
+# Office365 Shell WCSS-Client --> Yellow???
+# "Office 365 Shell WCSS-Client" is the browser code that runs whenever a user navigates to (most) Office365 applications in the browser.
+# The shell, also known as the suite header, is shared code that loads as part of almost all Office365 workloads, including SharePoint, OneDrive, Outlook, Yammer, and many more.
+
+# ErrorCode-Blacklist.csv
+
+# AppDisplayName + Status
+
+# PowerShell Code Signing
+
+# Add IPAddressFromResourceProvider to DataEnrichment??? Not seen yet.
+
+# Add suspicious Error Codes: Status + Hunt
