@@ -1,10 +1,10 @@
-﻿# Users-Analyzer v0.1
+﻿# Users-Analyzer v0.2
 #
 # @author:    Martin Willing
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-06-15
+# @date:      2024-10-03
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -26,21 +26,42 @@
 # Release Date: 2024-06-13
 # Initial Release
 #
+# Version 0.2
+# Release Date: 2024-10-03
+# Added: CmdletBinding
+# Added: PowerShell 7 Support
+#
 #
 #############################################################################################################################################################################################
 #############################################################################################################################################################################################
 
 <#
 .SYNOPSIS
-  Users-Analyzer v0.1 - Automated Processing of 'Users.csv' (Microsoft-Extractor-Suite by Invictus-IR)
+  Users-Analyzer v0.2 - Automated Processing of 'Users.csv' (Microsoft-Extractor-Suite by Invictus-IR)
 
 .DESCRIPTION
-  Users-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of the User Information extracted via "Microsoft 365 Extractor Suite" by Invictus Incident Response.
+  Users-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of the User Information extracted via "Microsoft Extractor Suite" by Invictus Incident Response.
 
-  https://github.com/invictus-ir/Microsoft-Extractor-Suite
+  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v2.1.0)
+
+  https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/GetUserInfo.html#retrieve-information-for-all-users
+
+.PARAMETER OutputDir
+  Specifies the output directory. Default is "$env:USERPROFILE\Desktop\Users-Analyzer".
+
+  Note: The subdirectory 'Users-Analyzer' is automatically created.
+
+.PARAMETER Path
+  Specifies the path to the CSV-based input file (Users.csv).
 
 .EXAMPLE
   PS> .\Users-Analyzer.ps1
+
+  .EXAMPLE
+  PS> .\Users-Analyzer.ps1 -Path "$env:USERPROFILE\Desktop\Users.csv"
+
+  .EXAMPLE
+  PS> .\Users-Analyzer.ps1 -Path "H:\Microsoft-Extractor-Suite\Users.csv" -OutputDir "H:\Microsoft-Analyzer-Suite"
 
 .NOTES
   Author - Martin Willing
@@ -56,7 +77,8 @@
 
 [CmdletBinding()]
 Param(
-	[string]$Path
+    [String]$Path,
+    [String]$OutputDir
 )
 
 #endregion CmdletBinding
@@ -68,20 +90,23 @@ Param(
 
 # Declarations
 
-# Script Root
-if ($PSVersionTable.PSVersion.Major -gt 2)
+# Output Directory
+if (!($OutputDir))
 {
-    # PowerShell 3+
-    $SCRIPT_DIR = $PSScriptRoot
+    $script:OUTPUT_FOLDER = "$env:USERPROFILE\Desktop\Users-Analyzer" # Default
 }
 else
 {
-    # PowerShell 2
-    $SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Definition
+    if ($OutputDir -cnotmatch '.+(?=\\)') 
+    {
+        Write-Host "[Error] You must provide a valid directory path." -ForegroundColor Red
+        Exit
+    }
+    else
+    {
+        $script:OUTPUT_FOLDER = "$OutputDir\Users-Analyzer" # Custom
+    }
 }
-
-# Output Directory
-$OUTPUT_FOLDER = "$env:USERPROFILE\Desktop\Users-Analyzer"
 
 #endregion Declarations
 
@@ -92,7 +117,7 @@ $OUTPUT_FOLDER = "$env:USERPROFILE\Desktop\Users-Analyzer"
 
 # Windows Title
 $DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
-$Host.UI.RawUI.WindowTitle = "Users-Analyzer v0.1 - Automated Processing of 'Users.csv' (Microsoft-Extractor-Suite by Invictus-IR)"
+$Host.UI.RawUI.WindowTitle = "Users-Analyzer v0.2 - Automated Processing of 'Users.csv' (Microsoft-Extractor-Suite by Invictus-IR)"
 
 # Check if the PowerShell script is being run with admin rights
 if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
@@ -132,7 +157,7 @@ if(!($Path))
         [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") | Out-Null
         $OpenFileDialog = New-Object System.Windows.Forms.OpenFileDialog
         $OpenFileDialog.InitialDirectory = $InitialDirectory
-        $OpenFileDialog.Filter = "Users|*-Users.csv|All Files (*.*)|*.*"
+        $OpenFileDialog.Filter = "Users|Users.csv|All Files (*.*)|*.*"
         $OpenFileDialog.ShowDialog()
         $OpenFileDialog.Filename
         $OpenFileDialog.ShowHelp = $true
@@ -177,7 +202,7 @@ Write-Output "$Logo"
 Write-Output ""
 
 # Header
-Write-Output "Users-Analyzer v0.1 - Automated Processing of 'Users.csv'"
+Write-Output "Users-Analyzer v0.2 - Automated Processing of 'Users.csv'"
 Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
 Write-Output ""
 
