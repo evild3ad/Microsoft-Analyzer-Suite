@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-08-23
+# @date:      2024-10-03
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -34,8 +34,8 @@
 # Initial Release
 #
 #
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.4780) and PowerShell 5.1 (5.1.19041.4780)
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.4780) and PowerShell 7.4.4
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.4894) and PowerShell 5.1 (5.1.19041.4894)
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.4894) and PowerShell 7.4.5
 #
 #
 #############################################################################################################################################################################################
@@ -55,6 +55,8 @@
 .PARAMETER OutputDir
   Specifies the output directory. Default is "$env:USERPROFILE\Desktop\MTL-Analyzer".
 
+  Note: The subdirectory 'MTL-Analyzer' is automatically created.
+
 .PARAMETER Path
   Specifies the path to the CSV-based input file (<UPN>-MTL.csv).
 
@@ -65,7 +67,7 @@
   PS> .\MTL-Analyzer.ps1 -Path "$env:USERPROFILE\Desktop\<UPN>-MTL.csv"
 
 .EXAMPLE
-  PS> .\MTL-Analyzer.ps1 -Path "H:\Microsoft-Extractor-Suite\<UPN>-MTL.csv" -OutputDir "H:\Microsoft-Analyzer-Suite\MTL-Analyzer"
+  PS> .\MTL-Analyzer.ps1 -Path "H:\Microsoft-Extractor-Suite\<UPN>-MTL.csv" -OutputDir "H:\Microsoft-Analyzer-Suite"
 
 .NOTES
   Author - Martin Willing
@@ -136,7 +138,7 @@ else
     }
     else
     {
-        $script:OUTPUT_FOLDER = $OutputDir
+        $script:OUTPUT_FOLDER = "$OutputDir\MTL-Analyzer" # Custom
     }
 }
 
