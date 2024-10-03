@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-09-22
+# @date:      2024-10-03
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -87,6 +87,8 @@
 .PARAMETER OutputDir
   Specifies the output directory. Default is "$env:USERPROFILE\Desktop\UAL-Analyzer".
 
+  Note: The subdirectory 'UAL-Analyzer' is automatically created.
+
 .PARAMETER Path
   Specifies the path to the CSV-based input file (UAL-Combined.csv).
 
@@ -97,13 +99,13 @@
   PS> .\UAL-Analyzer.ps1 -Path "$env:USERPROFILE\Desktop\UAL-Combined.csv"
 
 .EXAMPLE
-  PS> .\UAL-Analyzer.ps1 -Path "H:\Microsoft-Extractor-Suite\UAL-Combined.csv" -OutputDir "H:\Microsoft-Analyzer-Suite\UAL-Analyzer"
+  PS> .\UAL-Analyzer.ps1 -Path "H:\Microsoft-Extractor-Suite\UAL-Combined.csv" -OutputDir "H:\Microsoft-Analyzer-Suite"
 
 .NOTES
   Author - Martin Willing
 
 .LINK
-  https://www.infoguard.ch/
+  https://lethal-forensics.com/
 #>
 
 #############################################################################################################################################################################################
@@ -195,7 +197,7 @@ else
     }
     else
     {
-        $script:OUTPUT_FOLDER = $OutputDir
+        $script:OUTPUT_FOLDER = "$OutputDir\UAL-Analyzer" # Custom
     }
 }
 

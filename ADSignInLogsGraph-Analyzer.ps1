@@ -52,8 +52,22 @@
 
   https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/AzureSignInLogsGraph.html
 
+.PARAMETER OutputDir
+  Specifies the output directory. Default is "$env:USERPROFILE\Desktop\ADSignInLogsGraph-Analyzer".
+
+  Note: The subdirectory 'ADSignInLogsGraph-Analyzer' is automatically created.
+
+.PARAMETER Path
+  Specifies the path to the CSV-based input file (SignInLogs-Combined.csv).
+
 .EXAMPLE
   PS> .\ADSignInLogsGraph-Analyzer.ps1
+
+.EXAMPLE
+  PS> .\ADSignInLogsGraph-Analyzer.ps1 -Path "$env:USERPROFILE\Desktop\SignInLogs-Combined.csv"
+
+.EXAMPLE
+  PS> .\ADSignInLogsGraph-Analyzer.ps1 -Path "H:\Microsoft-Extractor-Suite\SignInLogs-Combined.csv" -OutputDir "H:\Microsoft-Analyzer-Suite"
 
 .NOTES
   Author - Martin Willing
