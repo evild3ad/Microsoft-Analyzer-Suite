@@ -1,10 +1,10 @@
-﻿# OAuthPermissions-Analyzer v0.2
+﻿# OAuthPermissions-Analyzer v0.3
 #
 # @author:    Martin Willing
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-06-15
+# @date:      2024-10-04
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -17,7 +17,7 @@
 #
 # Dependencies:
 #
-# ImportExcel v7.8.6 (2023-10-13)
+# ImportExcel v7.8.9 (2024-05-18)
 # https://github.com/dfinke/ImportExcel
 #
 # xsv v0.13.0 (2018-05-12)
@@ -37,8 +37,14 @@
 # Added: Severity Scoring (Permissions) --> Low, Medium, and High
 # Fixed: Other minor fixes and improvements
 #
+# Version 0.3
+# Release Date: 2024-10-04
+# Added: CmdletBinding
+# Added: PowerShell 7 Support
 #
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.4291) and PowerShell 5.1 (5.1.19041.4291)
+#
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.4894) and PowerShell 5.1 (5.1.19041.4894)
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.4780) and PowerShell 7.4.5
 #
 #
 #############################################################################################################################################################################################
@@ -46,19 +52,33 @@
 
 <#
 .SYNOPSIS
-  OAuthPermissions-Analyzer v0.2 - Automated Processing of M365 OAuth Permissions for DFIR
+  OAuthPermissions-Analyzer v0.3 - Automated Processing of M365 OAuth Permissions for DFIR
 
 .DESCRIPTION
   OAuthPermissions-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of M365 OAuth Permissions extracted via "Microsoft Extractor Suite" by Invictus Incident Response.
 
-  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v1.3.3)
+  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v2.1.0)
 
   https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/OAuthPermissions.html
 
   List delegated permissions (OAuth2PermissionGrants) and application permissions (AppRoleAssignments).
 
+.PARAMETER OutputDir
+  Specifies the output directory. Default is "$env:USERPROFILE\Desktop\OAuthPermissions-Analyzer".
+
+  Note: The subdirectory 'OAuthPermissions-Analyzer' is automatically created.
+
+.PARAMETER Path
+  Specifies the path to the CSV-based input file (*-OAuthPermissions.csv).
+
 .EXAMPLE
   PS> .\OAuthPermissions-Analyzer.ps1
+
+.EXAMPLE
+  PS> .\OAuthPermissions-Analyzer.ps1 -Path "$env:USERPROFILE\Desktop\*-OAuthPermissions.csv"
+
+.EXAMPLE
+  PS> .\OAuthPermissions-Analyzer.ps1 -Path "H:\Microsoft-Extractor-Suite\*-OAuthPermissions.csv" -OutputDir "H:\Microsoft-Analyzer-Suite"
 
 .NOTES
   Author - Martin Willing
@@ -92,7 +112,8 @@
 
 [CmdletBinding()]
 Param(
-	[string]$Path
+    [String]$Path,
+    [String]$OutputDir
 )
 
 #endregion CmdletBinding
@@ -123,7 +144,22 @@ $script:MediumColor = [System.Drawing.Color]::FromArgb(255,192,0) # Orange
 $script:LowColor    = [System.Drawing.Color]::FromArgb(255,255,0) # Yellow
 
 # Output Directory
-$OUTPUT_FOLDER = "$env:USERPROFILE\Desktop\OAuthPermissions-Analyzer"
+if (!($OutputDir))
+{
+    $script:OUTPUT_FOLDER = "$env:USERPROFILE\Desktop\OAuthPermissions-Analyzer" # Default
+}
+else
+{
+    if ($OutputDir -cnotmatch '.+(?=\\)') 
+    {
+        Write-Host "[Error] You must provide a valid directory path." -ForegroundColor Red
+        Exit
+    }
+    else
+    {
+        $script:OUTPUT_FOLDER = "$OutputDir\OAuthPermissions-Analyzer" # Custom
+    }
+}
 
 # Tools
 
@@ -138,13 +174,12 @@ $script:xsv = "$SCRIPT_DIR\Tools\xsv\xsv.exe"
 
 # Windows Title
 $DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
-$Host.UI.RawUI.WindowTitle = "OAuthPermissions-Analyzer v0.2 - Automated Processing of M365 OAuth Permissions for DFIR"
+$Host.UI.RawUI.WindowTitle = "OAuthPermissions-Analyzer v0.3 - Automated Processing of M365 OAuth Permissions for DFIR"
 
 # Check if the PowerShell script is being run with admin rights
 if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
 {
     Write-Host "[Error] This PowerShell script must be run with admin rights." -ForegroundColor Red
-    $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
     Exit
 }
 
@@ -233,7 +268,7 @@ Write-Output "$Logo"
 Write-Output ""
 
 # Header
-Write-Output "OAuthPermissions-Analyzer v0.2 - Automated Processing of M365 OAuth Permissions for DFIR"
+Write-Output "OAuthPermissions-Analyzer v0.3 - Automated Processing of M365 OAuth Permissions for DFIR"
 Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
 Write-Output ""
 
@@ -464,9 +499,9 @@ $Import | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\XLSX\DelegatedPerm
     param($WorkSheet)
     # BackgroundColor and FontColor for specific cells of TopRow
     $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-    Set-Format -Address $WorkSheet.Cells["A1:N1"] -BackgroundColor $BackgroundColor -FontColor White
+    Set-Format -Address $WorkSheet.Cells["A1:O1"] -BackgroundColor $BackgroundColor -FontColor White
     # HorizontalAlignment "Center" of columns A-L
-    $WorkSheet.Cells["A:L"].Style.HorizontalAlignment="Center"
+    $WorkSheet.Cells["A:M"].Style.HorizontalAlignment="Center"
     # Font Style "Underline" of column J
     $LastRow = $WorkSheet.Dimension.End.Row
     $WorkSheet.Cells["J2:J$LastRow"].Style.Font.UnderLine = $true
@@ -904,3 +939,24 @@ if ($Result -eq "OK" )
 # TODO
 
 # https://github.com/randomaccess3/detections/blob/main/M365_Oauth_Apps/MaliciousOauthAppDetections.json
+
+# https://github.com/mandiant/Mandiant-Azure-AD-Investigator 
+
+# https://www.huntress.com/blog/legitimate-apps-as-traitorware-for-persistent-microsoft-365-compromise
+
+# https://m365internals.com/2021/07/24/everything-about-service-principals-applications-and-api-permissions/
+
+# Malicious Application Consent / OAuth
+# Step 1 - Determine the registered applications through "App registrations" and "Enterprise applications" in Microsoft Entra ID. Write down the Application ID.
+# Step 2 - Investigate the Audit logs to determine when, how and by whom the application was registered in the environment. Filter on Operation/Actvity "Add application".
+#          Date (UTC) = When the application was registered
+#          Display Name = How and by whom the application was registered
+#          AppId = AppID of the malicious application
+# Step 3 - Inspect the permissions and users of the application to determine possible impact.
+#          Option 1 - Azure AD --> Enterprise Application --> App name --> Permissions
+#          Note: Check both Admin & User consent to determine the API’s and users who granted permissions.
+#          Option 2 - PowerShell
+#          Option 3 - Automated through Get-AzureADPSPermissions script --> https://gist.github.com/psignoret/41793f8c6211d2df5051d77ca3728c09
+# Step 4 - Identify the activity of the malicious application. Using the Application ID sometimes called the Client ID we can track activity belonging to an application throughout Azure (AD) and Microsoft 365.
+#          Note: Check ADAuditLog and Sign-Ins
+# Step 5 - Incident Response checklist
