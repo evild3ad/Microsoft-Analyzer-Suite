@@ -1,10 +1,10 @@
-﻿# RiskyDetections-Analyzer v0.2
+﻿# RiskyDetections-Analyzer v0.3
 #
 # @author:    Martin Willing
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-06-15
+# @date:      2024-10-04
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -17,19 +17,29 @@
 #
 # Dependencies:
 #
-# ImportExcel v7.8.6 (2023-10-13)
+# ImportExcel v7.8.9 (2024-05-18)
 # https://github.com/dfinke/ImportExcel
 #
 #
 # Changelog:
 # Version 0.1
-# Release Date: 2024-02-21
+# Release Date: 2024-02-16
 # Initial Release
 #
 # Version 0.2
-# Release Date: 2024-03-09
+# Release Date: 2024-02-27
+# Added: Transcript
 # Added: Support TimestampFormat (en-US)
 # Fixed: Other minor fixes and improvements
+#
+# Version 0.3
+# Release Date: 2024-10-04
+# Added: CmdletBinding
+# Added: PowerShell 7 Support
+#
+#
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.4894) and PowerShell 5.1 (5.1.19041.4894)
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.4780) and PowerShell 7.4.5
 #
 #
 #############################################################################################################################################################################################
@@ -37,15 +47,29 @@
 
 <#
 .SYNOPSIS
-  RiskyDetections-Analyzer v0.2 - Automated Processing of 'RiskyDetections.csv' (Microsoft-Extractor-Suite by Invictus-IR)
+  RiskyDetections-Analyzer v0.3 - Automated Processing of 'RiskyDetections.csv' (Microsoft-Extractor-Suite by Invictus-IR)
 
 .DESCRIPTION
-  RiskyDetections-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of the Risk Detections from the Entra ID Identity Protection extracted via "Microsoft 365 Extractor Suite" by Invictus Incident Response.
+  RiskyDetections-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of the Risk Detections from the Entra ID Identity Protection extracted via "Microsoft-Extractor-Suite" by Invictus Incident Response.
 
   https://github.com/invictus-ir/Microsoft-Extractor-Suite
 
+.PARAMETER OutputDir
+  Specifies the output directory. Default is "$env:USERPROFILE\Desktop\RiskyDetections-Analyzer".
+
+  Note: The subdirectory 'RiskyDetections-Analyzer' is automatically created.
+
+.PARAMETER Path
+  Specifies the path to the CSV-based input file (*-RiskyDetections.csv).
+
 .EXAMPLE
   PS> .\RiskyDetections-Analyzer.ps1
+
+.EXAMPLE
+  PS> .\RiskyDetections-Analyzer.ps1 -Path "$env:USERPROFILE\Desktop\*-RiskyDetections.csv"
+
+.EXAMPLE
+  PS> .\RiskyDetections-Analyzer.ps1 -Path "H:\Microsoft-Extractor-Suite\*-RiskyDetections.csv" -OutputDir "H:\Microsoft-Analyzer-Suite"
 
 .NOTES
   Author - Martin Willing
@@ -61,7 +85,8 @@
 
 [CmdletBinding()]
 Param(
-	[string]$Path
+    [String]$Path,
+    [String]$OutputDir
 )
 
 #endregion CmdletBinding
@@ -73,20 +98,23 @@ Param(
 
 # Declarations
 
-# Script Root
-if ($PSVersionTable.PSVersion.Major -gt 2)
+# Output Directory
+if (!($OutputDir))
 {
-    # PowerShell 3+
-    $SCRIPT_DIR = $PSScriptRoot
+    $script:OUTPUT_FOLDER = "$env:USERPROFILE\Desktop\RiskyDetections-Analyzer" # Default
 }
 else
 {
-    # PowerShell 2
-    $SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Definition
+    if ($OutputDir -cnotmatch '.+(?=\\)') 
+    {
+        Write-Host "[Error] You must provide a valid directory path." -ForegroundColor Red
+        Exit
+    }
+    else
+    {
+        $script:OUTPUT_FOLDER = "$OutputDir\RiskyDetections-Analyzer" # Custom
+    }
 }
-
-# Output Directory
-$OUTPUT_FOLDER = "$env:USERPROFILE\Desktop\RiskyDetections-Analyzer"
 
 #endregion Declarations
 
@@ -97,7 +125,7 @@ $OUTPUT_FOLDER = "$env:USERPROFILE\Desktop\RiskyDetections-Analyzer"
 
 # Windows Title
 $DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
-$Host.UI.RawUI.WindowTitle = "RiskyDetections-Analyzer v0.2 - Automated Processing of 'RiskyDetections.csv' (Microsoft-Extractor-Suite by Invictus-IR)"
+$Host.UI.RawUI.WindowTitle = "RiskyDetections-Analyzer v0.3 - Automated Processing of 'RiskyDetections.csv' (Microsoft-Extractor-Suite by Invictus-IR)"
 
 # Check if the PowerShell script is being run with admin rights
 if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
@@ -137,7 +165,7 @@ if(!($Path))
         [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") | Out-Null
         $OpenFileDialog = New-Object System.Windows.Forms.OpenFileDialog
         $OpenFileDialog.InitialDirectory = $InitialDirectory
-        $OpenFileDialog.Filter = "Risky Detections (RiskyDetections.csv)|RiskyDetections.csv|All Files (*.*)|*.*"
+        $OpenFileDialog.Filter = "Risky Detections|*-RiskyDetections.csv|All Files (*.*)|*.*"
         $OpenFileDialog.ShowDialog()
         $OpenFileDialog.Filename
         $OpenFileDialog.ShowHelp = $true
@@ -161,6 +189,9 @@ else
     $script:LogFile = $Path
 }
 
+# Create a record of your PowerShell session to a text file
+Start-Transcript -Path "$OUTPUT_FOLDER\Transcript.txt"
+
 # Get Start Time
 $startTime = (Get-Date)
 
@@ -179,7 +210,7 @@ Write-Output "$Logo"
 Write-Output ""
 
 # Header
-Write-Output "RiskyDetections-Analyzer v0.1 - Automated Processing of 'RiskyDetections.csv'"
+Write-Output "RiskyDetections-Analyzer v0.3 - Automated Processing of 'RiskyDetections.csv'"
 Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
 Write-Output ""
 
@@ -257,7 +288,7 @@ Write-Output "[Info]  Log data from $StartDate UTC until $EndDate UTC"
 # https://learn.microsoft.com/en-us/graph/api/resources/riskdetection?view=graph-rest-1.0
 # https://github.com/microsoftgraph/microsoft-graph-docs-contrib/blob/main/api-reference/v1.0/resources/riskdetection.md
 # https://learn.microsoft.com/en-us/powershell/module/Microsoft.Graph.Beta.Identity.SignIns/Get-MgBetaRiskDetection?view=graph-powershell-beta
-$Data = Import-Csv -Path "$LogFile" -Delimiter "," | Sort-Object { $_.ActivityDateTime -as [datetime] } -Descending
+$Data = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Sort-Object { $_.ActivityDateTime -as [DateTime] } -Descending
 
 $Results = @()
 ForEach($Record in $Data)
@@ -311,7 +342,7 @@ ForEach($Record in $Data)
     $Results += $Line
 }
 
-$Results | Export-Csv -Path "$OUTPUT_FOLDER\CSV\RiskyDetections.csv" -NoTypeInformation
+$Results | Export-Csv -Path "$OUTPUT_FOLDER\CSV\RiskyDetections.csv" -NoTypeInformation -Encoding UTF8
 
 # XLSX
 if (Get-Module -ListAvailable -Name ImportExcel)
@@ -320,12 +351,12 @@ if (Get-Module -ListAvailable -Name ImportExcel)
     {
         if(!([String]::IsNullOrWhiteSpace((Get-Content "$OUTPUT_FOLDER\CSV\RiskyDetections.csv"))))
         {
-            $IMPORT = Import-Csv "$OUTPUT_FOLDER\CSV\RiskyDetections.csv" -Delimiter ","
+            $IMPORT = Import-Csv "$OUTPUT_FOLDER\CSV\RiskyDetections.csv" -Delimiter "," -Encoding UTF8
             $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\XLSX\RiskyDetections.xlsx" -NoNumberConversion * -FreezePane 2,6 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Risky Detections" -CellStyleSB {
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
-            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:AO1"] -BackgroundColor $BackgroundColor -FontColor White
+            $BackgroundColor = [System.Drawing.Color]::FromArgb(255,220,0)
+            Set-Format -Address $WorkSheet.Cells["A1:AO1"] -BackgroundColor $BackgroundColor -FontColor Black
             # HorizontalAlignment "Center" of columns A-AO
             $WorkSheet.Cells["A:AO"].Style.HorizontalAlignment="Center"
             # ConditionalFormatting - MITRE ATT&CK Techniques
@@ -361,7 +392,12 @@ else
 # Count Risky Detections
 $Count = (Import-Csv -Path "$LogFile" -Delimiter "," | Measure-Object).Count
 $RiskyDetections = '{0:N0}' -f $Count
-Write-Output "[Info]  $RiskyDetections Risky Detection(s) found"
+
+# Count Users
+$Count = (Import-Csv -Path "$LogFile" -Delimiter "," | Select-Object UserId -Unique | Measure-Object).Count
+$Users = '{0:N0}' -f $Count
+
+Write-Output "[Info]  $RiskyDetections Risky Detection(s) found ($Users Users)"
 
 # Stats
 New-Item "$OUTPUT_FOLDER\Stats\CSV" -ItemType Directory -Force | Out-Null
@@ -376,12 +412,12 @@ if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\Activity.csv")
 {
     if(!([String]::IsNullOrWhiteSpace((Get-Content "$LogFile"))))
     {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\Stats\CSV\Activity.csv" -Delimiter ","
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\Stats\CSV\Activity.csv" -Delimiter "," -Encoding UTF8
         $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\Activity.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Activity" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(255,220,0)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor Black
         # HorizontalAlignment "Center" of columns A-C
         $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
         }
@@ -397,12 +433,12 @@ if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\DetectionTimingType.csv")
 {
     if(!([String]::IsNullOrWhiteSpace((Get-Content "$LogFile"))))
     {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\Stats\CSV\DetectionTimingType.csv" -Delimiter ","
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\Stats\CSV\DetectionTimingType.csv" -Delimiter "," -Encoding UTF8
         $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\DetectionTimingType.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "DetectionTimingType" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(255,220,0)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor Black
         # HorizontalAlignment "Center" of columns A-C
         $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
         }
@@ -420,12 +456,12 @@ if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\mitreTechniques.csv")
 {
     if(!([String]::IsNullOrWhiteSpace((Get-Content "$LogFile"))))
     {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\Stats\CSV\mitreTechniques.csv" -Delimiter ","
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\Stats\CSV\mitreTechniques.csv" -Delimiter "," -Encoding UTF8
         $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\mitreTechniques.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "MITRE ATT&CK" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(255,220,0)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor Black
         # HorizontalAlignment "Center" of columns B-C
         $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
         # ConditionalFormatting
@@ -456,12 +492,12 @@ if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\RiskEventType.csv")
 {
     if(!([String]::IsNullOrWhiteSpace((Get-Content "$LogFile"))))
     {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\Stats\CSV\RiskEventType.csv" -Delimiter ","
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\Stats\CSV\RiskEventType.csv" -Delimiter "," -Encoding UTF8
         $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\RiskEventType.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "RiskEventType" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(255,220,0)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor Black
         # HorizontalAlignment "Center" of columns A-C
         $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
         # ConditionalFormatting
@@ -473,6 +509,7 @@ if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\RiskEventType.csv")
 }
 
 # RiskLevel (Stats)
+# Note: hidden --> Microsoft Entra ID Premium P2 required.
 $Total = (Import-Csv -Path "$OUTPUT_FOLDER\CSV\RiskyDetections.csv" -Delimiter "," | Select-Object RiskLevel | Measure-Object).Count
 Import-Csv -Path "$OUTPUT_FOLDER\CSV\RiskyDetections.csv" -Delimiter "," -Encoding UTF8 | Group-Object RiskLevel | Select-Object @{Name='RiskLevel'; Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\Stats\CSV\RiskLevel.csv" -NoTypeInformation -Encoding UTF8
 
@@ -481,12 +518,12 @@ if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\RiskLevel.csv")
 {
     if(!([String]::IsNullOrWhiteSpace((Get-Content "$LogFile"))))
     {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\Stats\CSV\RiskLevel.csv" -Delimiter ","
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\Stats\CSV\RiskLevel.csv" -Delimiter "," -Encoding UTF8
         $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\RiskLevel.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "RiskLevel" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(255,220,0)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor Black
         # HorizontalAlignment "Center" of columns A-C
         $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
         # ConditionalFormatting - RiskLevel
@@ -501,6 +538,7 @@ if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\RiskLevel.csv")
 }
 
 # RiskDetail (Stats)
+# Note: hidden --> Microsoft Entra ID Premium P2 required.
 $Total = (Import-Csv -Path "$OUTPUT_FOLDER\CSV\RiskyDetections.csv" -Delimiter "," | Select-Object RiskDetail | Measure-Object).Count
 Import-Csv -Path "$OUTPUT_FOLDER\CSV\RiskyDetections.csv" -Delimiter "," -Encoding UTF8 | Group-Object RiskDetail | Select-Object @{Name='RiskDetail'; Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\Stats\CSV\RiskDetail.csv" -NoTypeInformation -Encoding UTF8
 
@@ -509,12 +547,12 @@ if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\RiskDetail.csv")
 {
     if(!([String]::IsNullOrWhiteSpace((Get-Content "$LogFile"))))
     {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\Stats\CSV\RiskDetail.csv" -Delimiter ","
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\Stats\CSV\RiskDetail.csv" -Delimiter "," -Encoding UTF8
         $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\RiskDetail.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "RiskDetail" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(255,220,0)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor Black
         # HorizontalAlignment "Center" of columns A-C
         $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
         }
@@ -530,12 +568,12 @@ if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\RiskReasons.csv")
 {
     if(!([String]::IsNullOrWhiteSpace((Get-Content "$LogFile"))))
     {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\Stats\CSV\RiskReasons.csv" -Delimiter ","
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\Stats\CSV\RiskReasons.csv" -Delimiter "," -Encoding UTF8
         $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\RiskReasons.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "RiskReasons" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(255,220,0)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor Black
         # HorizontalAlignment "Center" of columns B-C
         $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
 
@@ -552,12 +590,12 @@ if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\RiskState.csv")
 {
     if(!([String]::IsNullOrWhiteSpace((Get-Content "$LogFile"))))
     {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\Stats\CSV\RiskState.csv" -Delimiter ","
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\Stats\CSV\RiskState.csv" -Delimiter "," -Encoding UTF8
         $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\RiskState.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "RiskState" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(255,220,0)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor Black
         # HorizontalAlignment "Center" of columns A-C
         $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
 
@@ -574,12 +612,12 @@ if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\Source.csv")
 {
     if(!([String]::IsNullOrWhiteSpace((Get-Content "$LogFile"))))
     {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\Stats\CSV\Source.csv" -Delimiter ","
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\Stats\CSV\Source.csv" -Delimiter "," -Encoding UTF8
         $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\Source.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Source" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(255,220,0)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor Black
         # HorizontalAlignment "Center" of columns A-C
         $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
         }
@@ -595,12 +633,12 @@ if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\UserAgent.csv")
 {
     if(!([String]::IsNullOrWhiteSpace((Get-Content "$LogFile"))))
     {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\Stats\CSV\UserAgent.csv" -Delimiter ","
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\Stats\CSV\UserAgent.csv" -Delimiter "," -Encoding UTF8
         $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\UserAgent.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "UserAgent" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(255,220,0)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor Black
         # HorizontalAlignment "Center" of columns B-C
         $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
         }
@@ -624,12 +662,12 @@ if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\UserPrincipalName.csv")
 {
     if(!([String]::IsNullOrWhiteSpace((Get-Content "$LogFile"))))
     {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\Stats\CSV\UserPrincipalName.csv" -Delimiter ","
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\Stats\CSV\UserPrincipalName.csv" -Delimiter "," -Encoding UTF8
         $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\UserPrincipalName.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "UserPrincipalName" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(255,220,0)
+        Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor Black
         # HorizontalAlignment "Center" of columns B-D
         $WorkSheet.Cells["B:D"].Style.HorizontalAlignment="Center"
         }
@@ -750,6 +788,11 @@ Write-Output "FINISHED!"
 $Time = ($endTime-$startTime)
 $ElapsedTime = ('Overall analysis duration: {0} h {1} min {2} sec' -f $Time.Hours, $Time.Minutes, $Time.Seconds)
 Write-Output "$ElapsedTime"
+
+# Stop logging
+Write-Host ""
+Stop-Transcript
+Start-Sleep 2
 
 # Reset Windows Title
 $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
