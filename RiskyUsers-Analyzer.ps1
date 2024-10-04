@@ -1,10 +1,10 @@
-﻿# RiskyUsers-Analyzer v0.2
+﻿# RiskyUsers-Analyzer v0.3
 #
 # @author:    Martin Willing
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-06-15
+# @date:      2024-10-04
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -17,19 +17,28 @@
 #
 # Dependencies:
 #
-# ImportExcel v7.8.6 (2023-10-13)
+# ImportExcel v7.8.9 (2024-05-18)
 # https://github.com/dfinke/ImportExcel
 #
 #
 # Changelog:
 # Version 0.1
-# Release Date: 2024-02-21
+# Release Date: 2024-02-11
 # Initial Release
 #
 # Version 0.2
-# Release Date: 2024-03-09
+# Release Date: 2024-02-29
+# Added: Transcript
 # Added: Support TimestampFormat (en-US)
-# Fixed: Other minor fixes and improvements
+#
+# Version 0.3
+# Release Date: 2024-10-04
+# Added: CmdletBinding
+# Added: PowerShell 7 Support
+#
+#
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.4894) and PowerShell 5.1 (5.1.19041.4894)
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.4780) and PowerShell 7.4.5
 #
 #
 #############################################################################################################################################################################################
@@ -37,23 +46,37 @@
 
 <#
 .SYNOPSIS
-  RiskyUsers-Analyzer v0.2 - Automated Processing of 'RiskyUsers.csv' (Microsoft-Extractor-Suite by Invictus-IR)
+  RiskyUsers-Analyzer v0.3 - Automated Processing of 'RiskyUsers.csv' (Microsoft-Extractor-Suite by Invictus-IR)
 
 .DESCRIPTION
   RiskyUsers-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of the Risky Users from the Entra ID Identity Protection extracted via "Microsoft Extractor Suite" by Invictus Incident Response.
 
   Note: Using the riskyUsers API requires a Microsoft Entra ID P2 license.
 
-  https://github.com/invictus-ir/Microsoft-Extractor-Suite
+  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v2.1.0)
+
+.PARAMETER OutputDir
+  Specifies the output directory. Default is "$env:USERPROFILE\Desktop\RiskyUsers-Analyzer".
+
+  Note: The subdirectory 'RiskyUsers-Analyzer' is automatically created.
+
+.PARAMETER Path
+  Specifies the path to the CSV-based input file (*-RiskyUsers.csv).
 
 .EXAMPLE
   PS> .\RiskyUsers-Analyzer.ps1
+
+.EXAMPLE
+  PS> .\RiskyUsers-Analyzer.ps1 -Path "$env:USERPROFILE\Desktop\*-RiskyUsers.csv"
+
+.EXAMPLE
+  PS> .\RiskyUsers-Analyzer.ps1 -Path "H:\Microsoft-Extractor-Suite\*-RiskyUsers.csv" -OutputDir "H:\Microsoft-Analyzer-Suite"
 
 .NOTES
   Author - Martin Willing
 
 .LINK
-  https://lethal-forensics.com/
+  https://www.infoguard.ch/
 #>
 
 #############################################################################################################################################################################################
@@ -63,7 +86,8 @@
 
 [CmdletBinding()]
 Param(
-	[string]$Path
+    [String]$Path,
+    [String]$OutputDir
 )
 
 #endregion CmdletBinding
@@ -88,7 +112,22 @@ else
 }
 
 # Output Directory
-$OUTPUT_FOLDER = "$env:USERPROFILE\Desktop\RiskyUsers-Analyzer"
+if (!($OutputDir))
+{
+    $script:OUTPUT_FOLDER = "$env:USERPROFILE\Desktop\RiskyUsers-Analyzer" # Default
+}
+else
+{
+    if ($OutputDir -cnotmatch '.+(?=\\)') 
+    {
+        Write-Host "[Error] You must provide a valid directory path." -ForegroundColor Red
+        Exit
+    }
+    else
+    {
+        $script:OUTPUT_FOLDER = "$OutputDir\RiskyUsers-Analyzer" # Custom
+    }
+}
 
 #endregion Declarations
 
@@ -99,7 +138,7 @@ $OUTPUT_FOLDER = "$env:USERPROFILE\Desktop\RiskyUsers-Analyzer"
 
 # Windows Title
 $DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
-$Host.UI.RawUI.WindowTitle = "RiskyUsers-Analyzer v0.2 - Automated Processing of 'RiskyUsers.csv' (Microsoft-Extractor-Suite by Invictus-IR)"
+$Host.UI.RawUI.WindowTitle = "RiskyUsers-Analyzer v0.3 - Automated Processing of 'RiskyUsers.csv' (Microsoft-Extractor-Suite by Invictus-IR)"
 
 # Check if the PowerShell script is being run with admin rights
 if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
@@ -139,7 +178,7 @@ if(!($Path))
         [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") | Out-Null
         $OpenFileDialog = New-Object System.Windows.Forms.OpenFileDialog
         $OpenFileDialog.InitialDirectory = $InitialDirectory
-        $OpenFileDialog.Filter = "Risky Users (RiskyUsers.csv)|RiskyUsers.csv|All Files (*.*)|*.*"
+        $OpenFileDialog.Filter = "Risky Users|*-RiskyUsers.csv|All Files (*.*)|*.*"
         $OpenFileDialog.ShowDialog()
         $OpenFileDialog.Filename
         $OpenFileDialog.ShowHelp = $true
@@ -163,6 +202,9 @@ else
     $script:LogFile = $Path
 }
 
+# Create a record of your PowerShell session to a text file
+Start-Transcript -Path "$OUTPUT_FOLDER\Transcript.txt"
+
 # Get Start Time
 $startTime = (Get-Date)
 
@@ -181,7 +223,7 @@ Write-Output "$Logo"
 Write-Output ""
 
 # Header
-Write-Output "RiskyUsers-Analyzer v0.2 - Automated Processing of 'RiskyUsers.csv'"
+Write-Output "RiskyUsers-Analyzer v0.3 - Automated Processing of 'RiskyUsers.csv'"
 Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
 Write-Output ""
 
@@ -414,17 +456,25 @@ if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\RiskState.csv")
 New-Item "$OUTPUT_FOLDER\Stats\XLSX\LineCharts" -ItemType Directory -Force | Out-Null
 
 # Risky Users (Line Chart) --> Risky Users per day
-$Import = Import-Csv "$LogFile" -Delimiter "," | Select-Object @{Name="RiskLastUpdatedDateTime";Expression={([DateTime]::Parse($_.RiskLastUpdatedDateTime).ToString("yyyy-MM-dd HH:mm:ss"))}}
-$RiskyUsers = $Import | Group-Object{($_.RiskLastUpdatedDateTime -split "\s+")[0]} | Select-Object Count,@{Name='RiskLastUpdatedDateTime'; Expression={ $_.Values[0] }} | Sort-Object { $_.RiskLastUpdatedDateTime -as [datetime] }
-$ChartDefinition = New-ExcelChartDefinition -XRange RiskLastUpdatedDateTime -YRange Count -Title "Risky Users" -ChartType Line -NoLegend -Width 1200
-$RiskyUsers | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\LineCharts\RiskyUsers.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
+$Import = Import-Csv "$LogFile" -Delimiter "," | Select-Object @{Name="RiskLastUpdatedDateTime";Expression={([DateTime]::ParseExact($_.RiskLastUpdatedDateTime, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}}
+$Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
+if ($Count -gt 0)
+{
+    $RiskyUsers = $Import | Group-Object{($_.RiskLastUpdatedDateTime -split "\s+")[0]} | Select-Object Count,@{Name='RiskLastUpdatedDateTime'; Expression={ $_.Values[0] }} | Sort-Object { $_.RiskLastUpdatedDateTime -as [datetime] }
+    $ChartDefinition = New-ExcelChartDefinition -XRange RiskLastUpdatedDateTime -YRange Count -Title "Risky Users" -ChartType Line -NoLegend -Width 1200
+    $RiskyUsers | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\LineCharts\RiskyUsers.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
+}
 
 # Risky Users (Line Chart) --> Risky Users per day (Last 90 days)
 $Date = (Get-Date).AddDays(-90)
-$Import = Import-Csv "$LogFile" -Delimiter "," | Where-Object -FilterScript {[DateTime]::Parse($_.RiskLastUpdatedDateTime) -gt $Date} | Select-Object @{Name="RiskLastUpdatedDateTime";Expression={([DateTime]::Parse($_.RiskLastUpdatedDateTime).ToString("yyyy-MM-dd HH:mm:ss"))}}
-$RiskyUsers = $Import | Group-Object{($_.RiskLastUpdatedDateTime -split "\s+")[0]} | Select-Object Count,@{Name='RiskLastUpdatedDateTime'; Expression={ $_.Values[0] }} | Sort-Object { $_.RiskLastUpdatedDateTime -as [datetime] }
-$ChartDefinition = New-ExcelChartDefinition -XRange RiskLastUpdatedDateTime -YRange Count -Title "Risky Users (Last 90 days)" -ChartType Line -NoLegend -Width 1200
-$RiskyUsers | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\LineCharts\RiskyUsers_Last-90-days.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
+$Import = Import-Csv "$LogFile" -Delimiter "," | Where-Object -FilterScript {[DateTime]::Parse($_.RiskLastUpdatedDateTime) -gt $Date} | Select-Object @{Name="RiskLastUpdatedDateTime";Expression={([DateTime]::ParseExact($_.RiskLastUpdatedDateTime, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}}
+$Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
+if ($Count -gt 0)
+{
+    $RiskyUsers = $Import | Group-Object{($_.RiskLastUpdatedDateTime -split "\s+")[0]} | Select-Object Count,@{Name='RiskLastUpdatedDateTime'; Expression={ $_.Values[0] }} | Sort-Object { $_.RiskLastUpdatedDateTime -as [datetime] }
+    $ChartDefinition = New-ExcelChartDefinition -XRange RiskLastUpdatedDateTime -YRange Count -Title "Risky Users (Last 90 days)" -ChartType Line -NoLegend -Width 1200
+    $RiskyUsers | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\LineCharts\RiskyUsers_Last-90-days.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
+}
 
 # atRisk
 # dismissed --> e.g. dismissed automatically
@@ -433,7 +483,6 @@ $RiskyUsers | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\LineCharts\RiskyUser
 # Number of Risky Users with Risk Level "High" (Past 12 months)
 $Date = (Get-Date).AddDays(-360)
 $Count = (Import-Csv -Path "$LogFile" -Delimiter "," | Where-Object -FilterScript {[DateTime]::Parse($_.RiskLastUpdatedDateTime) -gt $Date}  | Where-Object { $_.RiskLevel -eq "high" } | Measure-Object).Count
-
 if ($Count -gt 0)
 {
     $HighRiskUsers = '{0:N0}' -f $Count
@@ -470,6 +519,11 @@ $Time = ($endTime-$startTime)
 $ElapsedTime = ('Overall analysis duration: {0} h {1} min {2} sec' -f $Time.Hours, $Time.Minutes, $Time.Seconds)
 Write-Output "$ElapsedTime"
 
+# Stop logging
+Write-Host ""
+Stop-Transcript
+Start-Sleep 2
+
 # Reset Windows Title
 $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
 
@@ -477,3 +531,19 @@ $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
 
 #############################################################################################################################################################################################
 #############################################################################################################################################################################################
+
+# TODO
+
+# Properties
+# id                      - Unique ID of the user at risk.
+# isDeleted               - Indicates whether the user is deleted. Possible values are: true, false.
+# isProcessing            - Indicates whether a user's risky state is being processed by the backend.
+# riskDetail              - Details of the detected risk. Possible values are: none, adminGeneratedTemporaryPassword, userPerformedSecuredPasswordChange, userPerformedSecuredPasswordReset, adminConfirmedSigninSafe, aiConfirmedSigninSafe, userPassedMFADrivenByRiskBasedPolicy, adminDismissedAllRiskForUser, adminConfirmedSigninCompromised, hidden, adminConfirmedUserCompromised, unknownFutureValue.
+# riskLastUpdatedDateTime - The date and time that the risky user was last updated (UTC). 
+# riskLevel               - Level of the detected risky user. Possible values are: low, medium, high, hidden, none, unknownFutureValue.
+# riskState               - State of the user's risk. Possible values are: none, confirmedSafe, remediated, dismissed, atRisk, confirmedCompromised, unknownFutureValue.
+# userDisplayName         - Risky user display name.
+# userPrincipalName       - Risky user principal name.
+#
+# Relationships
+# history                 - The activity related to user risk level change
