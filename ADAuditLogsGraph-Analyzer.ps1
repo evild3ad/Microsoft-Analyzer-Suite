@@ -1423,10 +1423,10 @@ if ($Count -ge 1)
                 param($WorkSheet)
                 # BackgroundColor and FontColor for specific cells of TopRow
                 $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                Set-Format -Address $WorkSheet.Cells["A1:Z1"] -BackgroundColor $BackgroundColor -FontColor White
-                # HorizontalAlignment "Center" of columns A-L and N-Z
+                Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
+                # HorizontalAlignment "Center" of columns A-L and N-BH
                 $WorkSheet.Cells["A:L"].Style.HorizontalAlignment="Center"
-                $WorkSheet.Cells["N:Z"].Style.HorizontalAlignment="Center"
+                $WorkSheet.Cells["N:BH"].Style.HorizontalAlignment="Center"
                 # ConditionalFormatting - StatusReason
                 Add-ConditionalFormatting -Address $WorkSheet.Cells["H:J,M:M"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Authenticator App with Code",$M1)))' -BackgroundColor Red
                 }
@@ -1461,10 +1461,10 @@ if ($Count -ge 1)
                 param($WorkSheet)
                 # BackgroundColor and FontColor for specific cells of TopRow
                 $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                Set-Format -Address $WorkSheet.Cells["A1:Z1"] -BackgroundColor $BackgroundColor -FontColor White
-                # HorizontalAlignment "Center" of columns A-L and N-Z
+                Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
+                # HorizontalAlignment "Center" of columns A-L and N-BH
                 $WorkSheet.Cells["A:L"].Style.HorizontalAlignment="Center"
-                $WorkSheet.Cells["N:Z"].Style.HorizontalAlignment="Center"
+                $WorkSheet.Cells["N:BH"].Style.HorizontalAlignment="Center"
                 # ConditionalFormatting - StatusReason
                 Add-ConditionalFormatting -Address $WorkSheet.Cells["H:J,M:M"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Authenticator App with Notification",$M1)))' -BackgroundColor Red
                 }
@@ -1499,10 +1499,10 @@ if ($Count -ge 1)
                 param($WorkSheet)
                 # BackgroundColor and FontColor for specific cells of TopRow
                 $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                Set-Format -Address $WorkSheet.Cells["A1:BB1"] -BackgroundColor $BackgroundColor -FontColor White
-                # HorizontalAlignment "Center" of columns A-L and N-BB
+                Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
+                # HorizontalAlignment "Center" of columns A-L and N-BH
                 $WorkSheet.Cells["A:L"].Style.HorizontalAlignment="Center"
-                $WorkSheet.Cells["N:BB"].Style.HorizontalAlignment="Center"
+                $WorkSheet.Cells["N:BH"].Style.HorizontalAlignment="Center"
                 # ConditionalFormatting - StatusReason
                 Add-ConditionalFormatting -Address $WorkSheet.Cells["H:J,M:M"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Authenticator App with Notification and Code",$M1)))' -BackgroundColor Red
                 }
@@ -1536,10 +1536,10 @@ if ($Count -ge 1)
                 param($WorkSheet)
                 # BackgroundColor and FontColor for specific cells of TopRow
                 $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                Set-Format -Address $WorkSheet.Cells["A1:BB1"] -BackgroundColor $BackgroundColor -FontColor White
-                # HorizontalAlignment "Center" of columns A-U and X-BB
+                Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
+                # HorizontalAlignment "Center" of columns A-U and X-BH
                 $WorkSheet.Cells["A:U"].Style.HorizontalAlignment="Center"
-                $WorkSheet.Cells["X:BB"].Style.HorizontalAlignment="Center"
+                $WorkSheet.Cells["X:BH"].Style.HorizontalAlignment="Center"
                 # ConditionalFormatting - ActivityDisplayName
                 Add-ConditionalFormatting -Address $WorkSheet.Cells["H:J"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Update user",$J1)))' -BackgroundColor Red
                 # ConditionalFormatting - Target1ModifiedProperty1Name
@@ -1576,10 +1576,10 @@ if ($Count -ge 1)
                 param($WorkSheet)
                 # BackgroundColor and FontColor for specific cells of TopRow
                 $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                Set-Format -Address $WorkSheet.Cells["A1:Y1"] -BackgroundColor $BackgroundColor -FontColor White
-                # HorizontalAlignment "Center" of columns A-K and M-Y
+                Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
+                # HorizontalAlignment "Center" of columns A-K and N-BH
                 $WorkSheet.Cells["A:K"].Style.HorizontalAlignment="Center"
-                $WorkSheet.Cells["M:Y"].Style.HorizontalAlignment="Center"
+                $WorkSheet.Cells["N:BH"].Style.HorizontalAlignment="Center"
                 # ConditionalFormatting - StatusReason
                 Add-ConditionalFormatting -Address $WorkSheet.Cells["G:I,L:L"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Mobile Phone SMS",$L1)))' -BackgroundColor Red
                 }
@@ -1630,9 +1630,9 @@ if ($Count -ge 1)
                 param($WorkSheet)
                 # BackgroundColor and FontColor for specific cells of TopRow
                 $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                Set-Format -Address $WorkSheet.Cells["A1:BB1"] -BackgroundColor $BackgroundColor -FontColor White
-                # HorizontalAlignment "Center" of columns A-BB
-                $WorkSheet.Cells["A:BB"].Style.HorizontalAlignment="Center"
+                Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
+                # HorizontalAlignment "Center" of columns A-BH
+                $WorkSheet.Cells["A:BH"].Style.HorizontalAlignment="Center"
                 # ConditionalFormatting - ActivityDisplayName
                 Add-ConditionalFormatting -Address $WorkSheet.Cells["H:J"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add application",$J1)))' -BackgroundColor Red
                 }
@@ -1667,21 +1667,21 @@ if ($Count -ge 1)
                 param($WorkSheet)
                 # BackgroundColor and FontColor for specific cells of TopRow
                 $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                Set-Format -Address $WorkSheet.Cells["A1:BB1"] -BackgroundColor $BackgroundColor -FontColor White
-                # HorizontalAlignment "Center" of columns A-Y and AA-BB
+                Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
+                # HorizontalAlignment "Center" of columns A-Y and AA-BH
                 $WorkSheet.Cells["A:Y"].Style.HorizontalAlignment="Center"
-                $WorkSheet.Cells["AA:BB"].Style.HorizontalAlignment="Center"
+                $WorkSheet.Cells["AA:BH"].Style.HorizontalAlignment="Center"
                 # ConditionalFormatting - ActivityDisplayName
                 Add-ConditionalFormatting -Address $WorkSheet.Cells["H:J"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add service principal",$J1)))' -BackgroundColor Red
                 # ConditionalFormatting - Target1DisplayName
-                Add-ConditionalFormatting -Address $WorkSheet.Cells["Q:Q"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("eM Client",$Q1)))' -BackgroundColor Red
+                Add-ConditionalFormatting -Address $WorkSheet.Cells["W:W"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("eM Client",$W1)))' -BackgroundColor Red
 
                 # ConditionalFormatting - Application-Blacklist
                 foreach ($AppId in $ApplicationBlacklist_HashTable.Keys) 
                 {
                     $Severity = $ApplicationBlacklist_HashTable["$AppId"][1]
-                    $ConditionValue = 'NOT(ISERROR(FIND("{0}",$AC1)))' -f $AppId
-                    Add-ConditionalFormatting -Address $WorkSheet.Cells["AC:AC"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
+                    $ConditionValue = 'NOT(ISERROR(FIND("{0}",$AI1)))' -f $AppId
+                    Add-ConditionalFormatting -Address $WorkSheet.Cells["AI:AI"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
                 }
 
                 }
@@ -1715,10 +1715,10 @@ if ($Count -ge 1)
                 param($WorkSheet)
                 # BackgroundColor and FontColor for specific cells of TopRow
                 $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                Set-Format -Address $WorkSheet.Cells["A1:BB1"] -BackgroundColor $BackgroundColor -FontColor White
-                # HorizontalAlignment "Center" of columns A-U and X-BB
+                Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
+                # HorizontalAlignment "Center" of columns A-U and X-BH
                 $WorkSheet.Cells["A:U"].Style.HorizontalAlignment="Center"
-                $WorkSheet.Cells["X:BB"].Style.HorizontalAlignment="Center"
+                $WorkSheet.Cells["X:BH"].Style.HorizontalAlignment="Center"
                 # ConditionalFormatting - ActivityDisplayName
                 Add-ConditionalFormatting -Address $WorkSheet.Cells["H:J"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add delegated permission grant",$J1)))' -BackgroundColor Red
                 }
@@ -1752,9 +1752,9 @@ if ($Count -ge 1)
                 param($WorkSheet)
                 # BackgroundColor and FontColor for specific cells of TopRow
                 $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                Set-Format -Address $WorkSheet.Cells["A1:BB1"] -BackgroundColor $BackgroundColor -FontColor White
-                # HorizontalAlignment "Center" of columns A-BB
-                $WorkSheet.Cells["A:BB"].Style.HorizontalAlignment="Center"
+                Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
+                # HorizontalAlignment "Center" of columns A-BH
+                $WorkSheet.Cells["A:BH"].Style.HorizontalAlignment="Center"
                 # ConditionalFormatting - ActivityDisplayName
                 Add-ConditionalFormatting -Address $WorkSheet.Cells["H:J"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add app role assignment grant to user",$J1)))' -BackgroundColor Red
                 # ConditionalFormatting - Target1DisplayName
@@ -1790,10 +1790,10 @@ if ($Count -ge 1)
                 param($WorkSheet)
                 # BackgroundColor and FontColor for specific cells of TopRow
                 $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                Set-Format -Address $WorkSheet.Cells["A1:BB1"] -BackgroundColor $BackgroundColor -FontColor White
-                # HorizontalAlignment "Center" of columns A-AH and AJ-BB
+                Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
+                # HorizontalAlignment "Center" of columns A-AH and AJ-BH
                 $WorkSheet.Cells["A:AH"].Style.HorizontalAlignment="Center"
-                $WorkSheet.Cells["AJ:BB"].Style.HorizontalAlignment="Center"
+                $WorkSheet.Cells["AJ:BH"].Style.HorizontalAlignment="Center"
                 # ConditionalFormatting - ActivityDisplayName
                 Add-ConditionalFormatting -Address $WorkSheet.Cells["H:J"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Consent to application",$J1)))' -BackgroundColor Red
                 # ConditionalFormatting - Target1ModifiedProperty1Name + Target1ModifiedProperty1NewValue
@@ -1830,10 +1830,10 @@ if ($Count -ge 1)
                 param($WorkSheet)
                 # BackgroundColor and FontColor for specific cells of TopRow
                 $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                Set-Format -Address $WorkSheet.Cells["A1:BB1"] -BackgroundColor $BackgroundColor -FontColor White
-                # HorizontalAlignment "Center" of columns A-AH and AJ-BB
+                Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
+                # HorizontalAlignment "Center" of columns A-AH and AJ-BH
                 $WorkSheet.Cells["A:AH"].Style.HorizontalAlignment="Center"
-                $WorkSheet.Cells["AJ:BB"].Style.HorizontalAlignment="Center"
+                $WorkSheet.Cells["AJ:BH"].Style.HorizontalAlignment="Center"
                 # ConditionalFormatting - ActivityDisplayName
                 Add-ConditionalFormatting -Address $WorkSheet.Cells["H:J"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Consent to application",$J1)))' -BackgroundColor Red
                 # ConditionalFormatting - Target1DisplayName
@@ -1872,10 +1872,10 @@ if ($Count -ge 1)
                 param($WorkSheet)
                 # BackgroundColor and FontColor for specific cells of TopRow
                 $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                Set-Format -Address $WorkSheet.Cells["A1:BB1"] -BackgroundColor $BackgroundColor -FontColor White
-                # HorizontalAlignment "Center" of columns A-AH and AJ-BB
+                Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
+                # HorizontalAlignment "Center" of columns A-AH and AJ-BH
                 $WorkSheet.Cells["A:AH"].Style.HorizontalAlignment="Center"
-                $WorkSheet.Cells["AJ:BB"].Style.HorizontalAlignment="Center"
+                $WorkSheet.Cells["AJ:BH"].Style.HorizontalAlignment="Center"
                 # ConditionalFormatting - ActivityDisplayName
                 Add-ConditionalFormatting -Address $WorkSheet.Cells["H:J"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Update application – Certificates and secrets management",$J1)))' -BackgroundColor Red
                 }
@@ -1935,10 +1935,10 @@ if ($Count -ge 1)
                 param($WorkSheet)
                 # BackgroundColor and FontColor for specific cells of TopRow
                 $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                Set-Format -Address $WorkSheet.Cells["A1:BA1"] -BackgroundColor $BackgroundColor -FontColor White
-                # HorizontalAlignment "Center" of columns A-G and I-BA
+                Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
+                # HorizontalAlignment "Center" of columns A-G and I-BH
                 $WorkSheet.Cells["A:G"].Style.HorizontalAlignment="Center"
-                $WorkSheet.Cells["I:BA"].Style.HorizontalAlignment="Center"
+                $WorkSheet.Cells["I:BH"].Style.HorizontalAlignment="Center"
                 # ConditionalFormatting - ActivityDisplayName
                 Add-ConditionalFormatting -Address $WorkSheet.Cells["G:I"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Set domain authentication.",$I1)))' -BackgroundColor Red
                 }
@@ -1973,10 +1973,10 @@ if ($Count -ge 1)
                 param($WorkSheet)
                 # BackgroundColor and FontColor for specific cells of TopRow
                 $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                Set-Format -Address $WorkSheet.Cells["A1:BA1"] -BackgroundColor $BackgroundColor -FontColor White
-                # HorizontalAlignment "Center" of columns A-G and I-BA
+                Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
+                # HorizontalAlignment "Center" of columns A-G and I-BH
                 $WorkSheet.Cells["A:G"].Style.HorizontalAlignment="Center"
-                $WorkSheet.Cells["I:BA"].Style.HorizontalAlignment="Center"
+                $WorkSheet.Cells["I:BH"].Style.HorizontalAlignment="Center"
                 # ConditionalFormatting - ActivityDisplayName
                 Add-ConditionalFormatting -Address $WorkSheet.Cells["G:I"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Set federation settings on domain.",$I1)))' -BackgroundColor Red
                 }
