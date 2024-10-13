@@ -1,10 +1,10 @@
-﻿# MTL-Analyzer v0.1
+﻿# MTL-Analyzer v0.2
 #
 # @author:    Martin Willing
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-10-03
+# @date:      2024-10-13
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -33,9 +33,17 @@
 # Release Date: 2024-08-23
 # Initial Release
 #
+# Version 0.2
+# Release Date: 2024-10-13
+# Added: CmdletBinding
+# Added: PowerShell 7 Support
+# Added: ConditionalFormatting - Subject (Stats)
+# Added: ODSP Notifications
+# Added: Outbound Spam (incl. SharePoint Sharing)
 #
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.4894) and PowerShell 5.1 (5.1.19041.4894)
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.4894) and PowerShell 7.4.5
+#
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5011) and PowerShell 5.1 (5.1.19041.5007)
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5011) and PowerShell 7.4.5
 #
 #
 #############################################################################################################################################################################################
@@ -43,7 +51,7 @@
 
 <#
 .SYNOPSIS
-  MTL-Analyzer v0.1 - Automated Processing of M365 Message Trace Logs for DFIR
+  MTL-Analyzer v0.2 - Automated Processing of M365 Message Trace Logs for DFIR
 
 .DESCRIPTION
   MTL-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of M365 Message Trace Logs extracted via "Microsoft Extractor Suite" by Invictus Incident Response.
@@ -161,7 +169,7 @@ $script:xsv = "$SCRIPT_DIR\Tools\xsv\xsv.exe"
 
 # Windows Title
 $DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
-$Host.UI.RawUI.WindowTitle = "MTL-Analyzer v0.1 - Automated Processing of M365 Message Trace Logs for DFIR"
+$Host.UI.RawUI.WindowTitle = "MTL-Analyzer v0.2 - Automated Processing of M365 Message Trace Logs for DFIR"
 
 # Check if the PowerShell script is being run with admin rights
 if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
@@ -248,7 +256,7 @@ Write-Output "$Logo"
 Write-Output ""
 
 # Header
-Write-Output "MTL-Analyzer v0.1 - Automated Processing of M365 Message Trace Logs for DFIR"
+Write-Output "MTL-Analyzer v0.2 - Automated Processing of M365 Message Trace Logs for DFIR"
 Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
 Write-Output ""
 
@@ -320,7 +328,7 @@ if (!($Extension -eq ".csv" ))
 # Check IPinfo CLI Access Token 
 if ("$Token" -eq "access_token")
 {
-    Write-Host "[Error] No IPinfo CLI Access Token provided. Please add your personal access token in Line 149." -ForegroundColor Red
+    Write-Host "[Error] No IPinfo CLI Access Token provided. Please add your personal access token in Line 159." -ForegroundColor Red
     Write-Host ""
     Stop-Transcript
     $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
@@ -342,7 +350,7 @@ Write-Output "[Info]  Total Input Size: $InputSize"
 $Rows = '{0:N0}' -f $Count
 Write-Output "[Info]  Total Lines: $Rows"
 
-# Processing M365 Unified Audit Logs
+# Processing M365 Message Trace Logs
 Write-Output "[Info]  Processing M365 Message Trace Logs ($UserId) ..."
 New-Item "$OUTPUT_FOLDER\MessageTraceLogs\CSV" -ItemType Directory -Force | Out-Null
 New-Item "$OUTPUT_FOLDER\MessageTraceLogs\XLSX" -ItemType Directory -Force | Out-Null
@@ -398,6 +406,8 @@ if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\XLSX\Untouched.xlsx")
     Write-Output "[Info]  File Size (XLSX) : $Size"
 }
 
+#############################################################################################################################################################################################
+
 # Stats
 New-Item "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound" -ItemType Directory -Force | Out-Null
 New-Item "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound" -ItemType Directory -Force | Out-Null
@@ -442,8 +452,8 @@ Write-Output "[Info]  Outgoing Messages: $OutgoingMessagesCount (Internal: $Outg
 # CSV (Stats)
 $Total = (Import-Csv -Path "$LogFile" -Delimiter "," | Where-Object {$_.RecipientAddress -eq "$UserId" } | Select-Object Subject | Measure-Object).Count
 Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object {$_.RecipientAddress -eq "$UserId" } | Group-Object Subject | Sort-Object Count -Descending | Select-Object @{Name='Subject'; Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Export-Csv -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Subject.csv" -NoTypeInformation -Encoding UTF8
-
-$SubjectCount = (Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object {$_.RecipientAddress -eq "$UserId" } | Select-Object Subject | Sort-Object Subject -Unique | Measure-Object).Count
+[int]$Count = (Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object {$_.RecipientAddress -eq "$UserId" } | Select-Object Subject | Sort-Object Subject -Unique | Measure-Object).Count
+$SubjectCount = '{0:N0}' -f $Count
 Write-Output "[Info]  Subjects (Inbound): $SubjectCount"
 
 # XLSX (Stats)
@@ -516,6 +526,9 @@ if (Get-Module -ListAvailable -Name ImportExcel)
             Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
             # HorizontalAlignment "Center" of columns B-C
             $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
+            # ConditionalFormatting - Count
+            $LastRow = $WorkSheet.Dimension.End.Row
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["A2:C$LastRow"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '=$B2>=75' -BackgroundColor "Red" # 75x outgoing messages with the same 'Subject'
             }
         }
     }
@@ -542,6 +555,9 @@ if (Get-Module -ListAvailable -Name ImportExcel)
             Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
             # HorizontalAlignment "Center" of columns B-D
             $WorkSheet.Cells["B:D"].Style.HorizontalAlignment="Center"
+            # ConditionalFormatting - Count
+            $LastRow = $WorkSheet.Dimension.End.Row
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["A2:D$LastRow"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '=$C2>=75' -BackgroundColor "Red" # 75x outgoing messages with the same 'Subject'
             }
         }
     }
@@ -867,7 +883,6 @@ $Unique | Out-File "$OUTPUT_FOLDER\FromIP\Outbound\IP-All.txt"
 # IPv4 (Outbound)
 Get-Content "$OUTPUT_FOLDER\FromIP\Outbound\IP-All.txt" | Select-String -Pattern $IPv4 -AllMatches | ForEach-Object { $_.Matches } | ForEach-Object { $_.Value } | Sort-Object -Unique -Property { [System.Version]$_ } | Out-File "$OUTPUT_FOLDER\FromIP\Outbound\IPv4-All.txt"
 Get-Content "$OUTPUT_FOLDER\FromIP\Outbound\IP-All.txt" | Select-String -Pattern $IPv4 -AllMatches | ForEach-Object { $_.Matches } | ForEach-Object { $_.Value } | Sort-Object -Unique -Property { [System.Version]$_ } | Where-Object {$_ -notmatch $Private} | Where-Object {$_ -notmatch $Special} | Out-File "$OUTPUT_FOLDER\FromIP\Outbound\IPv4.txt"
-
 
 # IPv6 (Outbound)
 Get-Content "$OUTPUT_FOLDER\FromIP\Outbound\IP-All.txt" | Select-String -Pattern $IPv6 -AllMatches | ForEach-Object { $_.Matches } | ForEach-Object { $_.Value } | Sort-Object -Unique | Out-File "$OUTPUT_FOLDER\FromIP\Outbound\IPv6-All.txt"
@@ -1360,6 +1375,84 @@ else
 }
 
 Get-IPLocation
+
+#############################################################################################################################################################################################
+
+Function Get-Analytics {
+
+# Import Hunt Data
+if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\CSV\Hunt.csv")
+{
+    $Data = Import-Csv -Path "$OUTPUT_FOLDER\MessageTraceLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8
+}
+
+# SharePoint Email Notifications (SharePoint Files shared)
+[int]$Count = ($Data | Where-Object {$_.MessageId -like "<Share-*" } | Measure-Object).Count
+if ($Count -gt 0)
+{
+    [int]$Inbound = ($Data | Where-Object {$_.MessageId -like "<Share-*"} | Where-Object {$_.Direction -like "Inbound"} | Measure-Object).Count
+    [int]$Outbound = ($Data | Where-Object {$_.MessageId -like "<Share-*"} | Where-Object {$_.Direction -like "Outbound"} | Measure-Object).Count
+    Write-Host "[Alert] $Count Shared File Email Notification(s) from OneDrive/SharePoint found (ODSP Notify) (Inbound: $Inbound, Outbound: $Outbound)" -ForegroundColor Yellow
+
+    # XLSX
+    if (Get-Module -ListAvailable -Name ImportExcel)
+    {
+        $Import = $Data | Where-Object {$_.MessageId -like "<Share-*" }
+        New-Item "$OUTPUT_FOLDER\MessageTraceLogs\XLSX\ODSP-Notify" -ItemType Directory -Force | Out-Null
+        $Import | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\XLSX\ODSP-Notify\Share.xlsx" -NoHyperLinkConversion * -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "SharePoint Sharing Operation" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:P1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of columns A-C and E-P
+        $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
+        $WorkSheet.Cells["E:P"].Style.HorizontalAlignment="Center"
+        }
+    }
+}
+
+# OneTimePasscode Email Notifications (OneTimePasscode received) --> SendEmail@odspnotify --> ODSP = OneDrive/SharePoint
+[int]$Count = ($Data | Where-Object {$_.MessageId -like "<OneTimePasscode-*" } | Measure-Object).Count
+if ($Count -gt 0)
+{
+    [int]$Inbound = ($Data | Where-Object {$_.MessageId -like "<OneTimePasscode-*"} | Where-Object {$_.Direction -eq "Inbound"} | Measure-Object).Count
+    [int]$Outbound = ($Data | Where-Object {$_.MessageId -like "<OneTimePasscode-*"} | Where-Object {$_.Direction -eq "Outbound"} | Measure-Object).Count
+    Write-Host "[Alert] $OTP OneTimePasscode Email Notification(s) from OneDrive/SharePoint found (ODSP Notify) (Inbound: $Inbound, Outbound: $Outbound)" -ForegroundColor Yellow
+
+    # XLSX
+    if (Get-Module -ListAvailable -Name ImportExcel)
+    {
+        $Import = $Data | Where-Object {$_.MessageId -like "<OneTimePasscode-*" }
+        New-Item "$OUTPUT_FOLDER\MessageTraceLogs\XLSX\ODSP-Notify" -ItemType Directory -Force | Out-Null
+        $Import | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\XLSX\ODSP-Notify\OneTimePasscode.xlsx" -NoHyperLinkConversion * -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "OneTimePasscode received" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:P1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of columns A-C and E-P
+        $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
+        $WorkSheet.Cells["E:P"].Style.HorizontalAlignment="Center"
+        }
+    }
+}
+
+# 50+ Outbound Email Messages with the same 'Subject' (Outbound Spam)
+[int]$Count = ($Data | Where-Object {$_.Direction -eq "Outbound"} | Group-Object Subject | Where-Object Count -ge 50  | Measure-Object).Count
+if ($Count -gt 0)
+{
+    Write-Host "[Alert] 50+ Outbound Email Messages with the same 'Subject' found ($Count)" -ForegroundColor Red
+}
+
+# 50+ Outbound Shared File Email Notification(s) from OneDrive/SharePoint with the same 'Subject' (Spreader)
+[int]$Count = ($Data | Where-Object {$_.MessageId -like "<Share-*" } | Where-Object {$_.Direction -eq "Outbound"} | Group-Object Subject | Where-Object Count -ge 50  | Measure-Object).Count
+if ($Count -gt 0)
+{
+    Write-Host "[Alert] 50+ Outbound Shared File Email Notification(s) from OneDrive/SharePoint with the same 'Subject' found ($Count)" -ForegroundColor Red
+}
+
+}
+
+Get-Analytics
 
 #endregion Analysis
 
