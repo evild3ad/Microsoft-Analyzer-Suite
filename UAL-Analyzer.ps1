@@ -1,10 +1,10 @@
-﻿# UAL-Analyzer v0.4
+﻿# UAL-Analyzer v0.5
 #
 # @author:    Martin Willing
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-10-03
+# @date:      2024-10-13
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -65,9 +65,14 @@
 # Added: PowerShell 7 Support
 # Fixed: Other minor fixes and improvements
 #
+# Version 0.5
+# Release Date: 2024-10-13
+# Added: HygieneTenantEvents
+# Fixed: Other minor fixes and improvements
 #
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.4894) and PowerShell 5.1 (5.1.19041.4894)
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.4894) and PowerShell 7.4.5
+#
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5011) and PowerShell 5.1 (5.1.19041.5007)
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5011) and PowerShell 7.4.5
 #
 #
 #############################################################################################################################################################################################
@@ -75,7 +80,7 @@
 
 <#
 .SYNOPSIS
-  UAL-Analyzer v0.4 - Automated Processing of M365 Unified Audit Logs for DFIR
+  UAL-Analyzer v0.5 - Automated Processing of M365 Unified Audit Logs for DFIR
 
 .DESCRIPTION
   UAL-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of M365 Unified Audit Logs extracted via "Microsoft Extractor Suite" by Invictus Incident Response.
@@ -224,7 +229,7 @@ $script:Whitelist = (Import-Csv "$SCRIPT_DIR\Whitelists\ASN-Whitelist.csv" -Deli
 
 # Windows Title
 $DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
-$Host.UI.RawUI.WindowTitle = "UAL-Analyzer v0.4 - Automated Processing of M365 Unified Audit Logs for DFIR"
+$Host.UI.RawUI.WindowTitle = "UAL-Analyzer v0.5 - Automated Processing of M365 Unified Audit Logs for DFIR"
 
 # Check if the PowerShell script is being run with admin rights
 if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
@@ -313,7 +318,7 @@ Write-Output "$Logo"
 Write-Output ""
 
 # Header
-Write-Output "UAL-Analyzer v0.4 - Automated Processing of M365 Unified Audit Logs for DFIR"
+Write-Output "UAL-Analyzer v0.5 - Automated Processing of M365 Unified Audit Logs for DFIR"
 Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
 Write-Output ""
 
@@ -750,6 +755,7 @@ if (Get-Module -ListAvailable -Name ImportExcel)
             Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("SendAs",$A1)))' -BackgroundColor Red # A message was sent using the SendAs permission. This means that another user sent the message as though it came from the mailbox owner.
             Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Set-MailboxJunkEmailConfiguration",$A1)))' -BackgroundColor Red # Bypass spam filters and successfully deliver spoofed messages to a targeted user’s mailbox
             Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("SoftDelete",$A1)))' -BackgroundColor Red # Deleted messages from Deleted Items folder
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("HygieneTenantEvents",$A1)))' -BackgroundColor Red # Hygiene events are related to outbound spam protection. These events are related to users who are restricted from sending email.
             # ConditionalFormatting - SharePoint Auditing
             Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("AddedToSecureLink",$A1)))' -BackgroundColor Red # A user was added to the list of entities who can use a secure sharing link. A link that only works for specific people was secured to a user.
             Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("SearchQueryPerformed",$A1)))' -BackgroundColor Red # A user performed a search in SharePoint or OneDrive for Business. 
@@ -2434,6 +2440,104 @@ if ($Count -gt 0)
     }
 }
 
+# Suspicious Operation(s) detected: HygieneTenantEvents
+# Note: Related to Exchange Online Protection and Microsoft Defender for Office 365. Hygiene events are related to outbound spam protection. These events are related to users who are restricted from sending email.
+$Import = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "HygieneEvent" } | Where-Object { $_.Operations -eq "HygieneTenantEvents" } | Sort-Object Id -Unique | Sort-Object { $_.CreationDate -as [datetime] } -Descending
+$Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
+if ($Count -gt 0)
+{
+    Write-Host "[Alert] Suspicious Operation(s) detected: HygieneTenantEvents - Outbound Spam Protection ($Count)" -ForegroundColor Red
+    New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV" -ItemType Directory -Force | Out-Null
+    New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX" -ItemType Directory -Force | Out-Null
+
+    # CSV
+    $Import | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}},UserIds,RecordType,Operations,AuditData,ResultIndex,ResultCount,Identity,IsValid,ObjectState | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\HygieneTenantEvents.csv" -NoTypeInformation -Encoding UTF8
+
+    # XLSX
+    if (Get-Module -ListAvailable -Name ImportExcel)
+    {
+        if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\HygieneTenantEvents.csv")
+        {
+            if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\HygieneTenantEvents.csv") -gt 0)
+            {
+                $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\HygieneTenantEvents.csv" -Delimiter ","
+                $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX\HygieneTenantEvents.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "HygieneTenantEvents" -CellStyleSB {
+                param($WorkSheet)
+                # BackgroundColor and FontColor for specific cells of TopRow
+                $BackgroundColor = [System.Drawing.Color]::FromArgb(255,220,0)
+                Set-Format -Address $WorkSheet.Cells["A1:J1"] -BackgroundColor $BackgroundColor -FontColor Black
+                # HorizontalAlignment "Center" of columns A-D and F-J
+                $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
+                $WorkSheet.Cells["F:J"].Style.HorizontalAlignment="Center"
+                # ConditionalFormatting
+                Add-ConditionalFormatting -Address $WorkSheet.Cells["D:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("HygieneTenantEvents",$D1)))' -BackgroundColor Red
+                }
+            }
+        }
+    }
+
+    # AuditData
+
+    # CSV
+    $Results = @()
+    ForEach($Record in $Import)
+    {
+        $AuditData = $Record.AuditData | ConvertFrom-Json
+
+        $Line = [PSCustomObject]@{
+        "CreationDate"                       = $Record.CreationDate
+        "Id"                                 = $AuditData.Id
+        "RecordType"                         = $Record.RecordType
+        "Operation"                          = $AuditData.Operation
+        "OrganizationId"                     = $AuditData.OrganizationId
+        "ResultStatus"                       = $AuditData.ResultStatus
+        "UserKey"                            = $AuditData.UserKey
+        "UserType"                           = $AuditData.UserType
+        "Version"                            = $AuditData.Version
+        "Workload"                           = $AuditData.Workload
+        "UserId"                             = $AuditData.UserId
+        "Audit"                              = $AuditData.Audit
+        "Event"                              = $AuditData.Event
+        "EventId"                            = $AuditData.EventId
+        "EventValue"                         = $AuditData.EventValue
+        "Reason"                             = $AuditData.Reason # Untouched
+        "OutboundSpamLast24Hours"            = $AuditData.Reason | ForEach-Object{($_ -split ";")} | Select-String -Pattern "^OutboundSpamLast24Hours=" | ForEach-Object{($_ -split "=")[1]}
+        "OutboundMailLast24Hours"            = $AuditData.Reason | ForEach-Object{($_ -split ";")} | Select-String -Pattern "^OutboundMailLast24Hours=" | ForEach-Object{($_ -split "=")[1]}
+        "OutboundSpamPercent"                = $AuditData.Reason | ForEach-Object{($_ -split ";")} | Select-String -Pattern "^OutboundSpamPercent=" | ForEach-Object{($_ -split "=")[1]}
+        "Last Spam Message - MessagetraceId" = $AuditData.Reason | ForEach-Object{($_ -split ";")} | Select-String -Pattern "^Last Spam Message MessagetraceId:" | ForEach-Object{($_ -split ":")[1]}
+        "ClientIP"                           = $AuditData.Reason | ForEach-Object{($_ -split ";")} | Select-String -Pattern "^CIP=" | ForEach-Object{($_ -split "=")[1]}
+        "ASN"                                = $AuditData.Reason | ForEach-Object{($_ -split ";")} | Select-String -Pattern "^AS:" | ForEach-Object{($_ -split ":")[1]}
+        "Message"                            = ($AuditData.Reason | ForEach-Object{($_ -split ";")} | Select-String -Pattern ":" -NotMatch | Select-String -Pattern "=" -NotMatch | Out-String).Trim()
+        }
+
+        $Results += $Line
+    }
+
+    $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\HygieneTenantEvents_AuditData.csv" -NoTypeInformation -Encoding UTF8
+
+    # XLSX
+    if (Get-Module -ListAvailable -Name ImportExcel)
+    {
+        if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\HygieneTenantEvents_AuditData.csv")
+        {
+            if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\HygieneTenantEvents_AuditData.csv") -gt 0)
+            {
+                $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\HygieneTenantEvents_AuditData.csv" -Delimiter ","
+                $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX\HygieneTenantEvents_AuditData.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "HygieneTenantEvents" -CellStyleSB {
+                param($WorkSheet)
+                # BackgroundColor and FontColor for specific cells of TopRow
+                $BackgroundColor = [System.Drawing.Color]::FromArgb(255,220,0)
+                Set-Format -Address $WorkSheet.Cells["A1:W1"] -BackgroundColor $BackgroundColor -FontColor Black
+                # HorizontalAlignment "Center" of columns A-V
+                $WorkSheet.Cells["A:V"].Style.HorizontalAlignment="Center"
+                # ConditionalFormatting - Consent to application.
+                Add-ConditionalFormatting -Address $WorkSheet.Cells["C:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("HygieneTenantEvents",$D1)))' -BackgroundColor Red
+                }
+            }
+        }
+    }
+}
+
 # Anti-Forensics Techniques
 
 # Operation: New-UnifiedAuditLogRetentionPolicy
@@ -2892,6 +2996,7 @@ if (Test-Path "$($IPinfo)")
                                     Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '$D1="Set-Mailbox"' -BackgroundColor Red # BEC
                                     Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '$D1="UpdateInboxRules"' -BackgroundColor Red # BEC
                                     Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Set-MailboxJunkEmailConfiguration",$D1)))' -BackgroundColor Red # BEC
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("HygieneTenantEvents",$D1)))' -BackgroundColor Red # Outbound Spam
                                     Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("SearchStarted",$D1)))' -BackgroundColor Red # Content Search Abuse
                                     Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("SearchExportDownloaded",$D1)))' -BackgroundColor Red # Content Search Abuse
                                     Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("ViewedSearchExported",$D1)))' -BackgroundColor Red # Content Search Abuse
