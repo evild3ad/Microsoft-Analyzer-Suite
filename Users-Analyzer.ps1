@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-10-03
+# @date:      2024-10-16
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -27,9 +27,12 @@
 # Initial Release
 #
 # Version 0.2
-# Release Date: 2024-10-03
+# Release Date: 2024-10-16
 # Added: CmdletBinding
 # Added: PowerShell 7 Support
+#
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5011) and PowerShell 5.1 (5.1.19041.5007)
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5011) and PowerShell 7.4.5
 #
 #
 #############################################################################################################################################################################################
@@ -341,12 +344,16 @@ Write-Output "[Info]  $Guests Guest User Account(s) found ($Total)"
 # Microsoft Entra Connect Sync allows establishing hybrid identity scenarios by interconnecting on-premises Active Directory and Entra ID and leveraging synchronisation features in both directions. 
 # As you might already know, this brings potential for abuse of the assigned permissions to the involved service accounts and permissions of this service.
 $Count = (Import-Csv -Path "$LogFile" -Delimiter "," | Where-Object { $_.UserPrincipalName -match "^Sync_" } | Measure-Object).Count
-$UPN = Import-Csv -Path "$LogFile" -Delimiter "," | Where-Object { $_.UserPrincipalName -match "^Sync_" } | Select-Object -ExpandProperty UserPrincipalName
-$UPN | Out-File "$OUTPUT_FOLDER\Microsoft-Entra-Connect-Sync.txt" -Encoding utf8
-Write-Output "[Info]  $Count Microsoft Entra Connect Sync account(s) found"
 if ($Count -gt 0)
 {
+    Write-Output "[Info]  $Count Microsoft Entra Connect Sync account(s) found"
+    $UPN = Import-Csv -Path "$LogFile" -Delimiter "," | Where-Object { $_.UserPrincipalName -match "^Sync_" } | Select-Object -ExpandProperty UserPrincipalName -Unique
+    $UPN | Out-File "$OUTPUT_FOLDER\Microsoft-Entra-Connect-Sync.txt" -Encoding utf8
     (Get-Content "$OUTPUT_FOLDER\Microsoft-Entra-Connect-Sync.txt") -replace "^", "        "  | Write-Host
+}
+else
+{
+    Write-Output "[Info]  0 Microsoft Entra Connect Sync account(s) found"
 }
 
 #endregion Analysis
