@@ -1,4 +1,4 @@
-﻿# MTL-Analyzer v0.2
+﻿# MTL-Analyzer v0.2.1
 #
 # @author:    Martin Willing
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
@@ -51,7 +51,7 @@
 
 <#
 .SYNOPSIS
-  MTL-Analyzer v0.2 - Automated Processing of M365 Message Trace Logs for DFIR
+  MTL-Analyzer v0.2.1 - Automated Processing of M365 Message Trace Logs for DFIR
 
 .DESCRIPTION
   MTL-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of M365 Message Trace Logs extracted via "Microsoft Extractor Suite" by Invictus Incident Response.
@@ -155,11 +155,11 @@ else
 # IPinfo CLI
 $script:IPinfo = "$SCRIPT_DIR\Tools\IPinfo\ipinfo.exe"
 
-# IPinfo CLI - Access Token
-$script:Token = "access_token" # Please insert your Access Token here (Default: access_token)
-
 # xsv
 $script:xsv = "$SCRIPT_DIR\Tools\xsv\xsv.exe"
+
+# Configuration File
+. .\Config.ps1
 
 #endregion Declarations
 
@@ -169,7 +169,7 @@ $script:xsv = "$SCRIPT_DIR\Tools\xsv\xsv.exe"
 
 # Windows Title
 $DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
-$Host.UI.RawUI.WindowTitle = "MTL-Analyzer v0.2 - Automated Processing of M365 Message Trace Logs for DFIR"
+$Host.UI.RawUI.WindowTitle = "MTL-Analyzer v0.2.1 - Automated Processing of M365 Message Trace Logs for DFIR"
 
 # Check if the PowerShell script is being run with admin rights
 if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
@@ -256,7 +256,7 @@ Write-Output "$Logo"
 Write-Output ""
 
 # Header
-Write-Output "MTL-Analyzer v0.2 - Automated Processing of M365 Message Trace Logs for DFIR"
+Write-Output "MTL-Analyzer v0.2.1 - Automated Processing of M365 Message Trace Logs for DFIR"
 Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
 Write-Output ""
 
@@ -328,7 +328,7 @@ if (!($Extension -eq ".csv" ))
 # Check IPinfo CLI Access Token 
 if ("$Token" -eq "access_token")
 {
-    Write-Host "[Error] No IPinfo CLI Access Token provided. Please add your personal access token in Line 159." -ForegroundColor Red
+    Write-Host "[Error] No IPinfo CLI Access Token provided. Please add your personal access token to 'Config.ps1'" -ForegroundColor Red
     Write-Host ""
     Stop-Transcript
     $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
