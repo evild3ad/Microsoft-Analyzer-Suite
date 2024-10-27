@@ -23,7 +23,7 @@ Automated Processing of Microsoft 365 Logs and Microsoft Entra ID Logs extracted
 <br>
 
 > [!TIP]
-> Check out the [Wiki](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki) for more information.  
+> Check out the [Wiki](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki) for additional documentation!  
   
 <br>
 
