@@ -22,7 +22,7 @@ Automated Processing of Microsoft 365 Logs and Microsoft Entra ID Logs extracted
   
 <br>
 > [!TIP]  
-> Check out the Wiki for more information.
+> Check out the Wiki for more information.  
   
 <br>
 
