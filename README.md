@@ -21,8 +21,9 @@ Automated Processing of Microsoft 365 Logs and Microsoft Entra ID Logs extracted
   * [Get-TransportRules](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/TransportRules.html) &#8594; [TransportRules-Analyzer v0.2](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/TransportRules%E2%80%90Analyzer)  
   
 <br>
-> [!TIP]
-> Check out the [Wiki](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki) for more information.  
+> [!TIP]  
+> Check out the Wiki for more information.
+  
 <br>
 
 ![RiskyDetections-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/blob/bf004f386ed5af210a0b326c24dcf50fccc9adf4/Screenshots/01.png)  
