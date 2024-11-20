@@ -1,10 +1,10 @@
-﻿# UAL-Analyzer v0.5.1
+﻿# UAL-Analyzer
 #
 # @author:    Martin Willing
-# @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
+# @copyright: Copyright (c) 2024 Martin Willing. All rights reserved. Licensed under the MIT license.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-10-17
+# @date:      2024-11-20
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -17,7 +17,7 @@
 #
 # Dependencies:
 #
-# ImportExcel v7.8.9 (2024-05-18)
+# ImportExcel v7.8.10 (2024-10-21)
 # https://github.com/dfinke/ImportExcel
 #
 # IPinfo CLI 3.3.1 (2024-03-01)
@@ -28,52 +28,8 @@
 # https://github.com/BurntSushi/xsv
 #
 #
-# Changelog:
-# Version 0.1
-# Release Date: 2023-05-06
-# Initial Release
-#
-# Version 0.2
-# Release Date: 2024-06-14
-# Added: Email Forwarding Rules via UpdateInboxRules (EWS)
-# Added: Inbox Rules via UpdateInboxRules (EWS)
-# Added: Suspicious SessionIds
-# Added: Sessions Duration
-# Fixed: Other minor fixes and improvements
-#
-# Version 0.3
-# Release Date: 2024-07-22
-# Added: CmdletBinding
-# Added: Improved Hunt.xlsx (DeviceName, DeviceId, RequestType added)
-# Added: Improved AiTM Detection (Suspicious-SessionIds.csv)
-# Added: UserLoggedIn.xlsx
-# Added: Find-AiTMSuspiciousUserLogin (Timespan)
-# Added: DeviceProperties (Stats)
-# Added: RequestType (Stats)
-# Fixed: Other minor fixes and improvements
-#
-# Version 0.4
-# Release Date: 2024-09-22
-# Added: Application Blacklist: 14
-# Added: 'City' column added to Suspicious-SessionIds.xlsx
-# Added: MoveToDeletedItems (incl. Line Chart)
-# Added: SoftDelete (incl. Line Chart)
-# Added: HardDelete (incl. Line Chart)
-# Added: Add-MailboxPermission
-# Added: Add-RecipientPermission
-# Added: Send, SendAs, and SendOnBehalf
-# Added: PowerShell 7 Support
-# Fixed: Other minor fixes and improvements
-#
-# Version 0.5
-# Release Date: 2024-10-13
-# Added: HygieneTenantEvents
-# Added: Configuration File
-# Fixed: Other minor fixes and improvements
-#
-#
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5011) and PowerShell 5.1 (5.1.19041.5007)
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5011) and PowerShell 7.4.5
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5131) and PowerShell 5.1 (5.1.19041.5129)
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5131) and PowerShell 7.4.6
 #
 #
 #############################################################################################################################################################################################
@@ -219,7 +175,14 @@ $script:xsv = "$SCRIPT_DIR\Tools\xsv\xsv.exe"
 $script:Whitelist = (Import-Csv "$SCRIPT_DIR\Whitelists\ASN-Whitelist.csv" -Delimiter "," | Select-Object -ExpandProperty ASN) -join "|"
 
 # Configuration File
-. .\Config.ps1
+if(!(Test-Path "$PSScriptRoot\Config.ps1"))
+{
+    Write-Host "[Error] Config.ps1 NOT found." -ForegroundColor Red
+}
+else
+{
+    . "$PSScriptRoot\Config.ps1"
+}
 
 #endregion Declarations
 
@@ -2683,7 +2646,22 @@ $ClientIPAddress = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Custom.
 $Authenticated = $ClientIP + $ClientIPAddress | Sort-Object -Unique | Sort-Object {$_ -as [Version]}
 $Authenticated | Out-File "$OUTPUT_FOLDER\ClientIP\Authenticated-Operations.txt" -Encoding UTF8 -Append
 
-# IPinfo CLI (50k lookups per month, Geolocation data only)
+# Check IPinfo Subscription Plan (https://ipinfo.io/pricing)
+if (Test-Path "$($IPinfo)")
+{
+    Write-Output "[Info]  Checking IPinfo Subscription Plan ..."
+    [int]$TotalRequests = & $IPinfo quota | Select-String -Pattern "Total Requests" | ForEach-Object{($_ -split "\s+")[-1]}
+    [int]$RemainingRequests = & $IPinfo quota | Select-String -Pattern "Remaining Requests" | ForEach-Object{($_ -split "\s+")[-1]}
+    $TotalMonth = '{0:N0}' -f $TotalRequests | ForEach-Object {$_ -replace ' ','.'}
+    $RemainingMonth = '{0:N0}' -f $RemainingRequests | ForEach-Object {$_ -replace ' ','.'}
+    if ($TotalRequests -eq "50000") {Write-Output "[Info]  IPinfo Subscription: Free ($TotalMonth Requests/Month)`n[Info]  $RemainingMonth Requests left this month"} # No Privacy Detection
+    elseif ($TotalRequests -eq "150000"){Write-Output "[Info]  IPinfo Subscription: Basic"} # No Privacy Detection
+    elseif ($TotalRequests -eq "250000"){Write-Output "[Info]  IPinfo Subscription: Standard"} # Privacy Detection
+    elseif ($TotalRequests -eq "500000"){Write-Output "[Info]  IPinfo Subscription: Business"} # Privacy Detection
+    else {Write-Output "IPinfo Subscription Plan: Enterprise"} # Privacy Detection
+}
+
+# IPinfo CLI
 if (Test-Path "$($IPinfo)")
 {
     if (Test-Path "$OUTPUT_FOLDER\ClientIP\IP.txt")
@@ -5242,6 +5220,267 @@ if (Get-Module -ListAvailable -Name ImportExcel)
     }
 }
 
+# UserLoginFailed
+# https://learn.microsoft.com/en-us/purview/audit-log-detailed-properties
+# https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-schema#enum-authenticationmethod---type-edmint32
+$UserLoginFailedRecords = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "AzureActiveDirectoryStsLogon" } | Where-Object { $_.Operations -eq "UserLoginFailed" }
+
+# AuditData
+$AuditData = $UserLoginFailedRecords | Select-Object -ExpandProperty AuditData | ConvertFrom-Json | Sort-Object { $_.CreationDate -as [datetime] } -Descending
+
+New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV" -ItemType Directory -Force | Out-Null
+New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\XLSX" -ItemType Directory -Force | Out-Null
+
+# Create HashTable and import 'Status.csv'
+$ErrorNumber_HashTable = @{}
+if(Test-Path "$SCRIPT_DIR\Config\Status.csv")
+{
+    if([int](& $xsv count "$SCRIPT_DIR\Config\Status.csv") -gt 0)
+    {
+        Import-Csv "$SCRIPT_DIR\Config\Status.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $ErrorNumber_HashTable[$_.ErrorCode] = $_.Status, $_.Message }
+    }
+}
+
+# Create HashTable and import 'TrustType.csv'
+$TrustType_HashTable = @{}
+if(Test-Path "$SCRIPT_DIR\Config\TrustType.csv")
+{
+    if([int](& $xsv count "$SCRIPT_DIR\Config\TrustType.csv") -gt 0)
+    {
+        Import-Csv "$SCRIPT_DIR\Config\TrustType.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $TrustType_HashTable[$_.Value] = $_.Description }
+    }
+}
+
+# Create HashTable and import 'UserType.csv'
+$UserType_HashTable = @{}
+if(Test-Path "$SCRIPT_DIR\Config\UserType.csv")
+{
+    if([int](& $xsv count "$SCRIPT_DIR\Config\UserType.csv") -gt 0)
+    {
+        Import-Csv "$SCRIPT_DIR\Config\UserType.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $UserType_HashTable[$_.Value] = $_.Member, $_.Description }
+    }
+}
+
+# Custom CSV
+$Results = @()
+ForEach($Record in $UserLoginFailedRecords)
+{
+
+    $AuditData = ConvertFrom-Json $Record.AuditData
+
+    # ErrorNumber
+    [int]$ErrorNumber = $AuditData.ErrorNumber
+
+    # Check if HashTable contains ErrorNumber
+    if($ErrorNumber_HashTable.ContainsKey("$ErrorNumber"))
+    {
+        $Message   = $ErrorNumber_HashTable["$ErrorNumber"][1]
+    }
+
+    # TrustType (Value --> Description)
+    [int]$TrustTypeValue = ($AuditData | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'TrustType'}).Value
+
+    # Check if HashTable contains Value
+    if($TrustType_HashTable.ContainsKey("$TrustTypeValue"))
+    {
+        $TrustType = $TrustType_HashTable["$TrustTypeValue"]
+    }
+    else
+    {
+        $TrustType = ""
+    }
+
+    # UserType (Value --> Member Name)
+    [int]$UserTypeValue = $AuditData.UserType
+
+    # Check if HashTable contains Value
+    if($UserType_HashTable.ContainsKey("$UserTypeValue"))
+    {
+        $UserType = $UserType_HashTable["$UserTypeValue"][0]
+    }
+
+    # ClientIP
+    $ClientIP = $AuditData.ClientIP
+
+    # Check if HashTable contains ClientIP
+    if($HashTable.ContainsKey("$ClientIP"))
+    {
+        $City        = $HashTable["$ClientIP"][0]
+        $Region      = $HashTable["$ClientIP"][1]
+        $Country     = $HashTable["$ClientIP"][2]
+        $CountryName = $HashTable["$ClientIP"][3]
+        $ASN         = $HashTable["$ClientIP"][6]
+        $OrgName     = $HashTable["$ClientIP"][7]
+    }
+    else
+    {
+        $City        = ""
+        $Region      = ""
+        $Country     = ""
+        $CountryName = ""
+        $ASN         = ""
+        $OrgName     = ""
+    }
+
+    # IsCompliant
+    $IsCompliantValue = ($AuditData | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'IsCompliant'}).Value
+    if($IsCompliantValue -ne "True")
+    {
+        $IsCompliant = "False"
+    }
+    else
+    {
+        $IsCompliant = "True"
+    }
+
+    # IsCompliantAndManaged
+    $IsCompliantAndManagedValue = ($AuditData | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'IsCompliantAndManaged'}).Value
+    if($IsCompliantAndManagedValue -ne "True")
+    {
+        $IsCompliantAndManaged = "False"
+    }
+    else
+    {
+        $IsCompliantAndManaged = "True"
+    }
+
+    $Line = [PSCustomObject]@{
+        CreationTime       = ($Record | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}}).CreationDate # The date and time in Coordinated Universal Time (UTC) when the audit log record was generated.
+        Id                 = $AuditData.Id # Unique identifier of an audit record.
+        UserId             = $AuditData.UserId # The UPN (User Principal Name) of the user who performed the action (specified in the Operation property) that resulted in the record being logged.
+        UserType           = $UserType # The type of user that performed the operation.
+        RecordType         = "AzureActiveDirectoryStsLogon" # The type of operation indicated by the record.
+        Operation          = $AuditData.Operation # The name of the user or admin activity. For a description of the most common operations/activities.
+        ObjectId           = $AuditData.ObjectId # For SharePoint and OneDrive for Business activity, the full path name of the file or folder accessed by the user. For Exchange admin audit logging, the name of the object that was modified by the cmdlet.
+        #OrganizationId     = $AuditData.OrganizationId # The GUID for the organization's tenant.
+        #RecordType         = $AuditData.RecordType # The type of operation indicated by the record.
+        #ResultStatus       = $AuditData.ResultStatus # Indicates whether the action (specified in the Operation property) was successful or not. Possible values are Succeeded, PartiallySucceeded, or Failed. For Exchange admin activity, the value is either True or False.
+        #UserKey            = $AuditData.UserKey # An alternative ID for the user identified in the UserId property. This property is populated with the passport unique ID (PUID) for events performed by users in SharePoint, OneDrive for Business, and Exchange.
+        #Version            = $AuditData.Version # Indicates the version number of the activity (identified by the Operation property) that's logged.
+        #Workload           = $AuditData.Workload # The Office 365 service where the activity occurred.
+        ClientIP           = $ClientIP # The IP address of the device that was used when the activity was logged. The IP address is displayed in either an IPv4 or IPv6 address format.
+        #AzureActiveDirectoryEventType = $AuditData.AzureActiveDirectoryEventType
+
+        # ExtendedProperties --> The extended properties of the Microsoft Entra event.
+        UserAgent          = ($AuditData | Select-Object -ExpandProperty ExtendedProperties | Where-Object {$_.Name -eq 'UserAgent'}).Value # Information about the user's browser. This information is provided by the browser.
+        RequestType        = ($AuditData | Select-Object -ExpandProperty ExtendedProperties | Where-Object {$_.Name -eq 'RequestType'}).Value
+        ResultStatusDetail = ($AuditData | Select-Object -ExpandProperty ExtendedProperties | Where-Object {$_.Name -eq 'ResultStatusDetail'}).Value
+
+        # IP Data Enrichment
+        "City"                  = $City
+        "Region"                = $Region
+        "Country"               = $Country
+        "Country Name"          = $CountryName
+        "ASN"                   = $ASN
+        "OrgName"               = $OrgName
+
+        # ModifiedProperties --> This property is included for admin events. The property includes the name of the property that was modified, the new value of the modified property, and the previous value of the modified property.
+        #ModifiedProperties = $AuditData | Select-Object -ExpandProperty ModifiedProperties
+
+        # Actor --> The user or service principal that performed the action.
+        #ActorId            = ($AuditData | Select-Object -ExpandProperty Actor | Select-Object ID).ID -join "`r`n"
+        #ActorType          = ($AuditData | Select-Object -ExpandProperty Actor | Select-Object Type).Type -join "`r`n"
+
+        #ActorContextId     = $AuditData.ActorContextId # The GUID of the organization that the actor belongs to.
+        #ActorIpAddress     = $AuditData.ActorIpAddress # The actor's IP address in IPV4 or IPV6 address format.
+        #IntraSystemId      = $AuditData.IntraSystemId # The GUID that's generated by Azure Active Directory to track the action.
+        #SupportTicketId    = $AuditData.SupportTicketId # The customer support ticket ID for the action in "act-on-behalf-of" situations.
+
+        # Target --> The user that the action (identified by the Operation property) was performed on.
+        #TargetId           = ($AuditData | Select-Object -ExpandProperty Target | Select-Object ID).ID -join "`r`n"
+        #TargetType         = ($AuditData | Select-Object -ExpandProperty Target | Select-Object Type).Type -join "`r`n"
+
+        #TargetContextId    = $AuditData.TargetContextId # The GUID of the organization that the targeted user belongs to.
+        ApplicationId      = $AuditData.ApplicationId # The ID of the application performing the operation.
+
+        # DeviceProperties --> 	This property includes various device details, including Id, Display name, OS, Browser, IsCompliant, IsCompliantAndManaged, SessionId, and DeviceTrustType.
+        DeviceName         = ($AuditData | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'DisplayName'}).Value
+        DeviceId           = ($AuditData | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'Id'}).Value
+        OS                 = ($AuditData | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'OS'}).Value
+        BrowserType        = ($AuditData | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'BrowserType'}).Value
+        TrustType          = $TrustType
+        IsCompliant        = $IsCompliant
+        IsCompliantAndManaged = $IsCompliantAndManaged
+        SessionId          = ($AuditData | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'SessionId'}).Value
+
+        InterSystemsId     = $AuditData.InterSystemsId # The GUID that track the actions across components within the Office 365 service.
+        ErrorNumber        = $ErrorNumber # Microsoft Entra authentication and authorization error code
+        Message            = $Message # Error Code Message
+        LogonError         = $AuditData.LogonError # For failed logins, this property contains a user-readable description of the reason for the failed login.
+    }
+
+    $Results += $Line
+}
+
+$Results | Sort-Object { $_.CreationTime -as [datetime] } -Descending | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoginFailed.csv" -NoTypeInformation -Encoding UTF8
+
+# UserLoginFailed.xlsx
+if (Get-Module -ListAvailable -Name ImportExcel)
+{
+    if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoginFailed.csv")
+    {
+        if([int](& $xsv count "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoginFailed.csv") -gt 0)
+        {
+            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoginFailed.csv" -Delimiter "," -Encoding UTF8
+            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\XLSX\UserLoginFailed.xlsx" -NoHyperLinkConversion * -NoNumberConversion * -FreezePane 2,4 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "UserLoginFailed" -CellStyleSB {
+            param($WorkSheet)
+            # BackgroundColor and FontColor for specific cells of TopRow
+            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+            Set-Format -Address $WorkSheet.Cells["A1:AD1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-AD
+            $WorkSheet.Cells["A:AD"].Style.HorizontalAlignment="Center"
+            # ConditionalFormatting - LogonError
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["AD:AD"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("CmsiInterrupt",$AD1)))' -BackgroundColor Red # Device Code Authentication
+            }
+        }
+    }
+}
+
+# Device Code Authentication failed
+# CmsiInterrupt - For security reasons, user confirmation is required for this request.
+if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoginFailed.csv")
+{
+    if([int](& $xsv count "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoginFailed.csv") -gt 0)
+    {
+        $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoginFailed.csv" -Delimiter "," | Where-Object { $_.LogonError -eq "CmsiInterrupt" } | Where-Object { $_.ErrorNumber -eq "50199" } | Sort-Object { $_.CreationTime -as [datetime] } -Descending
+        $Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
+
+        if ($Count -gt 0)
+        {
+            Write-Host "[Alert] Failed Device Code Authentication detected: User Confirmation Prompt ($Count)" -ForegroundColor Red
+            New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\DeviceCode\CSV" -ItemType Directory -Force | Out-Null
+            New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\DeviceCode\XLSX" -ItemType Directory -Force | Out-Null
+
+            # CSV
+            $Import | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\DeviceCode\CSV\Failed-DeviceCode-Authentication.csv" -NoTypeInformation -Encoding UTF8
+
+            # XLSX
+            if (Get-Module -ListAvailable -Name ImportExcel)
+            {
+                if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\DeviceCode\CSV\Failed-DeviceCode-Authentication.csv")
+                {
+                    if([int](& $xsv count "$OUTPUT_FOLDER\UnifiedAuditLogs\DeviceCode\CSV\Failed-DeviceCode-Authentication.csv") -gt 0)
+                    {
+                        $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\DeviceCode\CSV\Failed-DeviceCode-Authentication.csv" -Delimiter "," -Encoding UTF8
+                        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\DeviceCode\XLSX\Failed-DeviceCode-Authentication.xlsx" -NoHyperLinkConversion * -NoNumberConversion * -FreezePane 2,4 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Failed DeviceCode Auth" -CellStyleSB {
+                        param($WorkSheet)
+                        # BackgroundColor and FontColor for specific cells of TopRow
+                        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+                        Set-Format -Address $WorkSheet.Cells["A1:AD1"] -BackgroundColor $BackgroundColor -FontColor White
+                        # HorizontalAlignment "Center" of columns A-AD
+                        $WorkSheet.Cells["A:AD"].Style.HorizontalAlignment="Center"
+                        # ConditionalFormatting - LogonError
+                        Add-ConditionalFormatting -Address $WorkSheet.Cells["AD:AD"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("CmsiInterrupt",$AD1)))' -BackgroundColor Red # Device Code Authentication
+                        # ConditionalFormatting - ErrorNumber
+                        Add-ConditionalFormatting -Address $WorkSheet.Cells["AB:AB"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("50199",$AB1)))' -BackgroundColor Red # For security reasons, user confirmation is required for this request.
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 # AiTM Proxy Server
 if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv")
 {
@@ -6806,3 +7045,240 @@ if ($Result -eq "OK" )
 
 #############################################################################################################################################################################################
 #############################################################################################################################################################################################
+
+# SIG # Begin signature block
+# MIIrxQYJKoZIhvcNAQcCoIIrtjCCK7ICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
+# gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUBaGgI+CODhlnP2qnY4TpOVvn
+# OhyggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
+# MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
+# MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
+# MFoXDTI4MTIzMTIzNTk1OVowVjELMAkGA1UEBhMCR0IxGDAWBgNVBAoTD1NlY3Rp
+# Z28gTGltaXRlZDEtMCsGA1UEAxMkU2VjdGlnbyBQdWJsaWMgQ29kZSBTaWduaW5n
+# IFJvb3QgUjQ2MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAjeeUEiIE
+# JHQu/xYjApKKtq42haxH1CORKz7cfeIxoFFvrISR41KKteKW3tCHYySJiv/vEpM7
+# fbu2ir29BX8nm2tl06UMabG8STma8W1uquSggyfamg0rUOlLW7O4ZDakfko9qXGr
+# YbNzszwLDO/bM1flvjQ345cbXf0fEj2CA3bm+z9m0pQxafptszSswXp43JJQ8mTH
+# qi0Eq8Nq6uAvp6fcbtfo/9ohq0C/ue4NnsbZnpnvxt4fqQx2sycgoda6/YDnAdLv
+# 64IplXCN/7sVz/7RDzaiLk8ykHRGa0c1E3cFM09jLrgt4b9lpwRrGNhx+swI8m2J
+# mRCxrds+LOSqGLDGBwF1Z95t6WNjHjZ/aYm+qkU+blpfj6Fby50whjDoA7NAxg0P
+# OM1nqFOI+rgwZfpvx+cdsYN0aT6sxGg7seZnM5q2COCABUhA7vaCZEao9XOwBpXy
+# bGWfv1VbHJxXGsd4RnxwqpQbghesh+m2yQ6BHEDWFhcp/FycGCvqRfXvvdVnTyhe
+# Be6QTHrnxvTQ/PrNPjJGEyA2igTqt6oHRpwNkzoJZplYXCmjuQymMDg80EY2NXyc
+# uu7D1fkKdvp+BRtAypI16dV60bV/AK6pkKrFfwGcELEW/MxuGNxvYv6mUKe4e7id
+# FT/+IAx1yCJaE5UZkADpGtXChvHjjuxf9OUCAwEAAaOCARIwggEOMB8GA1UdIwQY
+# MBaAFKARCiM+lvEH7OKvKe+CpX/QMKS0MB0GA1UdDgQWBBQy65Ka/zWWSC8oQEJw
+# IDaRXBeF5jAOBgNVHQ8BAf8EBAMCAYYwDwYDVR0TAQH/BAUwAwEB/zATBgNVHSUE
+# DDAKBggrBgEFBQcDAzAbBgNVHSAEFDASMAYGBFUdIAAwCAYGZ4EMAQQBMEMGA1Ud
+# HwQ8MDowOKA2oDSGMmh0dHA6Ly9jcmwuY29tb2RvY2EuY29tL0FBQUNlcnRpZmlj
+# YXRlU2VydmljZXMuY3JsMDQGCCsGAQUFBwEBBCgwJjAkBggrBgEFBQcwAYYYaHR0
+# cDovL29jc3AuY29tb2RvY2EuY29tMA0GCSqGSIb3DQEBDAUAA4IBAQASv6Hvi3Sa
+# mES4aUa1qyQKDKSKZ7g6gb9Fin1SB6iNH04hhTmja14tIIa/ELiueTtTzbT72ES+
+# BtlcY2fUQBaHRIZyKtYyFfUSg8L54V0RQGf2QidyxSPiAjgaTCDi2wH3zUZPJqJ8
+# ZsBRNraJAlTH/Fj7bADu/pimLpWhDFMpH2/YGaZPnvesCepdgsaLr4CnvYFIUoQx
+# 2jLsFeSmTD1sOXPUC4U5IOCFGmjhp0g4qdE2JXfBjRkWxYhMZn0vY86Y6GnfrDyo
+# XZ3JHFuu2PMvdM+4fvbXg50RlmKarkUT2n/cR/vfw1Kf5gZV6Z2M8jpiUbzsJA8p
+# 1FiAhORFe1rYMIIGFDCCA/ygAwIBAgIQeiOu2lNplg+RyD5c9MfjPzANBgkqhkiG
+# 9w0BAQwFADBXMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2VjdGlnbyBMaW1pdGVk
+# MS4wLAYDVQQDEyVTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1waW5nIFJvb3QgUjQ2
+# MB4XDTIxMDMyMjAwMDAwMFoXDTM2MDMyMTIzNTk1OVowVTELMAkGA1UEBhMCR0Ix
+# GDAWBgNVBAoTD1NlY3RpZ28gTGltaXRlZDEsMCoGA1UEAxMjU2VjdGlnbyBQdWJs
+# aWMgVGltZSBTdGFtcGluZyBDQSBSMzYwggGiMA0GCSqGSIb3DQEBAQUAA4IBjwAw
+# ggGKAoIBgQDNmNhDQatugivs9jN+JjTkiYzT7yISgFQ+7yavjA6Bg+OiIjPm/N/t
+# 3nC7wYUrUlY3mFyI32t2o6Ft3EtxJXCc5MmZQZ8AxCbh5c6WzeJDB9qkQVa46xiY
+# Epc81KnBkAWgsaXnLURoYZzksHIzzCNxtIXnb9njZholGw9djnjkTdAA83abEOHQ
+# 4ujOGIaBhPXG2NdV8TNgFWZ9BojlAvflxNMCOwkCnzlH4oCw5+4v1nssWeN1y4+R
+# laOywwRMUi54fr2vFsU5QPrgb6tSjvEUh1EC4M29YGy/SIYM8ZpHadmVjbi3Pl8h
+# JiTWw9jiCKv31pcAaeijS9fc6R7DgyyLIGflmdQMwrNRxCulVq8ZpysiSYNi79tw
+# 5RHWZUEhnRfs/hsp/fwkXsynu1jcsUX+HuG8FLa2BNheUPtOcgw+vHJcJ8HnJCrc
+# UWhdFczf8O+pDiyGhVYX+bDDP3GhGS7TmKmGnbZ9N+MpEhWmbiAVPbgkqykSkzyY
+# Vr15OApZYK8CAwEAAaOCAVwwggFYMB8GA1UdIwQYMBaAFPZ3at0//QET/xahbIIC
+# L9AKPRQlMB0GA1UdDgQWBBRfWO1MMXqiYUKNUoC6s2GXGaIymzAOBgNVHQ8BAf8E
+# BAMCAYYwEgYDVR0TAQH/BAgwBgEB/wIBADATBgNVHSUEDDAKBggrBgEFBQcDCDAR
+# BgNVHSAECjAIMAYGBFUdIAAwTAYDVR0fBEUwQzBBoD+gPYY7aHR0cDovL2NybC5z
+# ZWN0aWdvLmNvbS9TZWN0aWdvUHVibGljVGltZVN0YW1waW5nUm9vdFI0Ni5jcmww
+# fAYIKwYBBQUHAQEEcDBuMEcGCCsGAQUFBzAChjtodHRwOi8vY3J0LnNlY3RpZ28u
+# Y29tL1NlY3RpZ29QdWJsaWNUaW1lU3RhbXBpbmdSb290UjQ2LnA3YzAjBggrBgEF
+# BQcwAYYXaHR0cDovL29jc3Auc2VjdGlnby5jb20wDQYJKoZIhvcNAQEMBQADggIB
+# ABLXeyCtDjVYDJ6BHSVY/UwtZ3Svx2ImIfZVVGnGoUaGdltoX4hDskBMZx5NY5L6
+# SCcwDMZhHOmbyMhyOVJDwm1yrKYqGDHWzpwVkFJ+996jKKAXyIIaUf5JVKjccev3
+# w16mNIUlNTkpJEor7edVJZiRJVCAmWAaHcw9zP0hY3gj+fWp8MbOocI9Zn78xvm9
+# XKGBp6rEs9sEiq/pwzvg2/KjXE2yWUQIkms6+yslCRqNXPjEnBnxuUB1fm6bPAV+
+# Tsr/Qrd+mOCJemo06ldon4pJFbQd0TQVIMLv5koklInHvyaf6vATJP4DfPtKzSBP
+# kKlOtyaFTAjD2Nu+di5hErEVVaMqSVbfPzd6kNXOhYm23EWm6N2s2ZHCHVhlUgHa
+# C4ACMRCgXjYfQEDtYEK54dUwPJXV7icz0rgCzs9VI29DwsjVZFpO4ZIVR33LwXyP
+# DbYFkLqYmgHjR3tKVkhh9qKV2WCmBuC27pIOx6TYvyqiYbntinmpOqh/QPAnhDge
+# xKG9GX/n1PggkGi9HCapZp8fRwg8RftwS21Ln61euBG0yONM6noD2XQPrFwpm3Gc
+# uqJMf0o8LLrFkSLRQNwxPDDkWXhW+gZswbaiie5fd/W2ygcto78XCSPfFWveUOSZ
+# 5SqK95tBO8aTHmEa4lpJVD7HrTEn9jb1EGvxOb1cnn0CMIIGGjCCBAKgAwIBAgIQ
+# Yh1tDFIBnjuQeRUgiSEcCjANBgkqhkiG9w0BAQwFADBWMQswCQYDVQQGEwJHQjEY
+# MBYGA1UEChMPU2VjdGlnbyBMaW1pdGVkMS0wKwYDVQQDEyRTZWN0aWdvIFB1Ymxp
+# YyBDb2RlIFNpZ25pbmcgUm9vdCBSNDYwHhcNMjEwMzIyMDAwMDAwWhcNMzYwMzIx
+# MjM1OTU5WjBUMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2VjdGlnbyBMaW1pdGVk
+# MSswKQYDVQQDEyJTZWN0aWdvIFB1YmxpYyBDb2RlIFNpZ25pbmcgQ0EgUjM2MIIB
+# ojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAmyudU/o1P45gBkNqwM/1f/bI
+# U1MYyM7TbH78WAeVF3llMwsRHgBGRmxDeEDIArCS2VCoVk4Y/8j6stIkmYV5Gej4
+# NgNjVQ4BYoDjGMwdjioXan1hlaGFt4Wk9vT0k2oWJMJjL9G//N523hAm4jF4UjrW
+# 2pvv9+hdPX8tbbAfI3v0VdJiJPFy/7XwiunD7mBxNtecM6ytIdUlh08T2z7mJEXZ
+# D9OWcJkZk5wDuf2q52PN43jc4T9OkoXZ0arWZVeffvMr/iiIROSCzKoDmWABDRzV
+# /UiQ5vqsaeFaqQdzFf4ed8peNWh1OaZXnYvZQgWx/SXiJDRSAolRzZEZquE6cbcH
+# 747FHncs/Kzcn0Ccv2jrOW+LPmnOyB+tAfiWu01TPhCr9VrkxsHC5qFNxaThTG5j
+# 4/Kc+ODD2dX/fmBECELcvzUHf9shoFvrn35XGf2RPaNTO2uSZ6n9otv7jElspkfK
+# 9qEATHZcodp+R4q2OIypxR//YEb3fkDn3UayWW9bAgMBAAGjggFkMIIBYDAfBgNV
+# HSMEGDAWgBQy65Ka/zWWSC8oQEJwIDaRXBeF5jAdBgNVHQ4EFgQUDyrLIIcouOxv
+# SK4rVKYpqhekzQwwDgYDVR0PAQH/BAQDAgGGMBIGA1UdEwEB/wQIMAYBAf8CAQAw
+# EwYDVR0lBAwwCgYIKwYBBQUHAwMwGwYDVR0gBBQwEjAGBgRVHSAAMAgGBmeBDAEE
+# ATBLBgNVHR8ERDBCMECgPqA8hjpodHRwOi8vY3JsLnNlY3RpZ28uY29tL1NlY3Rp
+# Z29QdWJsaWNDb2RlU2lnbmluZ1Jvb3RSNDYuY3JsMHsGCCsGAQUFBwEBBG8wbTBG
+# BggrBgEFBQcwAoY6aHR0cDovL2NydC5zZWN0aWdvLmNvbS9TZWN0aWdvUHVibGlj
+# Q29kZVNpZ25pbmdSb290UjQ2LnA3YzAjBggrBgEFBQcwAYYXaHR0cDovL29jc3Au
+# c2VjdGlnby5jb20wDQYJKoZIhvcNAQEMBQADggIBAAb/guF3YzZue6EVIJsT/wT+
+# mHVEYcNWlXHRkT+FoetAQLHI1uBy/YXKZDk8+Y1LoNqHrp22AKMGxQtgCivnDHFy
+# AQ9GXTmlk7MjcgQbDCx6mn7yIawsppWkvfPkKaAQsiqaT9DnMWBHVNIabGqgQSGT
+# rQWo43MOfsPynhbz2Hyxf5XWKZpRvr3dMapandPfYgoZ8iDL2OR3sYztgJrbG6VZ
+# 9DoTXFm1g0Rf97Aaen1l4c+w3DC+IkwFkvjFV3jS49ZSc4lShKK6BrPTJYs4NG1D
+# GzmpToTnwoqZ8fAmi2XlZnuchC4NPSZaPATHvNIzt+z1PHo35D/f7j2pO1S8BCys
+# QDHCbM5Mnomnq5aYcKCsdbh0czchOm8bkinLrYrKpii+Tk7pwL7TjRKLXkomm5D1
+# Umds++pip8wH2cQpf93at3VDcOK4N7EwoIJB0kak6pSzEu4I64U6gZs7tS/dGNSl
+# jf2OSSnRr7KWzq03zl8l75jy+hOds9TWSenLbjBQUGR96cFr6lEUfAIEHVC1L68Y
+# 1GGxx4/eRI82ut83axHMViw1+sVpbPxg51Tbnio1lB93079WPFnYaOvfGAA0e0zc
+# fF/M9gXr+korwQTh2Prqooq2bYNMvUoUKD85gnJ+t0smrWrb8dee2CvYZXD5laGt
+# aAxOfy/VKNmwuWuAh9kcMIIGXTCCBMWgAwIBAgIQOlJqLITOVeYdZfzMEtjpiTAN
+# BgkqhkiG9w0BAQwFADBVMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2VjdGlnbyBM
+# aW1pdGVkMSwwKgYDVQQDEyNTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1waW5nIENB
+# IFIzNjAeFw0yNDAxMTUwMDAwMDBaFw0zNTA0MTQyMzU5NTlaMG4xCzAJBgNVBAYT
+# AkdCMRMwEQYDVQQIEwpNYW5jaGVzdGVyMRgwFgYDVQQKEw9TZWN0aWdvIExpbWl0
+# ZWQxMDAuBgNVBAMTJ1NlY3RpZ28gUHVibGljIFRpbWUgU3RhbXBpbmcgU2lnbmVy
+# IFIzNTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAI3RZ/TBSJu9/ThJ
+# Ok1hgZvD2NxFpWEENo0GnuOYloD11BlbmKCGtcY0xiMrsN7LlEgcyoshtP3P2J/v
+# neZhuiMmspY7hk/Q3l0FPZPBllo9vwT6GpoNnxXLZz7HU2ITBsTNOs9fhbdAWr/M
+# m8MNtYov32osvjYYlDNfefnBajrQqSV8Wf5ZvbaY5lZhKqQJUaXxpi4TXZKohLgx
+# U7g9RrFd477j7jxilCU2ptz+d1OCzNFAsXgyPEM+NEMPUz2q+ktNlxMZXPF9WLIh
+# OhE3E8/oNSJkNTqhcBGsbDI/1qCU9fBhuSojZ0u5/1+IjMG6AINyI6XLxM8OAGQm
+# aMB8gs2IZxUTOD7jTFR2HE1xoL7qvSO4+JHtvNceHu//dGeVm5Pdkay3Et+YTt9E
+# wAXBsd0PPmC0cuqNJNcOI0XnwjE+2+Zk8bauVz5ir7YHz7mlj5Bmf7W8SJ8jQwO2
+# IDoHHFC46ePg+eoNors0QrC0PWnOgDeMkW6gmLBtq3CEOSDU8iNicwNsNb7ABz0W
+# 1E3qlSw7jTmNoGCKCgVkLD2FaMs2qAVVOjuUxvmtWMn1pIFVUvZ1yrPIVbYt1aTl
+# d2nrmh544Auh3tgggy/WluoLXlHtAJgvFwrVsKXj8ekFt0TmaPL0lHvQEe5jHbuf
+# hc05lvCtdwbfBl/2ARSTuy1s8CgFAgMBAAGjggGOMIIBijAfBgNVHSMEGDAWgBRf
+# WO1MMXqiYUKNUoC6s2GXGaIymzAdBgNVHQ4EFgQUaO+kMklptlI4HepDOSz0FGqe
+# DIUwDgYDVR0PAQH/BAQDAgbAMAwGA1UdEwEB/wQCMAAwFgYDVR0lAQH/BAwwCgYI
+# KwYBBQUHAwgwSgYDVR0gBEMwQTA1BgwrBgEEAbIxAQIBAwgwJTAjBggrBgEFBQcC
+# ARYXaHR0cHM6Ly9zZWN0aWdvLmNvbS9DUFMwCAYGZ4EMAQQCMEoGA1UdHwRDMEEw
+# P6A9oDuGOWh0dHA6Ly9jcmwuc2VjdGlnby5jb20vU2VjdGlnb1B1YmxpY1RpbWVT
+# dGFtcGluZ0NBUjM2LmNybDB6BggrBgEFBQcBAQRuMGwwRQYIKwYBBQUHMAKGOWh0
+# dHA6Ly9jcnQuc2VjdGlnby5jb20vU2VjdGlnb1B1YmxpY1RpbWVTdGFtcGluZ0NB
+# UjM2LmNydDAjBggrBgEFBQcwAYYXaHR0cDovL29jc3Auc2VjdGlnby5jb20wDQYJ
+# KoZIhvcNAQEMBQADggGBALDcLsn6TzZMii/2yU/V7xhPH58Oxr/+EnrZjpIyvYTz
+# 2u/zbL+fzB7lbrPml8ERajOVbudan6x08J1RMXD9hByq+yEfpv1G+z2pmnln5Xuc
+# fA9MfzLMrCArNNMbUjVcRcsAr18eeZeloN5V4jwrovDeLOdZl0tB7fOX5F6N2rmX
+# aNTuJR8yS2F+EWaL5VVg+RH8FelXtRvVDLJZ5uqSNIckdGa/eUFhtDKTTz9LtOUh
+# 46v2JD5Q3nt8mDhAjTKp2fo/KJ6FLWdKAvApGzjpPwDqFeJKf+kJdoBKd2zQuwzk
+# 5Wgph9uA46VYK8p/BTJJahKCuGdyKFIFfEfakC4NXa+vwY4IRp49lzQPLo7Wticq
+# Maaqb8hE2QmCFIyLOvWIg4837bd+60FcCGbHwmL/g1ObIf0rRS9ceK4DY9rfBnHF
+# H2v1d4hRVvZXyCVlrL7ZQuVzjjkLMK9VJlXTVkHpuC8K5S4HHTv2AJx6mOdkMJwS
+# 4gLlJ7gXrIVpnxG+aIniGDCCBmswggTToAMCAQICEQCMQZ6TvyvOrIgGKDt2Gb08
+# MA0GCSqGSIb3DQEBDAUAMFQxCzAJBgNVBAYTAkdCMRgwFgYDVQQKEw9TZWN0aWdv
+# IExpbWl0ZWQxKzApBgNVBAMTIlNlY3RpZ28gUHVibGljIENvZGUgU2lnbmluZyBD
+# QSBSMzYwHhcNMjQxMTE0MDAwMDAwWhcNMjcxMTE0MjM1OTU5WjBXMQswCQYDVQQG
+# EwJERTEWMBQGA1UECAwNTmllZGVyc2FjaHNlbjEXMBUGA1UECgwOTWFydGluIFdp
+# bGxpbmcxFzAVBgNVBAMMDk1hcnRpbiBXaWxsaW5nMIICIjANBgkqhkiG9w0BAQEF
+# AAOCAg8AMIICCgKCAgEA0Z9u5pyMwenbCRSzHsUEDUXfGjL+9w05WuvBukPLvldk
+# 2NSUP2eI9qAiPQE1tytz+zQD3ZRNEJrXYwtBf++I7H4pf4vC8Mbsk9N+MGm1YmSl
+# HKHZirBBYTPWpvFuZFIC7guRSCuMDTquU382HR08ibtXkdl7kg6DKdMIOOZjrhTQ
+# W2AfA1QbR8aG71quHgrN5VMV9O8Ed0K9lLW/dsPHlNryq9krPcSIf2LzOFMYAaTt
+# SOjvltrQAeZpspyIKAn1+5ruog9wPgIaUPRr9tPRvN8vBT6xSSFlO+003oRK2z42
+# dO+MV8K5RJIZxlApNcPiojbWR2kp9F/r54aie6LQcUGUABEpYVl6Qygrp551Z1YM
+# L1VrXHAIcWTveXon+lbLP1IQmgWdurM5Z3hrRXkwpSOPpN5qn1rqHbV4x3PKIQHJ
+# Vqe11csJYsIQhRLAHBZKZAsor3stLKhH68IjJ0ctXpR9Ut+13EGmr+fm7eCsbSF7
+# jlRMd7zPTB3Za2ltMtaJ+RPIuLWoHSOOUx9C1NPNLm3NjCqqumV7aZU7tcHRdgoM
+# t4X0ki5CbHEVgKb6bzjulbXOI0xvwDuoqjeTOksHfoONF7bMQQ/4EpPZDKpICdaQ
+# 9RqeYJB5z9b3rrfmICfcVnEQySO73IrParF8LVcm3jgoeeq00Lwv03+gSbYonhEC
+# AwEAAaOCAbMwggGvMB8GA1UdIwQYMBaAFA8qyyCHKLjsb0iuK1SmKaoXpM0MMB0G
+# A1UdDgQWBBSMcmQJhB5e7gHxMGweJ8yPDAgi2zAOBgNVHQ8BAf8EBAMCB4AwDAYD
+# VR0TAQH/BAIwADATBgNVHSUEDDAKBggrBgEFBQcDAzBKBgNVHSAEQzBBMDUGDCsG
+# AQQBsjEBAgEDAjAlMCMGCCsGAQUFBwIBFhdodHRwczovL3NlY3RpZ28uY29tL0NQ
+# UzAIBgZngQwBBAEwSQYDVR0fBEIwQDA+oDygOoY4aHR0cDovL2NybC5zZWN0aWdv
+# LmNvbS9TZWN0aWdvUHVibGljQ29kZVNpZ25pbmdDQVIzNi5jcmwweQYIKwYBBQUH
+# AQEEbTBrMEQGCCsGAQUFBzAChjhodHRwOi8vY3J0LnNlY3RpZ28uY29tL1NlY3Rp
+# Z29QdWJsaWNDb2RlU2lnbmluZ0NBUjM2LmNydDAjBggrBgEFBQcwAYYXaHR0cDov
+# L29jc3Auc2VjdGlnby5jb20wKAYDVR0RBCEwH4EdbXdpbGxpbmdAbGV0aGFsLWZv
+# cmVuc2ljcy5jb20wDQYJKoZIhvcNAQEMBQADggGBAGdHQTDMJblhm/jA9axlmj7W
+# l6zWZ5WajmcYG3azCwSgEK9EBnCCwlSGeEmWGnr0+cjEeoxRkgI4GhbZ5PGaW7Rs
+# IoP3nfwvw9TXvEmcn33bQC57P+Qh8TJ1PJLO7re3bEesxQ+P25pY7qFKIueVuv11
+# P9aa/rakWmRib40iiUAjfTIRQL10qTz6kbI9u83tfimCARdfy9AVtB0tHfWYRklK
+# BMKjAy6UH9nqiRcsss1rdtVVYSxepoGdXRObQi2WOxEc8ev4eTexdMN+taIoIszG
+# wjHUk9vVznOZgfKugsnuzphHzNowckVmvnHeEcnLDdqdsB0bpKauPIl/rT1Sph8D
+# Sn/rqbijw0AHleCe4FArXryLDraMogtvmpoprvNaONuA5fjbAMgi89El7zQIVb7V
+# O9x+tYLaD2v0lqLnptkvm86e6Brxj6Kf/ZoeAl5Iui1Xgx94QzPIWbCYPxE6CFog
+# 6M03NslqsFeDs8neMeSMfJXJFzIFrslnMZiytUZiqTCCBoIwggRqoAMCAQICEDbC
+# sL18Gzrno7PdNsvJdWgwDQYJKoZIhvcNAQEMBQAwgYgxCzAJBgNVBAYTAlVTMRMw
+# EQYDVQQIEwpOZXcgSmVyc2V5MRQwEgYDVQQHEwtKZXJzZXkgQ2l0eTEeMBwGA1UE
+# ChMVVGhlIFVTRVJUUlVTVCBOZXR3b3JrMS4wLAYDVQQDEyVVU0VSVHJ1c3QgUlNB
+# IENlcnRpZmljYXRpb24gQXV0aG9yaXR5MB4XDTIxMDMyMjAwMDAwMFoXDTM4MDEx
+# ODIzNTk1OVowVzELMAkGA1UEBhMCR0IxGDAWBgNVBAoTD1NlY3RpZ28gTGltaXRl
+# ZDEuMCwGA1UEAxMlU2VjdGlnbyBQdWJsaWMgVGltZSBTdGFtcGluZyBSb290IFI0
+# NjCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAIid2LlFZ50d3ei5JoGa
+# VFTAfEkFm8xaFQ/ZlBBEtEFAgXcUmanU5HYsyAhTXiDQkiUvpVdYqZ1uYoZEMgtH
+# ES1l1Cc6HaqZzEbOOp6YiTx63ywTon434aXVydmhx7Dx4IBrAou7hNGsKioIBPy5
+# GMN7KmgYmuu4f92sKKjbxqohUSfjk1mJlAjthgF7Hjx4vvyVDQGsd5KarLW5d73E
+# 3ThobSkob2SL48LpUR/O627pDchxll+bTSv1gASn/hp6IuHJorEu6EopoB1CNFp/
+# +HpTXeNARXUmdRMKbnXWflq+/g36NJXB35ZvxQw6zid61qmrlD/IbKJA6COw/8lF
+# SPQwBP1ityZdwuCysCKZ9ZjczMqbUcLFyq6KdOpuzVDR3ZUwxDKL1wCAxgL2Mpz7
+# eZbrb/JWXiOcNzDpQsmwGQ6Stw8tTCqPumhLRPb7YkzM8/6NnWH3T9ClmcGSF22L
+# EyJYNWCHrQqYubNeKolzqUbCqhSqmr/UdUeb49zYHr7ALL8bAJyPDmubNqMtuaob
+# KASBqP84uhqcRY/pjnYd+V5/dcu9ieERjiRKKsxCG1t6tG9oj7liwPddXEcYGOUi
+# WLm742st50jGwTzxbMpepmOP1mLnJskvZaN5e45NuzAHteORlsSuDt5t4BBRCJL+
+# 5EZnnw0ezntk9R8QJyAkL6/bAgMBAAGjggEWMIIBEjAfBgNVHSMEGDAWgBRTeb9a
+# qitKz1SA4dibwJ3ysgNmyzAdBgNVHQ4EFgQU9ndq3T/9ARP/FqFsggIv0Ao9FCUw
+# DgYDVR0PAQH/BAQDAgGGMA8GA1UdEwEB/wQFMAMBAf8wEwYDVR0lBAwwCgYIKwYB
+# BQUHAwgwEQYDVR0gBAowCDAGBgRVHSAAMFAGA1UdHwRJMEcwRaBDoEGGP2h0dHA6
+# Ly9jcmwudXNlcnRydXN0LmNvbS9VU0VSVHJ1c3RSU0FDZXJ0aWZpY2F0aW9uQXV0
+# aG9yaXR5LmNybDA1BggrBgEFBQcBAQQpMCcwJQYIKwYBBQUHMAGGGWh0dHA6Ly9v
+# Y3NwLnVzZXJ0cnVzdC5jb20wDQYJKoZIhvcNAQEMBQADggIBAA6+ZUHtaES45aHF
+# 1BGH5Lc7JYzrftrIF5Ht2PFDxKKFOct/awAEWgHQMVHol9ZLSyd/pYMbaC0IZ+XB
+# W9xhdkkmUV/KbUOiL7g98M/yzRyqUOZ1/IY7Ay0YbMniIibJrPcgFp73WDnRDKtV
+# utShPSZQZAdtFwXnuiWl8eFARK3PmLqEm9UsVX+55DbVIz33Mbhba0HUTEYv3yJ1
+# fwKGxPBsP/MgTECimh7eXomvMm0/GPxX2uhwCcs/YLxDnBdVVlxvDjHjO1cuwbOp
+# kiJGHmLXXVNbsdXUC2xBrq9fLrfe8IBsA4hopwsCj8hTuwKXJlSTrZcPRVSccP5i
+# 9U28gZ7OMzoJGlxZ5384OKm0r568Mo9TYrqzKeKZgFo0fj2/0iHbj55hc20jfxvK
+# 3mQi+H7xpbzxZOFGm/yVQkpo+ffv5gdhp+hv1GDsvJOtJinJmgGbBFZIThbqI+MH
+# vAmMmkfb3fTxmSkop2mSJL1Y2x/955S29Gu0gSJIkc3z30vU/iXrMpWx2tS7UVfV
+# P+5tKuzGtgkP7d/doqDrLF1u6Ci3TpjAZdeLLlRQZm867eVeXED58LXd1Dk6UvaA
+# hvmWYXoiLz4JA5gPBcz7J311uahxCweNxE+xxxR3kT0WKzASo5G/PyDez6NHdIUK
+# BeE3jDPs2ACc6CkJ1Sji4PKWVT0/MYIGMDCCBiwCAQEwaTBUMQswCQYDVQQGEwJH
+# QjEYMBYGA1UEChMPU2VjdGlnbyBMaW1pdGVkMSswKQYDVQQDEyJTZWN0aWdvIFB1
+# YmxpYyBDb2RlIFNpZ25pbmcgQ0EgUjM2AhEAjEGek78rzqyIBig7dhm9PDAJBgUr
+# DgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMx
+# DAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkq
+# hkiG9w0BCQQxFgQUPNmL65oXPh6qcVrhcJ3d0qnlmtswDQYJKoZIhvcNAQEBBQAE
+# ggIAqFGGCfMFSGmp2RdARjLyBkpsWP6Hh3FyCj86BX5as4C6Q/HxVSntIbWyI11D
+# CurZ2DS0km9SfHB+Gsb7IRGMIjvMkYmQ+3IuSiNbkojgNxj89qDDayNy5Zm/nOyy
+# qpsB1mQfBou2X13Pfb03m9eSjGdlx8mUUQBArdqh0IWUm+j1W2/X87uPYhCWd7lI
+# foaFxvTonc/B+SVwfV4EEbeWxVAjpxKrms3ygX4WkD5twc/GHrHfa5ZBQqX8p+ic
+# FiajIeXnKmlRwNBC+Bb+BpmIqiuVYXvic60s7qwYyhEV6UJrLK9hR9KgSvht48dV
+# xZXpB4IbAFEwuHwoCxbijG91xk2tavk/wiptq0pCDJ3+ra4jiYi4tftDOgO9U0XI
+# WczQ9KtNd04pAk1NNRjeN7dn2oyA0p7IjeQUJv7E5vCcjmJinzWPQkZxPM9QWzdD
+# EKgDhGNvmarBUMUfOpbICxmOCmv49Q9dk5vwD1SNSN7msVa9x1/U4wos+jOfecXj
+# 5myei6zMGmK8iQFzMpptPbW6fesT9NwG6qWqUyIrP/zOAYq6k9th5Vg4q1F0Udt3
+# QD4nHd9cczP3ny9xVeyIwbaXdax5lH0sultpYi2Zkc9LVbHAkIvxCerpQHkPAumr
+# JxH5kcVPWDXZs3X5B26uJyvkWmxnPqPosI7ccF7Q3sIbUIahggMiMIIDHgYJKoZI
+# hvcNAQkGMYIDDzCCAwsCAQEwaTBVMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2Vj
+# dGlnbyBMaW1pdGVkMSwwKgYDVQQDEyNTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1w
+# aW5nIENBIFIzNgIQOlJqLITOVeYdZfzMEtjpiTANBglghkgBZQMEAgIFAKB5MBgG
+# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI0MTEyMDA1
+# NDYxN1owPwYJKoZIhvcNAQkEMTIEMD/dKWgziWucDUe+yuU2kHUiVqi16MOjMX/U
+# QJURddfoyrnlbX7UCxKbi9VosZKXZjANBgkqhkiG9w0BAQEFAASCAgA+nckkt+RW
+# 3uIrr2wDONHFCGzsnfr/j1hJ+vhrxk3TsA5JZWsUAtU3ukf92gNTM604yUrFpIFd
+# 23tRfaYk0hQoTz7aymoNyZTq66yHh1xcB15N3tZLfxAHRmsPQMdvXQVb+7PvfJNJ
+# WpRI35G/2w9dHfcw4UGgqfUwyydYaevKiFUYwCinMq0ZrsN2UEJufMM/VtuagKNQ
+# rtM6ITcjo7VptBUOUC6AFyPvkKlK2Hicwx06D5+i948tlTONnaqVsSuPcsJULCVx
+# BQJJPLSD1tR/UAuHFuR4zAJgLY4X9H1u0UmEJUQkc+yAgjNtVN+IHE8Trd9pUOhM
+# uNuG3wUTS5qgCJdJYY4zW3zeIydnQvtEP3+L55pqYMz4V056C/5p4GmMVnfAUgB3
+# Y6Mw8F0GTQgyIA8ju8PfNq/j//OUV9TdNKVObJxNpQmuVV4WlOiB3zQm0jAFIBkd
+# vD4b/JtJjRkqrS6LVfPhhadNT6exN7qEDKapEfcFJFLexZE5LkGNaZX9OjJcAtd0
+# CuOENEmy6gceqBL6nIIFyRseDEqlXv72fouVexqXy4PNxFcxKd3uU6NU1sy4zqw7
+# Sia0CVLY6xKlbjPHKVMPbPDNOzRabxNM7CqXHFsjitpQzKdmcxcGjgHjPfWemVPF
+# Z3/ICGIO0OGdO8oyQY7n3//9Qt47aSWd4g==
+# SIG # End signature block

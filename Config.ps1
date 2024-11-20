@@ -1,10 +1,10 @@
 ﻿# Microsoft-Analyzer-Suite (MAS) - Configuration File
 #
 # @author:    Martin Willing
-# @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
+# @copyright: Copyright (c) 2024 Martin Willing. All rights reserved. Licensed under the MIT license.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-10-17
+# @date:      2024-11-20
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
