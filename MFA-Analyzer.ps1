@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved. Licensed under the MIT license.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-11-20
+# @date:      2024-11-21
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -30,12 +30,14 @@
 
 <#
 .SYNOPSIS
-  MFA-Analyzer v0.3 - Automated Analysis of Authentication Methods and User Registration Details for DFIR
+  MFA-Analyzer - Automated Analysis of Authentication Methods and User Registration Details for DFIR
 
 .DESCRIPTION
   MFA-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of the MFA Status of all users extracted via "Microsoft Extractor Suite" by Invictus Incident Response.
 
-  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v2.1.0)
+  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v2.1.1)
+
+  https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/GetUserInfo.html#retrieves-mfa-status
 
 .PARAMETER OutputDir
   Specifies the output directory. Default is "$env:USERPROFILE\Desktop\MFA-Analyzer".
@@ -108,7 +110,7 @@ else
 
 # Windows Title
 $DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
-$Host.UI.RawUI.WindowTitle = "MFA-Analyzer v0.3 - Automated Analysis of Authentication Methods and User Registration Details for DFIR"
+$Host.UI.RawUI.WindowTitle = "MFA-Analyzer - Automated Analysis of Authentication Methods and User Registration Details for DFIR"
 
 # Check if the PowerShell script is being run with admin rights
 if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
@@ -194,7 +196,7 @@ Write-Output "$Logo"
 Write-Output ""
 
 # Header
-Write-Output "MFA-Analyzer v0.3 - Automated Analysis of Authentication Methods and User Registration Details for DFIR"
+Write-Output "MFA-Analyzer - Automated Analysis of Authentication Methods and User Registration Details for DFIR"
 Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
 Write-Output ""
 
@@ -453,7 +455,7 @@ Write-Output "[Info]  Processing User Registration Details ..."
 $File = Get-Item "$AuthenticationMethods"
 $Prefix = $File.Name | ForEach-Object{($_ -split "-")[0]}
 $FilePath = $File.Directory
-$UserRegistrationDetails = "$FilePath" + "\" + "$Prefix" + "-UserRegistrationDetails.csv"
+$UserRegistrationDetails = "$FilePath" + "\" + "$Prefix" + "-MFA-UserRegistrationDetails.csv"
 
 # Input-Check
 if (!(Test-Path "$UserRegistrationDetails"))
@@ -540,9 +542,9 @@ if (Get-Module -ListAvailable -Name ImportExcel)
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:P1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns B-P
-            $WorkSheet.Cells["B:P"].Style.HorizontalAlignment="Center"
+            Set-Format -Address $WorkSheet.Cells["A1:O1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns B-O
+            $WorkSheet.Cells["B:O"].Style.HorizontalAlignment="Center"
             }
         }
     }
@@ -645,77 +647,11 @@ $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
 #############################################################################################################################################################################################
 #############################################################################################################################################################################################
 
-# TODO
-
-# AuthenticationMethod Function
-# UserRegistrationDetails Function
-
-# Improve "Phone Authentication Method" --> authenticationPhoneType (mobile, alternateMobile, office), smsSignInState via authenticationMethodSignInState
-
-# https://portal.azure.com/#view/Microsoft_AAD_IAM/AuthenticationMethodsMenuBlade/~/AdminAuthMethods
-# FIDO2 Security Key
-# Microsoft Authenticator
-# SMS
-# Temporary Access Pass
-# Hardware OATH tokens (Preview)
-# Third-party software OATH tokens
-# Voice call
-# Email OTP
-# Certificate based authentication
-
-# FIDO2 Security Key = FIDO2 security keys are a phishing-resistant, standards-based passwordless authentication method available from a variety of vendors. FIDO2 keys are not usable in the Self-Service Password Reset flow.
-# Microsoft Authenticator = The Microsoft Authenticator app is a flagship authentication method, usable in passwordless or simple push notification approval modes. The app is free to download and use on Android/iOS mobile devices.
-# SMS = This authentication method delivers a one-time code via SMS to a user's phone, and the user then inputs that code to sign-in. SMS is usable for multi-factor authentication and Self-Service Password Reset; it can also be configured to be used as a first factor.
-# Temporary Access Pass = Temporary Access Pass, or TAP, is a time-limited or limited-use passcode that can be used by users for bootstrapping new accounts, account recovery, or when other auth methods are unavailable. TAP is issuable only by administrators, and is seen by the system as strong authentication. It is not usable for Self Service Password Reset.
-# Hardware OATH tokens (Preview) = Hardware OATH tokens are physical devices that use the OATH TOTP standard and a secret key to generate 6-digit codes used to authenticate. This policy control specifically manages the ability to register and use Hardware OATH tokens.
-# Third-party software OATH tokens = Software OATH tokens are applications that use the OATH TOTP standard and a secret key to generate 6-digit codes used to authenticate. This policy control specifically manages the ability to register and use non-Microsoft software OATH tokens. Microsoft Authenticator can also generate software OATH codes and is managed in the Microsoft Authenticator section of this policy. Software OATH token is not usable as a first-factor authentication method.
-# Voice call = This authentication method places a phone call to a user which the user must then approve using the telephone keypad. Voice call is not usable as a first-factor authentication method.
-# Email OTP = Email OTP sends a code to a user's email account which is then used to authenticate. For members of a tenant, email OTP is usable only for Self-Service Password Recovery. It may also be configured to be used for sign-in by guest users.
-# Certificate based authentication = Certificate-based authentication is a passwordless, phising-resistant authentication method that uses x.509 certificates and an enterprise public key infrastructure (PKI) for authentication.
-
-# Authentication methods --> User registration details
-# https://portal.azure.com/#view/Microsoft_AAD_IAM/AuthenticationMethodsMenuBlade/~/UserRegistrationDetails
-# https://learn.microsoft.com/en-us/graph/api/resources/userregistrationdetails?view=graph-rest-1.0
-
-# Authentication method     Description
-# Email                     Use an email address as part of the Self-Service Password Reset (SSPR) process.
-# Fido2                     Use a FIDO2 Security Key to sign-in to Azure AD.
-# Microsoft Authenticator   Use Microsoft Authenticator to sign-in or perform multi-factor authentication to Azure AD.
-# Phone                     The user can use a phone to authenticate using SMS or voice calls (as allowed by policy).
-# SoftwareOath              Use Microsoft Authenticator to sign in or perform multi-factor authentication to Azure AD.
-# TemporartAccessPass       Temporary Access Pass is a time-limited passcode that serves as a strong credential and allows onboarding of passwordless credentials.
-# WindowsHelloForBusiness   Windows Hello for Business is a passwordless sign-in method on Windows devices.
-
-# OneWaySMS - Text code authentication phone
-# TwoWayVoiceMobile - Call authentication phone
-# TwoWayVoiceOffice - Call office phone
-# PhoneAllOTP - Authenticator app or hardware token
-# PhoneAppNotification - Microsoft Authenticator App
-
-# MethodsRegistered
-# email
-# microsoftAuthenticatorPush
-# mobilePhone
-# softwareOneTimePasscode
-# ...
-
-# https://activedirectorypro.com/mfa-status-powershell/
-# https://www.alitajran.com/export-office-365-users-mfa-status-with-powershell/
-# https://o365info.com/export-all-microsoft-365-users-mfa-status/
-# https://support.microsoft.com/en-us/account-billing/set-up-an-email-address-as-your-verification-method-250b91e4-7627-4b60-b861-f2276a9c0e39
-# https://support.microsoft.com/en-us/account-billing/sign-in-to-your-work-or-school-account-using-your-two-step-verification-method-c7293464-ef5e-4705-a24b-c4a3ec0d6cf9
-
-# https://portal.azure.com/#view/Microsoft_AAD_IAM/AuthenticationMethodsMenuBlade/~/UserRegistrationDetails
-# https://learn.microsoft.com/en-us/graph/api/authenticationmethodsroot-list-userregistrationdetails?view=graph-rest-1.0&tabs=powershell
-# https://learn.microsoft.com/en-us/graph/api/userregistrationdetails-get?view=graph-rest-1.0&tabs=powershell
-# https://learn.microsoft.com/en-us/graph/api/phoneauthenticationmethod-get?view=graph-rest-1.0&tabs=powershell
-# https://learn.microsoft.com/en-us/powershell/module/microsoft.graph.identity.signins/get-mguserauthenticationmethod?view=graph-powershell-1.0
-
 # SIG # Begin signature block
 # MIIrxQYJKoZIhvcNAQcCoIIrtjCCK7ICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUfX0yr+/DOpw6SWa1ad04+EWa
-# rZqggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUj58vb0Wcu4Bp3WneGSEzMYy2
+# jVGggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
 # AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
 # MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
 # MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
@@ -917,33 +853,33 @@ $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
 # YmxpYyBDb2RlIFNpZ25pbmcgQ0EgUjM2AhEAjEGek78rzqyIBig7dhm9PDAJBgUr
 # DgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMx
 # DAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkq
-# hkiG9w0BCQQxFgQUzqhgDZtk5xpATsEKbqDMycyP9zQwDQYJKoZIhvcNAQEBBQAE
-# ggIAvY/Dwk/hwmn28UUT2Zuu/7iZtqBRk/u8+ypLcLfmJZAg9LmGaCCHHjEtwHjf
-# 3Msrop1+J8hA7dY6oZQn52tKzIUzr6Ao61rqPfriZnY5AWapj0HULqDXRaxgQt4i
-# usXTD/b4h0ZPJpkrK9SEJ7v5yhloQECjs3qhE2RlmCQGxPDufNLgJ2gfMCzCcfFP
-# Yk5taVTDhQY+JEHouMWNxj48LAGKXagZNOvdVKgrFQGcaI9/MnDvrTqMU9bpMwrS
-# 02rD2XwRal1+lv4j9lR8roNdHP5qjSkMuQSDx6cWxuldQiKdNkJLTgTK6Jx94Hyu
-# unWbI6J2DQcYMhMmSjQInEahJvDkbWoSCYc5n/HcceJCFepTq2LmHEnLAMybUy/5
-# krIuA8Z3/JGEg4lels4xzfWjWHtJdI3DwEgZHcZaVsQxGSEJIk7QDI+UN2dsokXG
-# ofQYZ0WLR5iAFG8G660SZvx3xv247Lr27ElKP5o7Wk6WTDWQMBojSKFuP6p2cRWh
-# IXu6kAhZHchponI/JBxYAyXJRRFgrP6BpFza/3ViOE5tOzrWVV/MnkR1iFjCR+8n
-# GfeKO2Ku/tsxjyakMp3Fref684upcwHOqfft6CNlN5fAhT3aWFLeNt6W3wIN9eCJ
-# kRGs/nTBbBFJs0VBPWo7MJiEqw6wvgC1/j3hMHrUi/GFXQ6hggMiMIIDHgYJKoZI
+# hkiG9w0BCQQxFgQU3KvhSYa6UzoIUQxJAe44y57dHnwwDQYJKoZIhvcNAQEBBQAE
+# ggIASWlRssPekky9QllhstyHNp5vxsj9uYe5InuykL1EnNSUnraeumx0AhYKYXiE
+# AdOQP0EwML96btn1347AXSeTVkndRYIvfieOTn6QmfokQW2ge5p1jfenX7/Y1P0j
+# qx5zuVk4XxhCsWxqvyWGwqtbVBYx8jS4ALLBMpWPG8WyTUFb1Or5vMvWXKyxJ7vN
+# Bn4JtXwQZXloTkZ2boNQt699prdSYn2XRmSmNZ8t9LbSQeasB6tiUjSVtCqdqnc/
+# Y7S09nPtFE/PtJvn9iDdFKDaAzZwnLlx6XESpYEpliHNF3ZGjVtFzXDQ2RyhCdDT
+# 7acl6Ejwk0TXMLw3kKMBJS0lYzoxDdT85MI2VJiFPdQq8sdw1k38kq/e0XUQI98m
+# IgZmIJX0QcsYbsH4KBSB8kK7S3sYWNKJ4LZ+O9/lnvsA78comMomUdH4+yCPt83r
+# VvZv2pLdyW80fO8OLdwfuNMHukdA1CXZeMSubhN1JUlcd8kG8Ld+isQ38lKkv7QN
+# rFLCwlxo2a1+e/49L7zIKike9WTp14gtlbEb0UKWQZfniE6QSxmf9YzffQ1cHLzW
+# EgxMKHp7o72/ZaMGERZZ7cQt0tUXV+4rcJ15qJUYETItG/OPsGibadW1vXAO59he
+# D548GHL1DKkmtgHgrru2KKLHg2B7bv97/T6KUwCYAH9YsxWhggMiMIIDHgYJKoZI
 # hvcNAQkGMYIDDzCCAwsCAQEwaTBVMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2Vj
 # dGlnbyBMaW1pdGVkMSwwKgYDVQQDEyNTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1w
 # aW5nIENBIFIzNgIQOlJqLITOVeYdZfzMEtjpiTANBglghkgBZQMEAgIFAKB5MBgG
-# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI0MTEyMDA1
-# NDU1N1owPwYJKoZIhvcNAQkEMTIEMPPHAxWxF5XI1XrrMPwZ/Pe5ytMtWyPBQli2
-# MVp4vyCyCHDdGlKuReoeGbAxEe8OWjANBgkqhkiG9w0BAQEFAASCAgAL5IMGN6/O
-# jUfht6+rIYMIG5mzxq4PPEZ4o8pTl3PS2gwO2HFrM7EqkUgF8bl0heYTDn/Iclv8
-# EzRDZdHs2o4bCVDZXtDp0xUHtOqSbr3G8GFHSldHEQJmmrhc3jGECNeeFQD8G4pR
-# KtE2h6prKDzgOeJq9m5eVPWAExlnp2h83iyzuZP3cR6DB0wuY8ldW6Csh1wUU9cp
-# U7RvHZ1bBd2UOePzNL9TJRjZRGMQnZa1mZ4d/T9kgwCAc1hsFBnw2wbBJLRGAb8M
-# 8tzL11odvbGoZIzqwT0WauDaqgbTLdz8cxr7SMY1JnvqeNtHLa0suh8ENF0JW072
-# c9hitSsDFg4ELSMAxUx/8qm+ie5Q4T7RU3W+6UN4w47SK83LjU2YQwaG6DidEYCI
-# uoxYumBLm4GVoghyVAZjs4+f7PN5TXx/nGTJ/U8PbgkBXsHOi3SSF2xQm3sn7XCT
-# Is5FUdByZSJc0jDMj0sQ7Mmwza5MF14n0QfYPzsymhOXUeMcPXqnV+XVIc6m1kId
-# s1aN1keuuFmslK5hNQ0/APokGsYUdGSfp8qxwgPrhH8fc8nKy4bwXVMxg5X7fDA3
-# rMF8JZY/MloujTrMGyOiEI85NoQMADcfshbmIKY/2KhlgLttYQLrBoN7xFSLKOd/
-# wvAO0z7pB8b/Yst/Qz9KHMECkns/CPFKOA==
+# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI0MTEyMTA4
+# MDIzM1owPwYJKoZIhvcNAQkEMTIEMCASCI68U5DKd2Zq6ObOHcteEkujoau7fF2N
+# +whVxevOCJLBO7stGprge3YfRZNBljANBgkqhkiG9w0BAQEFAASCAgBhOeYY4D4f
+# EkC05Z0Gfi3E06ZnYsQPsAmjraYNDAAfdV33oRAm+/Lt5DL7IuqVsppA3RYVlsqX
+# J9L1FX1pz76tAQkx92pAgpDykfO966+kUtj/GKzaNSL1mk2iM1EPo62HDZ6rZvyl
+# nntM5LdmcWqzuc76cpb90WucYFO5jofC+Me4dptmMzRGU+iqqd92+j48gNdNFjDw
+# qw5eIN+jqQSZCzfohk/LqUIZdnT5dTXDUG2cwfzZC3UfPHM5aan+rPKMqKD70/xc
+# y8/DYFOoOdBfpm8Q9mD776rOjphxe5sbzcBPb+LlaulX/0OjeR7F1UIwQMkce2WJ
+# jSYY6LXyVcksIEhChiFb6mY1kvbdqS1zHsXuLrc4iofeE4PqjNynUuxq2DVWddwb
+# H4Up83MxtcQ3ogCWvuAEx2qyKFo0J/6anfziIO4hl+ZziuJRuyjZD0zhKyfrtPM9
+# wiSNUv+28oAkgBU4H4ELBxGwEozhvludDXAvq4gDNXguuGadV3/JM0/BL6dpR51g
+# sFFlGKeC4R0Mb3yrUTWxjecI9/eaY53RceNCMluX7dFWpK8QWNDMzjlqmFKC+i6M
+# eKbnBOgnqFG0Dbutq0HHeEg4g1sgS2oh/hXk5Rv5tAHZ5IUwqAWtNHgSLIlDcdAC
+# mcWZg6JRupPy0u655JSx2c69ul4wNVH39g==
 # SIG # End signature block

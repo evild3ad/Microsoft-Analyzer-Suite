@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved. Licensed under the MIT license.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-11-20
+# @date:      2024-11-21
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -33,12 +33,12 @@
 
 <#
 .SYNOPSIS
-  OAuthPermissions-Analyzer v0.3 - Automated Processing of M365 OAuth Permissions for DFIR
+  OAuthPermissions-Analyzer - Automated Processing of M365 OAuth Permissions for DFIR
 
 .DESCRIPTION
   OAuthPermissions-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of M365 OAuth Permissions extracted via "Microsoft Extractor Suite" by Invictus Incident Response.
 
-  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v2.1.0)
+  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v2.1.1)
 
   https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/OAuthPermissions.html
 
@@ -155,7 +155,7 @@ $script:xsv = "$SCRIPT_DIR\Tools\xsv\xsv.exe"
 
 # Windows Title
 $DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
-$Host.UI.RawUI.WindowTitle = "OAuthPermissions-Analyzer v0.3 - Automated Processing of M365 OAuth Permissions for DFIR"
+$Host.UI.RawUI.WindowTitle = "OAuthPermissions-Analyzer - Automated Processing of M365 OAuth Permissions for DFIR"
 
 # Check if the PowerShell script is being run with admin rights
 if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
@@ -249,7 +249,7 @@ Write-Output "$Logo"
 Write-Output ""
 
 # Header
-Write-Output "OAuthPermissions-Analyzer v0.3 - Automated Processing of M365 OAuth Permissions for DFIR"
+Write-Output "OAuthPermissions-Analyzer - Automated Processing of M365 OAuth Permissions for DFIR"
 Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
 Write-Output ""
 
@@ -917,35 +917,12 @@ if ($Result -eq "OK" )
 #############################################################################################################################################################################################
 #############################################################################################################################################################################################
 
-# TODO
 
-# https://github.com/randomaccess3/detections/blob/main/M365_Oauth_Apps/MaliciousOauthAppDetections.json
-
-# https://github.com/mandiant/Mandiant-Azure-AD-Investigator 
-
-# https://www.huntress.com/blog/legitimate-apps-as-traitorware-for-persistent-microsoft-365-compromise
-
-# https://m365internals.com/2021/07/24/everything-about-service-principals-applications-and-api-permissions/
-
-# Malicious Application Consent / OAuth
-# Step 1 - Determine the registered applications through "App registrations" and "Enterprise applications" in Microsoft Entra ID. Write down the Application ID.
-# Step 2 - Investigate the Audit logs to determine when, how and by whom the application was registered in the environment. Filter on Operation/Actvity "Add application".
-#          Date (UTC) = When the application was registered
-#          Display Name = How and by whom the application was registered
-#          AppId = AppID of the malicious application
-# Step 3 - Inspect the permissions and users of the application to determine possible impact.
-#          Option 1 - Azure AD --> Enterprise Application --> App name --> Permissions
-#          Note: Check both Admin & User consent to determine the API’s and users who granted permissions.
-#          Option 2 - PowerShell
-#          Option 3 - Automated through Get-AzureADPSPermissions script --> https://gist.github.com/psignoret/41793f8c6211d2df5051d77ca3728c09
-# Step 4 - Identify the activity of the malicious application. Using the Application ID sometimes called the Client ID we can track activity belonging to an application throughout Azure (AD) and Microsoft 365.
-#          Note: Check ADAuditLog and Sign-Ins
-# Step 5 - Incident Response checklist
 # SIG # Begin signature block
 # MIIrxQYJKoZIhvcNAQcCoIIrtjCCK7ICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUW6HMPoUb4uiQg+hY2nMdIk0Z
-# JpaggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQU3h7trCTq4jd0mF4Oo+Ig/Ses
+# Ks+ggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
 # AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
 # MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
 # MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
@@ -1147,33 +1124,33 @@ if ($Result -eq "OK" )
 # YmxpYyBDb2RlIFNpZ25pbmcgQ0EgUjM2AhEAjEGek78rzqyIBig7dhm9PDAJBgUr
 # DgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMx
 # DAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkq
-# hkiG9w0BCQQxFgQUJGADBd4CISz8aEzxfcAFvu50b5owDQYJKoZIhvcNAQEBBQAE
-# ggIAfGRdZWaK6YBW9EiJR8q+S34mBfaZnrysJN0frO71FelFQRPIWQAtTH+M71iH
-# xQdVnxHD5+n80B8Jb5hv3njcQlro6S9WifwZTvM7k8GRnPpAdUbF1yc74xahoYGH
-# EmXY2CYrSFdwBGw3QjteeFR/LA1n/Hd3CLsRbsaxSHcuEkt9nkQsOAKBxTLLQopF
-# raEl8N8FfausmDbw+lbj1GCh3cpycype0SPpf94CMysMpjmbwM4th1wTPrX1QyQ5
-# lVNODQ9aqB56+9Ev6ckNzOGpSZs3e22obYjUvSNy+NCUeUzu6KeRKqW95HkYQE+q
-# mJnfrHog0bQIn6L/9xZtM5FSkCeUVNTfMfosSyebLm17L6ZAqEtpMIIRSB/K19Eg
-# iv+gglYgsTHCy5+NRm8c+Lx8qRUG1nHCwkMq5W+N1F5Z72F3XVLiabiMeTYKEH2U
-# 5DSgquyoMoAiJwdkeLE9oLy9TYNPYPW3Hnxy+usqOTCkEahy7w7MXbKAxdZoqzqm
-# G95Dbm2Brr0iwoNdD/BEjQYi0HgF15qcBwHr7uKR5NOMPVDWxoucvG7yQOmVAP2F
-# 3zCSSvzD32ZkIRojmlNgyC4wmVK/C2MKJ553hgmgkBbofrrxgPSK9+vzrYaMSKcC
-# GoiFMb30lVIb1+n6fzGSlF3S0innX/Ox2S6bdpIAh8Q0HXuhggMiMIIDHgYJKoZI
+# hkiG9w0BCQQxFgQUxiTrLyNNZKiM9jS50kxYGX1jO64wDQYJKoZIhvcNAQEBBQAE
+# ggIAHBHcgOhQC5KgKGHVo1f0RMKDb8lGCZQLPdc3Aq4Q1RohkGsbtgxdCGpSVCju
+# +QFxnSDHjuofxA8RpmEL1eP1LRJMKtGVL9fjpSwDHEk/tKDsp+haq9ukGT6PUoT7
+# 8UvO4XtrKOdz/cSNYfY0v6s/ne5Hx4WALm8ffj0PwJhKqRDRwtIndpBDgDRLgpOV
+# Xl7uBe30RFvydGmiKs+Zzw+rq4/7xHhgdaMx1WCAxOLNsKcklgHf8+dzIDOE56uh
+# +AM9kGHQD6OKyu4sUAGUydJQpL10Jpypn8MUZnun/8ShbEcwJp7yqi2VaplkA0n6
+# kGqjkZO0PRqUxbbOfe7q2eb2sLWnSJrses71iZHDv0dFs1ZWTbEMoBf1Ut/Np0uD
+# L9sxOsq1msko/FeYDhjPQAB5lshgyiBp/U1YyyQldLQePFjqVkrUOrqs/rTR//fy
+# qiHtDlfs0th3LQzeEY7baBGe78YkuAszdY6jcBXP5Z2L2aQCSbFLdI6pjBU7a2hL
+# Yr1800NemX7lLIInxgtZLcemF8DXc0YPF8NsePtaau2ZxBsEgXlfVj/Jiauw+tT1
+# gQem4p2D4GTEbkO/6HSty6DQr6VVvABL+8y0BjjddXEP0jHf1X0O7ZonVE8Kphc4
+# OpgB8/VMdK87DEVOz5DAmHErZCncktJTJA+Jhv4sOeFdJCShggMiMIIDHgYJKoZI
 # hvcNAQkGMYIDDzCCAwsCAQEwaTBVMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2Vj
 # dGlnbyBMaW1pdGVkMSwwKgYDVQQDEyNTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1w
 # aW5nIENBIFIzNgIQOlJqLITOVeYdZfzMEtjpiTANBglghkgBZQMEAgIFAKB5MBgG
-# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI0MTEyMDA1
-# NDYwNFowPwYJKoZIhvcNAQkEMTIEMCFWsktcCk4xfX9J0C5zdCEir+JiGaSEmg38
-# 0ZvOyiNWX4Mb+WFqXiginguZuj2+kzANBgkqhkiG9w0BAQEFAASCAgBoHfdebupX
-# MyY6Zsog03iBPFxXwg1n0kzXLdXq1XfPDldl4pdAVhBD1bvMaIqDtTApiI/CMqXP
-# +JwpxP50b91q9woI09Tyl07VmiseC9hFd1rclH1KzQEpaiTBSy62niuAlIQ/k270
-# yvTKn/UDMpvDvQJVhYODFLOH/esMINdxl3avyLMUVXTUF3UOQR92x0rWN+iZYzk9
-# HFPV5aB5UERze7uWC4ceGvYdTU/V0jyvw33I9B23U9LcxfiKTzKgjiWhtFtvTO03
-# a5RVqDyn+bq4tTXJub72fn/XTubakb3wSSu0zMpM6zaUgzOArf0s8dUQeDs21JNq
-# j3Zg3bA2QcyuSqAiaLQXNXnuXxO2Sarnm9iIcqDvjz8f4BX8qnrDGfQMzAa94mKR
-# 9LCkwX/6zcbsRRSJebolat/zUevtn0mBSyyS1NE+2530WMVtGo73JzTA/4aXcgjP
-# dzbHqK7JoabYk4x3cEQUSvrZmkDQK2Z5L/NbE9R3/NQEqM1QYNZ6JB1ne4jigGJ4
-# mgg2jrz+M58FmMVm9JtCa1SFlNFRO9IxHQrpYFnJdCpUzFplz/xKWSEhS0FLpmqZ
-# DaRARo8gd1lt0qBqALRXzw9PsFFJKUdrUZbAOxlkP95O5iFBMGEXU0R9WdnoHQrQ
-# ho0Z70CIY4lf6HKIaWGaMMvysuyWnOt0dg==
+# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI0MTEyMTA4
+# MDI0MFowPwYJKoZIhvcNAQkEMTIEMBx7vsSxog8FkGKCZkiYoCzsfshMzThj8/NR
+# MqV2o/E8XBqmFIlgIzuJN987olR+czANBgkqhkiG9w0BAQEFAASCAgAdjjFoEMt/
+# PGFblRh5K4SreOXjE6/RtjJjnMJpAr3noy/bSR6Fj7fnK35KS5D8C4Luc1ZQA16p
+# Glrk3r7RsURtHW0uMK0ee6w3uh2HTA/nZWQRVwLvAi67jeBj5z51mzaSzRtfKs2C
+# JqWPohcsDp8X4w+NjPkDOMKGeCtyW5x0a6KhbIc8gHGThmimvuzyhOtYOAoZ1+h9
+# WYjnNhFWrH4znqjeqDlbf2ytPQzjCcyVTZ1M/GQ7eMqWFZaeYhgeyFJ0MFt7nwhS
+# A98/t1EvQaSEkd5EO/WYRN/vX99lzYEpmQG84gawJukyVM/vHbOPH1pDFqMUzxpB
+# nAGgwF34DZ/h1vXrJHYvaSgbiVpFt7fyfggodExaKbSk2fuKD3WGVDz0M/0INxdg
+# 4UcyVQKe/E7lzQR0dhuhTtlR6VOIlk6vZrTMbqp2n5oEpsD3CmS2Ms7TuLtszzsg
+# ra6Ggslkx+ibiRlY4w/42oil+8Nl8BK/OIaMbMqGikZtEcH3jVUGvMimg77vHBiT
+# eKGUwdGLN1Ke6ZH1ERNo7KgFEptKy+NR7lREyFDodagMa46Xi9Rk2FiAd+RMZ7kT
+# VxZbHLcengzh/qEFHU4wW54Sk2lSkpLoUcNQpcoNhL/EkrWXM2wGEjpzC4QQXV0x
+# nkdOkGZJ0cKNMfDFs4DL+/dUy1x42VMxdw==
 # SIG # End signature block

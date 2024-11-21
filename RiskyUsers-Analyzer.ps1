@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved. Licensed under the MIT license.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-11-20
+# @date:      2024-11-21
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -30,14 +30,16 @@
 
 <#
 .SYNOPSIS
-  RiskyUsers-Analyzer v0.3 - Automated Processing of 'RiskyUsers.csv' (Microsoft-Extractor-Suite by Invictus-IR)
+  RiskyUsers-Analyzer - Automated Processing of 'RiskyUsers.csv' (Microsoft-Extractor-Suite by Invictus-IR)
 
 .DESCRIPTION
   RiskyUsers-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of the Risky Users from the Entra ID Identity Protection extracted via "Microsoft Extractor Suite" by Invictus Incident Response.
 
   Note: Using the riskyUsers API requires a Microsoft Entra ID P2 license.
 
-  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v2.1.0)
+  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v2.1.1)
+
+  https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/GetUserInfo.html#retrieves-the-risky-users
 
 .PARAMETER OutputDir
   Specifies the output directory. Default is "$env:USERPROFILE\Desktop\RiskyUsers-Analyzer".
@@ -122,7 +124,7 @@ else
 
 # Windows Title
 $DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
-$Host.UI.RawUI.WindowTitle = "RiskyUsers-Analyzer v0.3 - Automated Processing of 'RiskyUsers.csv' (Microsoft-Extractor-Suite by Invictus-IR)"
+$Host.UI.RawUI.WindowTitle = "RiskyUsers-Analyzer - Automated Processing of 'RiskyUsers.csv' (Microsoft-Extractor-Suite by Invictus-IR)"
 
 # Check if the PowerShell script is being run with admin rights
 if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
@@ -207,7 +209,7 @@ Write-Output "$Logo"
 Write-Output ""
 
 # Header
-Write-Output "RiskyUsers-Analyzer v0.3 - Automated Processing of 'RiskyUsers.csv'"
+Write-Output "RiskyUsers-Analyzer - Automated Processing of 'RiskyUsers.csv'"
 Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
 Write-Output ""
 
@@ -516,27 +518,12 @@ $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
 #############################################################################################################################################################################################
 #############################################################################################################################################################################################
 
-# TODO
-
-# Properties
-# id                      - Unique ID of the user at risk.
-# isDeleted               - Indicates whether the user is deleted. Possible values are: true, false.
-# isProcessing            - Indicates whether a user's risky state is being processed by the backend.
-# riskDetail              - Details of the detected risk. Possible values are: none, adminGeneratedTemporaryPassword, userPerformedSecuredPasswordChange, userPerformedSecuredPasswordReset, adminConfirmedSigninSafe, aiConfirmedSigninSafe, userPassedMFADrivenByRiskBasedPolicy, adminDismissedAllRiskForUser, adminConfirmedSigninCompromised, hidden, adminConfirmedUserCompromised, unknownFutureValue.
-# riskLastUpdatedDateTime - The date and time that the risky user was last updated (UTC). 
-# riskLevel               - Level of the detected risky user. Possible values are: low, medium, high, hidden, none, unknownFutureValue.
-# riskState               - State of the user's risk. Possible values are: none, confirmedSafe, remediated, dismissed, atRisk, confirmedCompromised, unknownFutureValue.
-# userDisplayName         - Risky user display name.
-# userPrincipalName       - Risky user principal name.
-#
-# Relationships
-# history                 - The activity related to user risk level change
 
 # SIG # Begin signature block
 # MIIrxQYJKoZIhvcNAQcCoIIrtjCCK7ICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUBGn1cwzP9LuheLnd9VxfMMPF
-# NbKggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQU/Ef0gDOiUtSKoFmfkEEO6thB
+# gfWggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
 # AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
 # MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
 # MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
@@ -738,33 +725,33 @@ $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
 # YmxpYyBDb2RlIFNpZ25pbmcgQ0EgUjM2AhEAjEGek78rzqyIBig7dhm9PDAJBgUr
 # DgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMx
 # DAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkq
-# hkiG9w0BCQQxFgQUtqCuVx/7HcSs6sUVDnPqiTJ6BUAwDQYJKoZIhvcNAQEBBQAE
-# ggIApZPyIgG5E6VJCxvQkyFav193C/o2QgM21POLlXYYtasRFEKMC4uiqISfBsef
-# faVOK/kBWxTElmiHyQUyI65QHJKgaWIBrSC95ErRG5dr3e0CbSsorip38L85fpuN
-# 0oAqe+sUx4CQMBsM41zJea5zqFBBGfKtRH+L5eDCmf8sEm+KGRQ2VIo1B2Fj+25Y
-# 0qnB4VdiPQ/cl8zLwN4aZeTQ099p9X+ltlqJWH3a5/v2YGYPMZp4mYOlo2AlCF9U
-# jxKB/gJoKb7skt1mq2NG9aKFdq2H7B3BUYq+pNhbTQ45nCrHs+BJ0+NArFLhNkNx
-# XSAl7lJaQrgeH8NZ/zAtnRBe8AifuBOVjqhwZf0O2gc0KgR+3X5aVq4tJHi/pt2T
-# wXjHHKxO5Sugt9thBW1CV5jyuU8Vbd4jkXcZ8Qdbu6CtaLrj6z5HReQ2hCi6dNKg
-# AxdNdho7p8fUtKEei9AY8huTCqtPbHl1jAnFi7+8Cah334VJn8c55qYh8poDY6LO
-# ipXOnDcpP2CewDYu14+o5LA/HfDjco5vmuxjKYylHFMwoDDw3l3s3bNUOIG5qE2o
-# AU1UcYDW6eITmr94LtWNBa/6GLHKBXFb363YQfd0GR3o/00ut0FPM5nSqs1Czj7k
-# r1kCl4Lz4x6u0soNok3XhxCsewv4JuitP5If73fdifopaF2hggMiMIIDHgYJKoZI
+# hkiG9w0BCQQxFgQUhdOBcg1iGnQK7lZ55a6HVOxoy6kwDQYJKoZIhvcNAQEBBQAE
+# ggIAoYACXM23o0fHBduZfi6RnU5d2/+243sBCEUp5q/BhOq9IUNIndphispQQtx9
+# blKqfVuG3KE91kBkUwQ4dzV5oPPNFBPjdNg04Oy6drvvJlrf3s3gltLoIi+DzJQL
+# Xvv3FsIHGQh0bJYZYc7ut3N/WDe0JmRVTi1o+GQyRMaj7IMYxW1xW0/IHNpibd8/
+# vMX8dm1XViwVsUnt2mlLFHeTpojVcktZhb1WRR5h6zkB4Xt9mRmAYFNCXF4aYNZ2
+# hJHZwcjwQTiK4qx2mHUvhow8gtT8kEo1++s4grfE3OdAjkLlVotWiD3NFCTugNEs
+# 9LLw6BJpf4mhkGTcPc7rIw1s5W7J6bxMq5RjqXQDC4C+zdkAj8tJXRvpEeKhz1yr
+# XiZrb4emDXr1TDKVEjRiSYHuegaMX+3qq1vd44ip35V3VCULQb/e/PtTI5lUSWfL
+# pbsXePb/ZNr+jeTSXJuXd5iidGKbWjIL+Pvx6KnG7+FAJ4+bHsUbtP5Xk2t2Yy6P
+# 8ksd4wRMYAvtH/kDgWG4W/+PjT27CI8/Qz2PhZ52hLm3XtnNcBDNRgdfXo270GSs
+# lkzZV1AUz2NzbLEcU227kAtc5OjhUR5rm9qN/SJy/X4JFmTS3pMWmqBNn+vm10Nq
+# 05/NGp4qeuUsAh1ska1MDiLGcdkzuPfLbV7Rz+nTLUFDbOWhggMiMIIDHgYJKoZI
 # hvcNAQkGMYIDDzCCAwsCAQEwaTBVMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2Vj
 # dGlnbyBMaW1pdGVkMSwwKgYDVQQDEyNTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1w
 # aW5nIENBIFIzNgIQOlJqLITOVeYdZfzMEtjpiTANBglghkgBZQMEAgIFAKB5MBgG
-# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI0MTEyMDA1
-# NDYxMVowPwYJKoZIhvcNAQkEMTIEMEcC/5UoJS4IS2CXyx4xdlEHBdiFXEWFVIil
-# ZIMyhtKQC9TOx976jXULIyhPXS6UIDANBgkqhkiG9w0BAQEFAASCAgAkwC159+v+
-# NFQwjVSgm3N81vhXOHH5Bl5LTU87r256xY6e5GUxGOwpMmdo7+lddnFW8MzyCH6p
-# xgZUG5y1FRME8wN5KC07hk0+cybxXJ0oOa6koK0qjaKzUj9z/xFcNG45/bMvQyBJ
-# mCMSm4PImTm/3qM4tWpbTwQU403BYWeeiH+yRQ/drZZIvVm4NW12cOEmJ2edqgt4
-# qxmHpM2oxFdUPs8fnqF8MeNYPcHQLwxirvUE6BXmgE6kqK4AvkKWUmsYlLpHY2MG
-# 4KwXlmTgdCFYhZsNEQgXgjqFBCRocSn2X0GMgqJY9EE27TaM8FBHwDokeuT8Rwaa
-# o0IukUfrBMMgeIeHYkxpBL8q+EMug8yhJMjMNQoCcaGkqqxY1Y1zxOSyHBFvv5qo
-# DTGHde1cOCTq4qXYVmxSFDA2+smCqzwzoVdfrm8YDm1SYzdRm4WmjAq3VWo4Kg52
-# 7RjhbLCBnTuiaBcDEHheLr+rsRqQdaIsBsKJkpRtrSQEDH4fZC4BKwXfptyiEkSi
-# 18jw6g3ToGRP4mFkAbpz2HNCTSPL/bAR6Cxp82LWhehgIhfkA8re4aB+tRSsCSmK
-# 1h96kIIkbrwQbs2hSMdJ+iZvdU5Xg+BA+D83ohe7oQb4xGK5XPDmUIlocgHA74gH
-# 0cyH7ZwZ8Js17iI48IuEbju8Uicgosxuzg==
+# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI0MTEyMTA4
+# MDI0NlowPwYJKoZIhvcNAQkEMTIEMMMDg7ajMbXKhciWqSbir+oA39VGjJRaECGM
+# Sur28Vr9SoPSiTAf6o+zh9Are3YoMDANBgkqhkiG9w0BAQEFAASCAgBWYFs+gNlv
+# DDJk/3T2jWLVxbA2MJ+42QGAQF51fmqz9pBxYnrkKnYj5qMAbytznSn5Ax0Zt4N6
+# A+6ulOtYumokwg2+lhbQ9CKHeD7ram5Veb3guO4OYZMIgktb4TFlHzAUrO7ouoOe
+# NMNoe+/ltLTER5lSZkCVwu7DtZqdGD42bTpRDDBGmVNt6d+I1PoK/uE68chhS7xY
+# iRxs3qnWFmlhIOnGlIdcYVFTxk1XGTvag1IWIzp73TLZjMe82jN7pHepXNTTkeGe
+# RqwxXZjLARVax+yRdUA7u1kt88ATi1mJ5y6ybNINZhrtBgVx2WNyJj+iZRWE9AED
+# EOaSCvsvA/5ZqPjNjcuffgsW9G0MbVelbHcTgFgLqzyGWJl8yqJyXUcjz5lrzv6Y
+# zhA3/JK5D4qMNwbmQ0dsZA9vgIPnfTP0QElzqQ36DF1PM/jQ8xu01JiW0UYYFY1s
+# b9CViJ8YjHkNPJCk2o/iYzEgKhvkcTDkKpgQ9+N4esFVmVeQu5BxQRphMZN8UUJK
+# 2n6JwhGeI1KoghnQk/0oanVFzNgobzMAAiOxR8E2lzixhFKbL/FTr89X2+pBtoza
+# IiRzKRIIE7MucDMB/PB5YfzFvrG4Tsmsi+Hmsn/ky2lKrr0D9uIixBIplJOsnrWj
+# dlFJqw1m0FB7rypNiMRetOhIFEUV/updcw==
 # SIG # End signature block

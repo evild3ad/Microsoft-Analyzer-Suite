@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved. Licensed under the MIT license.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-11-20
+# @date:      2024-11-21
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -37,12 +37,12 @@
 
 <#
 .SYNOPSIS
-  ADSignInLogsGraph-Analyzer v0.1.1 - Automated Processing of Microsoft Entra ID Sign-In Logs for DFIR
+  ADSignInLogsGraph-Analyzer - Automated Processing of Microsoft Entra ID Sign-In Logs for DFIR
 
 .DESCRIPTION
   ADSignInLogsGraph-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of Microsoft Entra ID Sign-In Logs extracted via "Microsoft Extractor Suite" by Invictus Incident Response.
 
-  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v2.1.0)
+  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v2.1.1)
 
   https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/AzureSignInLogsGraph.html
 
@@ -169,7 +169,7 @@ else
 
 # Windows Title
 $DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
-$Host.UI.RawUI.WindowTitle = "ADSignInLogsGraph-Analyzer v0.1.1 - Automated Processing of Microsoft Entra ID Sign-In Logs for DFIR"
+$Host.UI.RawUI.WindowTitle = "ADSignInLogsGraph-Analyzer - Automated Processing of Microsoft Entra ID Sign-In Logs for DFIR"
 
 # Check if the PowerShell script is being run with admin rights
 if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
@@ -257,7 +257,7 @@ Write-Output "$Logo"
 Write-Output ""
 
 # Header
-Write-Output "ADSignInLogsGraph-Analyzer v0.1.1 - Automated Processing of Microsoft Entra ID Sign-In Logs for DFIR"
+Write-Output "ADSignInLogsGraph-Analyzer - Automated Processing of Microsoft Entra ID Sign-In Logs for DFIR"
 Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
 Write-Output ""
 
@@ -2332,27 +2332,12 @@ if ($Result -eq "OK" )
 #############################################################################################################################################################################################
 #############################################################################################################################################################################################
 
-# TODO
-
-# Office365 Shell WCSS-Client --> Yellow???
-# "Office 365 Shell WCSS-Client" is the browser code that runs whenever a user navigates to (most) Office365 applications in the browser.
-# The shell, also known as the suite header, is shared code that loads as part of almost all Office365 workloads, including SharePoint, OneDrive, Outlook, Yammer, and many more.
-
-# ErrorCode-Blacklist.csv
-
-# AppDisplayName + Status
-
-# PowerShell Code Signing
-
-# Add IPAddressFromResourceProvider to DataEnrichment??? Not seen yet.
-
-# Add suspicious Error Codes: Status + Hunt
 
 # SIG # Begin signature block
 # MIIrxQYJKoZIhvcNAQcCoIIrtjCCK7ICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUBgP6bmMlpnlgeDnu06XRrqvS
-# zFCggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQU/UkXrKJVyB6K1qj7Nva0hov3
+# Os6ggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
 # AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
 # MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
 # MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
@@ -2554,33 +2539,33 @@ if ($Result -eq "OK" )
 # YmxpYyBDb2RlIFNpZ25pbmcgQ0EgUjM2AhEAjEGek78rzqyIBig7dhm9PDAJBgUr
 # DgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMx
 # DAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkq
-# hkiG9w0BCQQxFgQUvMnPvMF2dFzQXkvYQmTDG8EONv0wDQYJKoZIhvcNAQEBBQAE
-# ggIAc+gjnxmI37YJwT0oNWJ7WTh1klAlpYSmogK1/Jj/2mw+IakrD86QLwEnS1qo
-# 2HCRXvw/jL+KtATy0BdJUAfed5m8Xh5d+oIdcuZrUVn0DXRuPWkQVly1qXvhbw4y
-# 0lT3mNi+0OooZj7ij/LnqHafUOBVz/9OTDSc7/aAlver9yEDzbr+bgouqlXeNP8e
-# HsfVvvRfPGENTqqj8EX8jOls8qb+aAFXci/tE0P9mysLuAxEP/Nxstcf5vtG6UpR
-# ggW6SpIdhK47MFoZxkMlVuss5I3d6MMGJ27/wtBJE3T0ZJ6+5o9BLfCiR+xrtK+I
-# IoG5x5x6mGpjPwHTuS2nKQF0OFIzfbMBOQW5KlY2KE1ZUiystoeOsHZFGd5NMFXV
-# W2My9+2HycyaHnZ4GUHehHmR1j1ZeyTw3yqqsS+YSD1LtOvBzVu9TD9A91PM/Cgo
-# hzHjgPJm9h9q2wnQ6XLeB/iunx+5Bu0/O3/Teh0XTqdartC78NdNOdEU+2xF41uf
-# OBN/Q4VQxTsGsenRx+kxkzaCQXY+6F1LiFJb7nmW+CxgQungII11j3xofa0HPh/t
-# NRs2aaTyAau+zE/aISkkVYllrF2HqKRIFrnF2PL2FvWtqrq9F+jfDRPvXjDFnV3P
-# JL6dWFU4lhA2uaYILGgVjhT8MDKP7MKpjNlgGgoT4S+ijNmhggMiMIIDHgYJKoZI
+# hkiG9w0BCQQxFgQUb5cqbOLVVmEIxPrwW80FnFKqpcswDQYJKoZIhvcNAQEBBQAE
+# ggIABVAW/tXSb3EgyH8lBOIAj5hjQ2TBYxChi26qmSGcPNIt8kQYfzaqRWfuRKea
+# 1gr1+Yspato6JdPXZRvryPXV36xx/O13T1rxLHvDphUX4lo2jYRvbY0kQCqux7qO
+# yJjQsLcWmu6VCIV8xuKrwEza10S3U5ULVMQAu2lquoq2gKu8Q3/uRxTcZBmbwnrC
+# tTJs6bGZKjyOYDD3GQK4gF4dKWDsa4IhWSvYCoNmM8BgI63M9DxzfCT22H3kF4R+
+# ewXsIioIuoTtiqVYrwpbbLqrkBa6hpi55jVKWlSZzA4o/SVzBh8IY6nv1UY1XLgm
+# XKoDYIhP3vx7CpARyMJHwQVVqm7HCQN3UhBC0OpSW8o2eNsQcCHbtpgR6fAUDixi
+# ME6ojkTBv8R8x9PU3V8GtA6yt+vkBLHczEJvYCua4VrZ5F1JXjbARRK2BR7IaMUz
+# ozvy23OViqPtlsiRhMJwf33Zg7iRo57NZItgCtktUQZ4uQQblMfMD0AS69qbM42j
+# +c57btxl6W/wr6q/bUzz3XotrXZQHSyC4zV2RYpq7r/EnhqlEzkyBnJYGrTESuVB
+# 3pfuCHrGArjJwCYPOKdLqyP4p9KcGfqCVCAg08AAPgGGplR5YA3ThZVFBP+BL1n/
+# 0G6oc2Kmr9CHgIRmNxBUs7snT7u/PtrOmSwbvy5Xkj1Iz26hggMiMIIDHgYJKoZI
 # hvcNAQkGMYIDDzCCAwsCAQEwaTBVMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2Vj
 # dGlnbyBMaW1pdGVkMSwwKgYDVQQDEyNTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1w
 # aW5nIENBIFIzNgIQOlJqLITOVeYdZfzMEtjpiTANBglghkgBZQMEAgIFAKB5MBgG
-# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI0MTEyMDA1
-# NDU1NFowPwYJKoZIhvcNAQkEMTIEMM/+/tcdwx1uHsue21A4DlqfxGWNXDaidKvF
-# tc2fbRe0V6tLQ1IjFvsGHjY6NMMrlzANBgkqhkiG9w0BAQEFAASCAgADhya4VO7D
-# CPje9Qz2HizbiZS7knZxWGI3t9yKc5YSeN55LBvMepgO+wwkxXuLuQ4cVFy0pZnk
-# +DBTUrF0L79NY1Ri6M+YOq1xuf2+s1aYEFssl5QZdAkhWzXegPo7J+xTAjHEQNnr
-# pjBi6AnyW5VLOh73oHGZJhCopwTDmmTxzKqSKIPIS304nqmEv1z3lwSIpg7dDs1Q
-# bPUX8gQK6EKmyE1WdZwUWXcdeHJ/6D+C4Dc4xcYdeasG8I76USknJ8RmK3fGAOqk
-# eSoQdky0xs3SVOKQxvBV4yeZf0rnQMkn0dsmfrCPScwsjd6137tTPrlc4g+qx4Qn
-# +///fQs5zfVz7fBL2JHnWmO3Q9vNYir8frHjhbocz7BF9FKo698eEOq6hyCI49Ju
-# faPxOD5M2PKcB91rVqwlo1CfFcmK2uyWfOY0NwzxKA3T48oAWkNfOhQvfAW3sgD9
-# QmXIXcqwMmYc+TOWFVMNa5/x2PpEwhhrSDoBBdx3cIEe41A10rh76bSkAoyd7+sf
-# RnP6M4b9kzZlkWZiKgj+/ZGnzEa2SDkyI9fZ1DTMvTLUrQ2sqYi9kaeQ5wheIP4o
-# 4pmYtXdrmdxG3f5H9nsda3XaCQ1mAjuCVDzmhkqEGbLgpuBFYk4ICt8VSUx+vNtt
-# Pl4fEi9j9/aTvsTjlik5e1HT60arS0AY9A==
+# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI0MTEyMTA4
+# MDIzMFowPwYJKoZIhvcNAQkEMTIEMMr1d92eeTVyLDk1rP/rd+90eSg4hfO/VRW0
+# 7xLejxS6LAig360hHY5Vi9IJSLzEtzANBgkqhkiG9w0BAQEFAASCAgA5n9c6nW/h
+# XK5PfcT2UJSHKT51oJBsRgJhp+DDj2DQOo6hQwxodz/YDzKTWOIVNdoYGi+9XQkw
+# WqSu3qr7jW3NGLdE2sUUeLVZlVG/gtNjsKZCm8H+g2T1WI2POpv/CKxmvgmLlE5x
+# VJhgEL0HB0bSwcnJRuQ+XcB8w0AkC2vjL44BMvI67dDHMhHp+G/EerHswgqAdZfw
+# M0r/qPzhV/GHn+nUjAzybk7q11OXuPM0iKF7g7VExdSVCl5jmMgZCaBLhiBPJYxO
+# IoBnLa9lAoabC1lKkmmCSidgADrhhFBQpOmq9mNyH9cq99xkwFUKBESHFLOp5Bnr
+# 8JUJAMXuToWryJvYtk4o+OibD5ayfvrQfJ6dSIALvyqngrDEUrLkdqwjpd7PLj4W
+# oq6/F8X1yLcIDzhhVIXts1IIYVbZeqKh88UwnN51Vk1j9gsIfkqYJTC5CWOOjYaG
+# WkqD7WL4tXwAN9cdxEmhIine5y78pf66xCjwH/1aYtfOmZHtBthU7mjUwqrC4KZE
+# 4duit+yPdaL7j5LbwFS7EAj7ZLmqZu/sQmkYiX59RUewAGaIE6FHXDAevaLHHYtt
+# jeb+GnAbVInLDq3QLC/YDUWPnsnOXtT4eAbfA2zTa9xFG2LLkmTQ5Mzyn3SoXveG
+# 3CSdixukGzxBY5hVO3HtY+WjODSy3tYstw==
 # SIG # End signature block
