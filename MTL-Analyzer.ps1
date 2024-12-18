@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved. Licensed under the MIT license.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-11-21
+# @date:      2024-12-17
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -28,8 +28,8 @@
 # https://github.com/BurntSushi/xsv
 #
 #
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5131) and PowerShell 5.1 (5.1.19041.5129)
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5131) and PowerShell 7.4.6
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5247) and PowerShell 5.1 (5.1.19041.5247)
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5247) and PowerShell 7.4.6
 #
 #
 #############################################################################################################################################################################################
@@ -916,7 +916,7 @@ if (Test-Path "$($IPinfo)")
     elseif ($TotalRequests -eq "150000"){Write-Output "[Info]  IPinfo Subscription: Basic"} # No Privacy Detection
     elseif ($TotalRequests -eq "250000"){Write-Output "[Info]  IPinfo Subscription: Standard"} # Privacy Detection
     elseif ($TotalRequests -eq "500000"){Write-Output "[Info]  IPinfo Subscription: Business"} # Privacy Detection
-    else {Write-Output "IPinfo Subscription Plan: Enterprise"} # Privacy Detection
+    else {Write-Output "[Info]  IPinfo Subscription Plan: Enterprise"} # Privacy Detection
 }
 
 # IPinfo CLI
@@ -1099,7 +1099,7 @@ if (Test-Path "$($IPinfo)")
                         $Records = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8
 
                         # CSV
-                        $Results = @()
+                        $Results = [Collections.Generic.List[PSObject]]::new()
                         ForEach($Record in $Records)
                         {
                             # FromIP
@@ -1152,7 +1152,7 @@ if (Test-Path "$($IPinfo)")
                                 "OrgName"          = $OrgName
                             }
 
-                            $Results += $Line
+                            $Results.Add($Line)
                         }
 
                         $Results | Export-Csv -Path "$OUTPUT_FOLDER\MessageTraceLogs\CSV\Hunt.csv" -NoTypeInformation -Encoding UTF8
@@ -1508,12 +1508,11 @@ if ($Result -eq "OK" )
 #############################################################################################################################################################################################
 #############################################################################################################################################################################################
 
-
 # SIG # Begin signature block
 # MIIrxQYJKoZIhvcNAQcCoIIrtjCCK7ICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUdo3wPaZuT/4WPNljT8TTRgnC
-# KZWggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQU88+6KlmI3NlDEvRg/be2Ucmh
+# fd+ggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
 # AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
 # MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
 # MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
@@ -1715,33 +1714,33 @@ if ($Result -eq "OK" )
 # YmxpYyBDb2RlIFNpZ25pbmcgQ0EgUjM2AhEAjEGek78rzqyIBig7dhm9PDAJBgUr
 # DgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMx
 # DAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkq
-# hkiG9w0BCQQxFgQU8VLAaDbOtLmOKnfHalWCXGoSc8kwDQYJKoZIhvcNAQEBBQAE
-# ggIAVPgkD/pqJuAglGtsjWZICsJcB2zCcADphDgvLdcQUTTlnK6QmDRhEIg+0K/U
-# eQypxFQkWGyvNe98kfTZT7m1H3Bm7RIN4+KZjr1Cax+0nzdppbQnko9N+VjW4W9L
-# DVOY4+HRHr6DTnoyaKHz5ltDzAnyeHYpKkts96mrUuGgMbD91PMIpPL7RldHfDAF
-# EBAp+tz5KuRh3dm45PbsfMmCYURdmsPPtdqUHkbzHMute9+hVJxeCizvTElrVIpr
-# s88ji5csdd0P0MTFwOA69HIx2jn8umJfBdW5rV+C9KQlWtmt7pEvK6MOitjYftWo
-# JtXmaz3UVgLSP7Ox8/g44C2q3p8+kSHj/LMNEk768NBrvO7Slrcq+3KziB/115Sr
-# 1rxcIZPdbCDSQUY2JelgT6O5KQ5ZNC5n/0yAPlC390WaXZhpoL+RMdsqV90fIKa2
-# 0A5o+pZjeI+aVvURt1fiptSyfirhsKjRQrxfrP828O+t41/rROG+nCu+RILyoj++
-# yhrbzFGfXrM3sLRn+8C2GpPxeuG9xSgQiJx5xh+f5rMilbnvXeU1fcHu4PVc0KjG
-# g+mMIzrw+bkd+QqyrV1ieJHD4nTFEL/s8DFAYuLq353EgMAbZ94F1cfpCJabYJDr
-# oyLrXZ1+EY3R2hFm49Xav5Lk284e281yQzDW2HKWKQY8rYehggMiMIIDHgYJKoZI
+# hkiG9w0BCQQxFgQUdwWGGaR6lDUT+ysP3gvt+P0a4LYwDQYJKoZIhvcNAQEBBQAE
+# ggIATpNONZTnF05127dMTdkh16l+oZqHlshjyRMOUe+0MVYVx++SKvVHekr3DkZg
+# 7S0ufvcnmH9saYZ83McSipgUx3ecGijTuO/KQSSiD4xsF0gecpFV0swtWk0DorNt
+# Qzc2YLuVC8NdqI0j3L3xsuJBII6JcACsxPMq34/x6/jQ8fZIpUgcZO3wonN0e5QM
+# XXkwRMrDSgdftTcziv8ttM3gwkktpWJY7p5FaAXo5AiaSsc3G25+9diVf27/TrZz
+# 3z5Ka/STbxqr7EmAeSvrWhHCMh37xA2i2i4AUD4mjAWjShki8NDxrrXquZsUzXRJ
+# ElFNu87FUxzPB+3nu7r6dlw8GSSCmf7rZIgXNghAFy2BpZQBhxaTmI742idbXDKL
+# qOWWOTMAdq0ggioLWMg1IZu8t6fSH3HI/7iCIGySey4AXtZBLdJkiL2pgw6GGVXd
+# WbdqmkYwc324+mMp6R7kAHgdJrf5jvHQYkiOKCve3fdjwLQfyQ8l+/RTQ1+uzcDO
+# agqsE39NBYN/riAbr6A/K5shsOlimxDBrdBP28U5A8c5eW+rWUs14AaMmpt7qUCY
+# M/FnrVJ083EklSepHmLRocw1IjsTmjBQFwHsaiKPYwwSljfaAROxxBtajrWww+Gm
+# U7mflHUnIDYqI1dj0N3zzDy6nIvVxMwCOuQRPOVXNVJHPp+hggMiMIIDHgYJKoZI
 # hvcNAQkGMYIDDzCCAwsCAQEwaTBVMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2Vj
 # dGlnbyBMaW1pdGVkMSwwKgYDVQQDEyNTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1w
 # aW5nIENBIFIzNgIQOlJqLITOVeYdZfzMEtjpiTANBglghkgBZQMEAgIFAKB5MBgG
-# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI0MTEyMTA4
-# MDIzN1owPwYJKoZIhvcNAQkEMTIEMDE2Nqss5nRP5Y+bYnv0sJ7Ml4iNMdTMN6rm
-# K4daUyOZcm2dqFgocNV1CWFeuqYmkDANBgkqhkiG9w0BAQEFAASCAgAU+UFwAo1T
-# lxM2QQdEd4lACdnB/QzWL9+ypUS/e8sTFJDCwi/PcLRWmYRrSvpR21mqhkgYNr6X
-# 2AQNFboaFexRFY4RDu319JtH1im/EON50JaeZ5VgOu+DJXg5i4OeL4FQns8uDfgk
-# jbXhAmSRUbHG7NiNxGZzFgHfPlQLoHsDiKnP5yloMfpy67w2YXbLtLapKcHEwFnp
-# Cm0XRwgpGWQ/JzkeBZNMIeEplTfLrlB72BQbcM5ySB06KOK6XF/loS0aIjbjaWm+
-# lsXQYomhpCrcPgjzwhnH6f5WKb1013J162i2gQJ3Iln80SLmBMQsGhffhZHCzA1Y
-# /xva75APf8gI7vCWUOTIV4SVZCuCQ5p1Psyr25cn6pHLdkFnYKqQPQkgtNXUDjvs
-# Voox8tNsmmV3XAe9+uJ+Vau+BRDHwhF7+wlRlimXoWuxHKNxsUzJaaok2C/0TOrp
-# JkMkwuPlSbie7nbM73DplYgnTERHUOJp/1a157dDCA1pqidvoA0dDB02VlqKb1Mh
-# 83eWputi78pEyMHSChpA0OV+Vb7DN0/5K3OvuwXO+po/RiOloynK//EWpx3sK0Cs
-# 3gTQ/8REHwBrF+Xr71nzq/kS/wfhqvKcUHkTEU0pvKBkJDM4cTJD/0nbGbvZwNSu
-# uy3I+ws4OdMjxoHH2PosworIhIJC4lpVjw==
+# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI0MTIxODA2
+# MTU0NlowPwYJKoZIhvcNAQkEMTIEMCkglHsmmsr0Zdzd3EA0zDZ/8tijnjoBN3bD
+# 6RiW1XRf7mE08ZFcYUFLBZa0AudLhzANBgkqhkiG9w0BAQEFAASCAgA4zPctlBNb
+# 9wYEHowe83filrYFvPJ59yWnJO2FX7tgBMBvHLpFH/2TTKauYA63cCNYOSUK7uZD
+# fAq8NPTJavnTijowJiVZlU0W8uv+czt9zcgrQbbVyioA1wL1V1hqRo6tEl6HKKVW
+# 7T62xqiboc2QGhZ6vn7WsJLENNU91t+OW4IH6/iD+rJeKru1lB8sBUb7Z9xWxRnF
+# w8cexiKwGjwswSFbKgS1uVuTBoveiDUdamV4FVFnWg8JomQeGdGnfD/F1L9UkAFR
+# NIcBeM3omOpHtRtB3EXH1EmI/vkVHbQKKUSHEGEhMx1l/ljel3juMH9rwlrT0e21
+# FxkyQudiGvkIzmt848RK8v7NFrVoFG8b+mOIgT3QbxWYy4SdWsTkrZVxysRU8Ptw
+# z21ZuoFlKmoNQiaA/Mk7N0qDGNFzpF36EU7CwB5lwF56DmcoL5BVLEaTCJz/8ceW
+# k4xwNV9SCkYu8x25ms+GRxwbXda2n/8o9xDle8vFtjhqyBNl+J7oBlRB5EiZz2Xz
+# tviaUajyMKuFtdVifb2hf8357TyH1xxTpHJWQ0As5+hLsoBBMT+NEI7rNFgJo3Of
+# 315mlfgQxYyl3AGM3Q5ie+f3y94oxp0bIXkGX77OF6Xetrs22YFcnzileHYPbwXu
+# JeVJ5/LkZ+atMTQb0j9umPSproUfiuRZeA==
 # SIG # End signature block

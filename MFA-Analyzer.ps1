@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved. Licensed under the MIT license.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-11-21
+# @date:      2024-12-17
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -21,8 +21,8 @@
 # https://github.com/dfinke/ImportExcel
 #
 #
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5131) and PowerShell 5.1 (5.1.19041.5129)
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5131) and PowerShell 7.4.6
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5247) and PowerShell 5.1 (5.1.19041.5247)
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5247) and PowerShell 7.4.6
 #
 #
 #############################################################################################################################################################################################
@@ -254,7 +254,7 @@ if (Test-Path "$AuthenticationMethods")
 {
     $Data = Import-Csv -Path "$AuthenticationMethods" -Delimiter ","
 
-    $Results = @()
+    $Results = [Collections.Generic.List[PSObject]]::new()
     ForEach($Record in $Data)
     {
         $Line = [PSCustomObject]@{
@@ -271,7 +271,7 @@ if (Test-Path "$AuthenticationMethods")
         "Certificate-Based Authentication" = $Record.certificateBasedAuthConfiguration
         }
 
-        $Results += $Line
+        $Results.Add($Line)
     }
 
     $Results | Export-Csv -Path "$OUTPUT_FOLDER\CSV\AuthenticationMethods.csv" -NoTypeInformation
@@ -502,7 +502,7 @@ if (Test-Path "$UserRegistrationDetails")
         $script:TimestampFormat = "M/d/yyyy h:mm:ss tt"
     }
 
-    $Results = @()
+    $Results = [Collections.Generic.List[PSObject]]::new()
     ForEach($Record in $Data)
     {
 
@@ -524,7 +524,7 @@ if (Test-Path "$UserRegistrationDetails")
         "LastUpdatedDateTime"                           = ($Record | Select-Object @{Name="LastUpdatedDateTime";Expression={([DateTime]::ParseExact($_.LastUpdatedDateTime, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}}).LastUpdatedDateTime # The date and time (UTC) when the record was last updated.
         }
 
-        $Results += $Line
+        $Results.Add($Line)
     }
 
     $Results | Export-Csv -Path "$OUTPUT_FOLDER\CSV\UserRegistrationDetails.csv" -NoTypeInformation
@@ -650,8 +650,8 @@ $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
 # SIG # Begin signature block
 # MIIrxQYJKoZIhvcNAQcCoIIrtjCCK7ICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUj58vb0Wcu4Bp3WneGSEzMYy2
-# jVGggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUaPV1c0UtIB0tShQ1wTiuR1NS
+# +SuggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
 # AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
 # MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
 # MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
@@ -853,33 +853,33 @@ $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
 # YmxpYyBDb2RlIFNpZ25pbmcgQ0EgUjM2AhEAjEGek78rzqyIBig7dhm9PDAJBgUr
 # DgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMx
 # DAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkq
-# hkiG9w0BCQQxFgQU3KvhSYa6UzoIUQxJAe44y57dHnwwDQYJKoZIhvcNAQEBBQAE
-# ggIASWlRssPekky9QllhstyHNp5vxsj9uYe5InuykL1EnNSUnraeumx0AhYKYXiE
-# AdOQP0EwML96btn1347AXSeTVkndRYIvfieOTn6QmfokQW2ge5p1jfenX7/Y1P0j
-# qx5zuVk4XxhCsWxqvyWGwqtbVBYx8jS4ALLBMpWPG8WyTUFb1Or5vMvWXKyxJ7vN
-# Bn4JtXwQZXloTkZ2boNQt699prdSYn2XRmSmNZ8t9LbSQeasB6tiUjSVtCqdqnc/
-# Y7S09nPtFE/PtJvn9iDdFKDaAzZwnLlx6XESpYEpliHNF3ZGjVtFzXDQ2RyhCdDT
-# 7acl6Ejwk0TXMLw3kKMBJS0lYzoxDdT85MI2VJiFPdQq8sdw1k38kq/e0XUQI98m
-# IgZmIJX0QcsYbsH4KBSB8kK7S3sYWNKJ4LZ+O9/lnvsA78comMomUdH4+yCPt83r
-# VvZv2pLdyW80fO8OLdwfuNMHukdA1CXZeMSubhN1JUlcd8kG8Ld+isQ38lKkv7QN
-# rFLCwlxo2a1+e/49L7zIKike9WTp14gtlbEb0UKWQZfniE6QSxmf9YzffQ1cHLzW
-# EgxMKHp7o72/ZaMGERZZ7cQt0tUXV+4rcJ15qJUYETItG/OPsGibadW1vXAO59he
-# D548GHL1DKkmtgHgrru2KKLHg2B7bv97/T6KUwCYAH9YsxWhggMiMIIDHgYJKoZI
+# hkiG9w0BCQQxFgQU9sjEf7JMrar9HNc0mliUgG3NmH4wDQYJKoZIhvcNAQEBBQAE
+# ggIAiDt1nFlXmcC/3RmnI+m6iKWd7sNSEgcnB7lHbEGd38dDMRt7/HTeXgX/kTrc
+# DPYTWy3deFQ2D6Cxq6nQF6jAAWjACw8m/6plNdNAwxkmNHhZFm8eJnF8WoR4lnOW
+# GlBRFhvs7UgXUikXIJVIWabmznXFkF/hrsyYXxQvhXAEXGZEffcolP5AkDVASC7f
+# 4eFzENn3ienmcxMYg+iagn1xqP/0ZQz29XJLuUddemVVHRTUPnjztjPifnxDilGg
+# 9y8NIffCosfam3cmGeWIs5wAAs9Matk0wLvkzG7iPLFGEaVp5wsf6H6FNx2Ab8+G
+# FI7y0wVm1fc8DAr01YJOyv8W0msBPxxH9s55qH50XVTId1Tz9nMAG8lHWWzwyNrM
+# z8Ba+JEvp3xYLbVq2vDXZKf5jhKXRPjlE/vGFe4txvzDSRFpGNY2aQUC9lN8sztZ
+# xETzMzaBvgAiYtjR1fmmMXbpQ65qtCcH/jBXZgsjGOQG6a7jguWRJlKIoXqT5yEF
+# duVkUhm5O6c8/F+Ph2ZqmWr/FHlWUKdQi0owR/YyRaItPI9lttahUH0DvPD+Dz/y
+# Viv7pWqVhx6lSxykYbwgkBEDgxNnJOj3i8Q85k0xgHwTxY4O2yEiYFMOmNqBV7h6
+# rYgZvjKxtSFOoZAFbUb3yrJyD9clOH4VT3XHzOt4O3xGyHqhggMiMIIDHgYJKoZI
 # hvcNAQkGMYIDDzCCAwsCAQEwaTBVMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2Vj
 # dGlnbyBMaW1pdGVkMSwwKgYDVQQDEyNTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1w
 # aW5nIENBIFIzNgIQOlJqLITOVeYdZfzMEtjpiTANBglghkgBZQMEAgIFAKB5MBgG
-# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI0MTEyMTA4
-# MDIzM1owPwYJKoZIhvcNAQkEMTIEMCASCI68U5DKd2Zq6ObOHcteEkujoau7fF2N
-# +whVxevOCJLBO7stGprge3YfRZNBljANBgkqhkiG9w0BAQEFAASCAgBhOeYY4D4f
-# EkC05Z0Gfi3E06ZnYsQPsAmjraYNDAAfdV33oRAm+/Lt5DL7IuqVsppA3RYVlsqX
-# J9L1FX1pz76tAQkx92pAgpDykfO966+kUtj/GKzaNSL1mk2iM1EPo62HDZ6rZvyl
-# nntM5LdmcWqzuc76cpb90WucYFO5jofC+Me4dptmMzRGU+iqqd92+j48gNdNFjDw
-# qw5eIN+jqQSZCzfohk/LqUIZdnT5dTXDUG2cwfzZC3UfPHM5aan+rPKMqKD70/xc
-# y8/DYFOoOdBfpm8Q9mD776rOjphxe5sbzcBPb+LlaulX/0OjeR7F1UIwQMkce2WJ
-# jSYY6LXyVcksIEhChiFb6mY1kvbdqS1zHsXuLrc4iofeE4PqjNynUuxq2DVWddwb
-# H4Up83MxtcQ3ogCWvuAEx2qyKFo0J/6anfziIO4hl+ZziuJRuyjZD0zhKyfrtPM9
-# wiSNUv+28oAkgBU4H4ELBxGwEozhvludDXAvq4gDNXguuGadV3/JM0/BL6dpR51g
-# sFFlGKeC4R0Mb3yrUTWxjecI9/eaY53RceNCMluX7dFWpK8QWNDMzjlqmFKC+i6M
-# eKbnBOgnqFG0Dbutq0HHeEg4g1sgS2oh/hXk5Rv5tAHZ5IUwqAWtNHgSLIlDcdAC
-# mcWZg6JRupPy0u655JSx2c69ul4wNVH39g==
+# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI0MTIxODA2
+# MTU0M1owPwYJKoZIhvcNAQkEMTIEMAQ19kmRok3oUhx3nFGBQ4hX4fxvzlK/Xqbj
+# 9ZAiq0f+GwmWQFnJXud10YoSFvmUNDANBgkqhkiG9w0BAQEFAASCAgACnA0C2+ry
+# YjTZga1LA3982e9WCpeW6vyyet3eMavYFz95S+nSCTR1QapP8Pk0K0dicYbPAn76
+# t1Eap1AXIm6cRGcuzup27/iygiCU4z+sPwxtUWg+iWBP9FJooKoWfwqO5ihEZRbc
+# SBpoQ1WiUvTTHUcZ0cD8wKcoK+J0xhBRvidOs2Il8Zlye1OPflKS66gWOkHSn/oU
+# VOZAr8o4DWouRVzbv8uozUeBf/FRo48EZPhKKnEjE8XqDwqTmQ+DVqX7IuqN/0QD
+# HJfuCfs75FM2Dh2+7GmIdc/aH5FVTAr5MgitGc2kgI+sSViIsIBGRlYQSlMQR28V
+# MZgCo880wCByBTl/arfqCZd0lgW/bH7kA33ZODhVTIJ7+P8ert25FAwlW5dGFxoV
+# QZXTSkXEaSjub7Gopg7EYWIUwH22DdhxbjQKORLI8k8drsObEiuHH9nlGVHQgKo1
+# bl1prhyPuOk6aC5oOfWDNkiik3VGYmXSMd6s2DI5kwUkF1YeVLPziG6vEvIZn1ox
+# 0kGvvlX3Y8ruVef0244R/3IG+H4jFMwFwe+NgeW5ZaLcDhpplpn5/qk7J5rua3Hu
+# VKX8HqMo9DCuXzi6Ot/k+lJ6P+58oVJV/33NhjUiltGIdzWjSh8fZyUuV9W8tDCg
+# 3VicYr/aZw1aG85PjSjs1foIV/TUu/sgeg==
 # SIG # End signature block

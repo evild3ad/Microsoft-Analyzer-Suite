@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved. Licensed under the MIT license.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-11-21
+# @date:      2024-12-17
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -28,8 +28,8 @@
 # https://github.com/BurntSushi/xsv
 #
 #
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5131) and PowerShell 5.1 (5.1.19041.5129)
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5131) and PowerShell 7.4.6
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5247) and PowerShell 5.1 (5.1.19041.5247)
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5247) and PowerShell 7.4.6
 #
 #
 #############################################################################################################################################################################################
@@ -382,7 +382,7 @@ Write-Output "[Info]  Log data from $StartDate UTC until $EndDate UTC"
 # https://learn.microsoft.com/nb-no/graph/api/resources/signin?view=graph-rest-beta
 
 # CSV
-$Results = @()
+$Results = [Collections.Generic.List[PSObject]]::new()
 ForEach($Record in $Data)
 {
     $CreatedDateTime = $Record | Select-Object -ExpandProperty createdDateTime
@@ -475,7 +475,7 @@ ForEach($Record in $Data)
     "NetworkNames"                   = $Record | Select-Object -ExpandProperty NetworkLocationDetails | Select-Object -ExpandProperty NetworkNames # Provides the name of the network used when signing in.
     }
 
-    $Results += $Line
+    $Results.Add($Line)
 }
 
 $Results | Export-Csv -Path "$OUTPUT_FOLDER\SignInLogsGraph\CSV\Untouched.csv" -NoTypeInformation -Encoding UTF8
@@ -616,7 +616,7 @@ if (Test-Path "$($IPinfo)")
     elseif ($TotalRequests -eq "150000"){Write-Output "[Info]  IPinfo Subscription: Basic"} # No Privacy Detection
     elseif ($TotalRequests -eq "250000"){Write-Output "[Info]  IPinfo Subscription: Standard"} # Privacy Detection
     elseif ($TotalRequests -eq "500000"){Write-Output "[Info]  IPinfo Subscription: Business"} # Privacy Detection
-    else {Write-Output "IPinfo Subscription Plan: Enterprise"} # Privacy Detection
+    else {Write-Output "[Info]  IPinfo Subscription Plan: Enterprise"} # Privacy Detection
 }
 
 # IPinfo CLI
@@ -768,7 +768,7 @@ if (Test-Path "$($IPinfo)")
                                 $Records = Import-Csv -Path "$OUTPUT_FOLDER\SignInLogsGraph\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8
 
                                 # CSV
-                                $Results = @()
+                                $Results = [Collections.Generic.List[PSObject]]::new()
 
                                 ForEach($Record in $Records)
                                 {
@@ -874,7 +874,7 @@ if (Test-Path "$($IPinfo)")
                                         "UserType"                     = $Record.UserType
                                     }
 
-                                    $Results += $Line
+                                    $Results.Add($Line)
                                 }
 
                                 $Results | Sort-Object {$_.IP -as [Version]} | Export-Csv -Path "$OUTPUT_FOLDER\SignInLogsGraph\CSV\Hunt.csv" -NoTypeInformation -Encoding UTF8
@@ -2332,12 +2332,11 @@ if ($Result -eq "OK" )
 #############################################################################################################################################################################################
 #############################################################################################################################################################################################
 
-
 # SIG # Begin signature block
 # MIIrxQYJKoZIhvcNAQcCoIIrtjCCK7ICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQU/UkXrKJVyB6K1qj7Nva0hov3
-# Os6ggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUftWcXmHNxz8Ej7D5T546xmKL
+# e0eggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
 # AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
 # MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
 # MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
@@ -2539,33 +2538,33 @@ if ($Result -eq "OK" )
 # YmxpYyBDb2RlIFNpZ25pbmcgQ0EgUjM2AhEAjEGek78rzqyIBig7dhm9PDAJBgUr
 # DgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMx
 # DAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkq
-# hkiG9w0BCQQxFgQUb5cqbOLVVmEIxPrwW80FnFKqpcswDQYJKoZIhvcNAQEBBQAE
-# ggIABVAW/tXSb3EgyH8lBOIAj5hjQ2TBYxChi26qmSGcPNIt8kQYfzaqRWfuRKea
-# 1gr1+Yspato6JdPXZRvryPXV36xx/O13T1rxLHvDphUX4lo2jYRvbY0kQCqux7qO
-# yJjQsLcWmu6VCIV8xuKrwEza10S3U5ULVMQAu2lquoq2gKu8Q3/uRxTcZBmbwnrC
-# tTJs6bGZKjyOYDD3GQK4gF4dKWDsa4IhWSvYCoNmM8BgI63M9DxzfCT22H3kF4R+
-# ewXsIioIuoTtiqVYrwpbbLqrkBa6hpi55jVKWlSZzA4o/SVzBh8IY6nv1UY1XLgm
-# XKoDYIhP3vx7CpARyMJHwQVVqm7HCQN3UhBC0OpSW8o2eNsQcCHbtpgR6fAUDixi
-# ME6ojkTBv8R8x9PU3V8GtA6yt+vkBLHczEJvYCua4VrZ5F1JXjbARRK2BR7IaMUz
-# ozvy23OViqPtlsiRhMJwf33Zg7iRo57NZItgCtktUQZ4uQQblMfMD0AS69qbM42j
-# +c57btxl6W/wr6q/bUzz3XotrXZQHSyC4zV2RYpq7r/EnhqlEzkyBnJYGrTESuVB
-# 3pfuCHrGArjJwCYPOKdLqyP4p9KcGfqCVCAg08AAPgGGplR5YA3ThZVFBP+BL1n/
-# 0G6oc2Kmr9CHgIRmNxBUs7snT7u/PtrOmSwbvy5Xkj1Iz26hggMiMIIDHgYJKoZI
+# hkiG9w0BCQQxFgQUG1SyoOgC955QHRneUuour+iL6QQwDQYJKoZIhvcNAQEBBQAE
+# ggIAtlc7o+wiZqoUQtGv4DsnY/OMf4KX7iNr7KDBY6FrZzblY1woEG5tkUFjmlcW
+# zll8/6d0UW0N9NZg2pB7qjQR+af1lpMd59yQEUjqgIsfo8PPU9U/yWntiG/fxb7q
+# mlmzZWJd+f/4a1ZKp+uzC8s6oiyoVJ3c0cfCwJxdRb8WsO6u3jpfmVr9vMiCHPaT
+# qjiimZYBWfLooxC5jYStDCyOjQIbLu5ugV9i95IzpgQ8H9SuZ//XqeKOfxonbKin
+# oCqW8oElVKMPlVVv+fc2DulaHc81yExXU6UED+GDVFsme8+2q83RJbynX2GIip1n
+# E16oxOwtKvLBFPl8zZS/N4zv5ObvGmaxlfLiXtSDmR0A8Kbaa+k61VgMg/XwDyDk
+# 5P3Bd4dUW0NiJWswAr4XbTgnVu3Z2RrgQdc/5wC19PTM/yMbQwXUHLsO21rNjDWA
+# q3YEWe3z3Bw0e0nimxHYZyGcsDC3fPjRQKF887oS2qTeWsfIxn4Ttviy7zNXllZu
+# I6+o62NfgfTI+Z8oC9jkZFJLqHFtBYVosHCtG1eft1MK4B58ipSei14hAdr72qh+
+# nLZWtKKHkqTD4Z+uZgs3F1NitULkjF3uKjZWj/XU/NJVub6c9LfAhm/NiA3LU0at
+# RYNRIkqxWnS301gE/6ouBKlIt4xXAQIb24/SEVXQOrDqqBWhggMiMIIDHgYJKoZI
 # hvcNAQkGMYIDDzCCAwsCAQEwaTBVMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2Vj
 # dGlnbyBMaW1pdGVkMSwwKgYDVQQDEyNTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1w
 # aW5nIENBIFIzNgIQOlJqLITOVeYdZfzMEtjpiTANBglghkgBZQMEAgIFAKB5MBgG
-# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI0MTEyMTA4
-# MDIzMFowPwYJKoZIhvcNAQkEMTIEMMr1d92eeTVyLDk1rP/rd+90eSg4hfO/VRW0
-# 7xLejxS6LAig360hHY5Vi9IJSLzEtzANBgkqhkiG9w0BAQEFAASCAgA5n9c6nW/h
-# XK5PfcT2UJSHKT51oJBsRgJhp+DDj2DQOo6hQwxodz/YDzKTWOIVNdoYGi+9XQkw
-# WqSu3qr7jW3NGLdE2sUUeLVZlVG/gtNjsKZCm8H+g2T1WI2POpv/CKxmvgmLlE5x
-# VJhgEL0HB0bSwcnJRuQ+XcB8w0AkC2vjL44BMvI67dDHMhHp+G/EerHswgqAdZfw
-# M0r/qPzhV/GHn+nUjAzybk7q11OXuPM0iKF7g7VExdSVCl5jmMgZCaBLhiBPJYxO
-# IoBnLa9lAoabC1lKkmmCSidgADrhhFBQpOmq9mNyH9cq99xkwFUKBESHFLOp5Bnr
-# 8JUJAMXuToWryJvYtk4o+OibD5ayfvrQfJ6dSIALvyqngrDEUrLkdqwjpd7PLj4W
-# oq6/F8X1yLcIDzhhVIXts1IIYVbZeqKh88UwnN51Vk1j9gsIfkqYJTC5CWOOjYaG
-# WkqD7WL4tXwAN9cdxEmhIine5y78pf66xCjwH/1aYtfOmZHtBthU7mjUwqrC4KZE
-# 4duit+yPdaL7j5LbwFS7EAj7ZLmqZu/sQmkYiX59RUewAGaIE6FHXDAevaLHHYtt
-# jeb+GnAbVInLDq3QLC/YDUWPnsnOXtT4eAbfA2zTa9xFG2LLkmTQ5Mzyn3SoXveG
-# 3CSdixukGzxBY5hVO3HtY+WjODSy3tYstw==
+# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI0MTIxODA2
+# MTU0MFowPwYJKoZIhvcNAQkEMTIEMM6qIBucR3aiehqUnv1uVF0P2mBWf/bE96k2
+# FmGkHvqQE8g8EezbpC8mQGY9PjfAEDANBgkqhkiG9w0BAQEFAASCAgBMa+B/BcVR
+# MfBjtU5ai4tuak6z7YTUTIgfvEw7+YDceEii9NwjB23phbu7MUpnUzaOQY6IgV87
+# 3eiPTLBCQg0MmEasw8wZ5ZmlAZEBd8p7it19k0FYWOOA7CeAyjDAitWITT41aA9L
+# V7wqJ+/lYdQNgWK6AMY77tmnUUmsAeZWCmAeYQYIHJwiSMa8u68v/Nf0qCu/x1IX
+# yZnYKDafXXhW6D3kL1e2yy+EUjiroGsqUgaSSacBZ7DCo3CWFCCiLBtC9PL/aRO6
+# SuV049LuyXEHUQtX5p0oyBDmIhUAJ+/pHQWi0Gp6Re+1oZD1mUc0RzIzVZdBtunq
+# wkW5SxCEO+Kbj8sR84rqhX2APERi1AgQ8cH88RJuE7gMFl5WQamp9AMPWALaeMYH
+# hpU7wimuxE1NTZzp+1xGZfQ4PIlewe+C71EB7msP9xpe9To54Ccv2m3K81+16uv9
+# 2IPeUfKr+rPfRhvEPP5PqBOBUfu+Ceo3TpXqNrkLKdknHYIzqsJrVRCZhmQjYjIW
+# cMNxkkLDwXVSQRAOnTpN3k0CqJ4zCi/uEgodnUfxO2afiVUpnCEUSDpBDDFOoN/f
+# +YWLPtY+AMj8Nf9bVkVpyK/pPv2RiGpFd9LL/bNOigknLmH198heFmZ7A2oNph92
+# Xj6JgrFYmspeFgi95iUWHbvYZrAEE1nFvA==
 # SIG # End signature block

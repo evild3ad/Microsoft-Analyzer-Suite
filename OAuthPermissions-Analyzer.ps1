@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved. Licensed under the MIT license.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-11-21
+# @date:      2024-12-17
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -24,8 +24,8 @@
 # https://github.com/BurntSushi/xsv
 #
 #
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5131) and PowerShell 5.1 (5.1.19041.5129)
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5131) and PowerShell 7.4.6
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5247) and PowerShell 5.1 (5.1.19041.5247)
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5247) and PowerShell 7.4.6
 #
 #
 #############################################################################################################################################################################################
@@ -917,12 +917,11 @@ if ($Result -eq "OK" )
 #############################################################################################################################################################################################
 #############################################################################################################################################################################################
 
-
 # SIG # Begin signature block
 # MIIrxQYJKoZIhvcNAQcCoIIrtjCCK7ICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQU3h7trCTq4jd0mF4Oo+Ig/Ses
-# Ks+ggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUc08W9UegiCbr7ga116vQ/d2Z
+# aoCggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
 # AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
 # MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
 # MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
@@ -1124,33 +1123,33 @@ if ($Result -eq "OK" )
 # YmxpYyBDb2RlIFNpZ25pbmcgQ0EgUjM2AhEAjEGek78rzqyIBig7dhm9PDAJBgUr
 # DgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMx
 # DAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkq
-# hkiG9w0BCQQxFgQUxiTrLyNNZKiM9jS50kxYGX1jO64wDQYJKoZIhvcNAQEBBQAE
-# ggIAHBHcgOhQC5KgKGHVo1f0RMKDb8lGCZQLPdc3Aq4Q1RohkGsbtgxdCGpSVCju
-# +QFxnSDHjuofxA8RpmEL1eP1LRJMKtGVL9fjpSwDHEk/tKDsp+haq9ukGT6PUoT7
-# 8UvO4XtrKOdz/cSNYfY0v6s/ne5Hx4WALm8ffj0PwJhKqRDRwtIndpBDgDRLgpOV
-# Xl7uBe30RFvydGmiKs+Zzw+rq4/7xHhgdaMx1WCAxOLNsKcklgHf8+dzIDOE56uh
-# +AM9kGHQD6OKyu4sUAGUydJQpL10Jpypn8MUZnun/8ShbEcwJp7yqi2VaplkA0n6
-# kGqjkZO0PRqUxbbOfe7q2eb2sLWnSJrses71iZHDv0dFs1ZWTbEMoBf1Ut/Np0uD
-# L9sxOsq1msko/FeYDhjPQAB5lshgyiBp/U1YyyQldLQePFjqVkrUOrqs/rTR//fy
-# qiHtDlfs0th3LQzeEY7baBGe78YkuAszdY6jcBXP5Z2L2aQCSbFLdI6pjBU7a2hL
-# Yr1800NemX7lLIInxgtZLcemF8DXc0YPF8NsePtaau2ZxBsEgXlfVj/Jiauw+tT1
-# gQem4p2D4GTEbkO/6HSty6DQr6VVvABL+8y0BjjddXEP0jHf1X0O7ZonVE8Kphc4
-# OpgB8/VMdK87DEVOz5DAmHErZCncktJTJA+Jhv4sOeFdJCShggMiMIIDHgYJKoZI
+# hkiG9w0BCQQxFgQUZ7G31AgpP7/0GnoNOZTmPsGqUJAwDQYJKoZIhvcNAQEBBQAE
+# ggIAvRbmvPHngelicLQ36RQ88jSnVCvG0QSf8vG13zB9uLNMIIx5tLHfQr5jFepg
+# QKXDhPIijwCA2AM92IWAsRMEje1oOTWaDahkuSNEyPWJ15yZT+4SGl8x0QpPzIM3
+# 9JhXfjBoLf6TCQvdMg/ziAT9W2qAbwsN8hz1ft3kzUXBaNunEwpOJYJZRMEm/2L0
+# NOjwDTvVPBhbHR2vlLG76fDMjV9TkeKL1JnGjXO9oMeoD0l9fY1yD42oLf+GZlhY
+# XFxYqOadwNRFTSf6Rjp/xHFoxgbQlqrg31nFM15lVBX8FyMhHM8Mz/uQBEDDjNN5
+# dm1hTf2WcF/lrfNhHah0gyJPjkIetQNHZBzl28oKVwpcwhU8kIhXTQSIYaaViHQV
+# LgR9/IbCfZJ6Ot7G68by8F/o/ilvMSwEG/0yFmPmS+WHPMh5gN1l02XV/9nwCk2I
+# jzPM0Xfi01FBBvP77q2JV57h4B6w+Xvhvj1uwYR6Ig8vpQKJ5YCHY8cyLRYpsRTH
+# ubT+ww2XkI5xkSXQxF3AB29kopz4bqc3WnX72HLqL45FhU0ggWVFAaowIkuEx+g7
+# wqEpZocqnpFZ8CRy88L13MTvvKfsppuDOrI3tXRCgoKDpPhAt9SfVXe+a9MGnBPU
+# pFpxAQa182myruNkfwyUq/xt0I/ZhruSUaYjiEbpCxY4uSKhggMiMIIDHgYJKoZI
 # hvcNAQkGMYIDDzCCAwsCAQEwaTBVMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2Vj
 # dGlnbyBMaW1pdGVkMSwwKgYDVQQDEyNTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1w
 # aW5nIENBIFIzNgIQOlJqLITOVeYdZfzMEtjpiTANBglghkgBZQMEAgIFAKB5MBgG
-# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI0MTEyMTA4
-# MDI0MFowPwYJKoZIhvcNAQkEMTIEMBx7vsSxog8FkGKCZkiYoCzsfshMzThj8/NR
-# MqV2o/E8XBqmFIlgIzuJN987olR+czANBgkqhkiG9w0BAQEFAASCAgAdjjFoEMt/
-# PGFblRh5K4SreOXjE6/RtjJjnMJpAr3noy/bSR6Fj7fnK35KS5D8C4Luc1ZQA16p
-# Glrk3r7RsURtHW0uMK0ee6w3uh2HTA/nZWQRVwLvAi67jeBj5z51mzaSzRtfKs2C
-# JqWPohcsDp8X4w+NjPkDOMKGeCtyW5x0a6KhbIc8gHGThmimvuzyhOtYOAoZ1+h9
-# WYjnNhFWrH4znqjeqDlbf2ytPQzjCcyVTZ1M/GQ7eMqWFZaeYhgeyFJ0MFt7nwhS
-# A98/t1EvQaSEkd5EO/WYRN/vX99lzYEpmQG84gawJukyVM/vHbOPH1pDFqMUzxpB
-# nAGgwF34DZ/h1vXrJHYvaSgbiVpFt7fyfggodExaKbSk2fuKD3WGVDz0M/0INxdg
-# 4UcyVQKe/E7lzQR0dhuhTtlR6VOIlk6vZrTMbqp2n5oEpsD3CmS2Ms7TuLtszzsg
-# ra6Ggslkx+ibiRlY4w/42oil+8Nl8BK/OIaMbMqGikZtEcH3jVUGvMimg77vHBiT
-# eKGUwdGLN1Ke6ZH1ERNo7KgFEptKy+NR7lREyFDodagMa46Xi9Rk2FiAd+RMZ7kT
-# VxZbHLcengzh/qEFHU4wW54Sk2lSkpLoUcNQpcoNhL/EkrWXM2wGEjpzC4QQXV0x
-# nkdOkGZJ0cKNMfDFs4DL+/dUy1x42VMxdw==
+# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI0MTIxODA2
+# MTU0OVowPwYJKoZIhvcNAQkEMTIEMK1x0KlFBO5uuw8yh1GDB7FUA/jymr/6qIFW
+# WWIrH5jQaUXEQiH/aWX+eHNqf7xcozANBgkqhkiG9w0BAQEFAASCAgCF0Kc1MK+y
+# VHS5kV01pxSOtfRDQ6ZMYbBRqGP5nG4HCUFFY73JDr3zzN0bz7/1Rl3DSSVDnoWt
+# TUC9y4msBEnD65wY2Zf8h2xnUJ9krQFF6/71R5s8h0T50ESRfvQPqqI0zPyd7FCo
+# jQbhojl2xtgmH9D29XrM7MQI35H+zU8oloojzcghndPTD9iiTMGZysaiAs5QLCHv
+# 5HoOx9LH2PhG9Mrsb2dCXT2nu1b/BnlfR7IX5rXTC/Pb66eN+Rd/SPvlkGkq/cZO
+# +f1haLqtBN0KuZZvJW67JR8p+7pNQMVqaQD4juqtfBMHN39/x0L7KZ8wh9S1mEar
+# N2pb4HJC1QcHSLm5nUPQ0wNmg7lhObJH5hnT4k3CcaUjxa7LTds70FOuz/ITJSKK
+# rzBcNl+PhxVoD4oLmOBb8T6tOB8rAAJKO81p7kW4ko/0enKWJ7JnuPNVErSaX+s6
+# jXU/4k75rB1Ae2hs/zmS9hvoOQtPO5ny4EKPDOFeiqxHnqcNUJWoFR98KEl9P9k7
+# ValUgGq9feOPHcERkS4qBSvFdDKseFv1mGShNKASQC3agec6PacDsj2fXpJVCmYs
+# 1S63ibtW3f8hboRo+fOUr+jQ5ShOmwrLMixs2NHfGI8PRT8a5JqW6YTgOR8iy7+7
+# tLBylyj3V1fXci4l9txDGZviXfD+Iqxizw==
 # SIG # End signature block

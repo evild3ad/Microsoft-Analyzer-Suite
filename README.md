@@ -1,4 +1,24 @@
-<p align="center"><a href="https://github.com/PowerShell/PowerShell"><img src="https://img.shields.io/badge/Language-Powershell-blue" style="text-align:center;display:block;"></a> <a href="https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki"><img src="https://img.shields.io/badge/Wiki-Documentation-blue" style="text-align:center;display:block;"></a> <a href="https://github.com/evild3ad/Microsoft-Analyzer-Suite/releases/latest"><img src="https://img.shields.io/github/v/release/evild3ad/Microsoft-Analyzer-Suite?label=Release" style="text-align:center;display:block;"></a> <img src="https://img.shields.io/badge/Maintenance%20Level-Actively%20Developed-brightgreen" style="text-align:center;display:block;"> <img src="https://img.shields.io/badge/Digital%20Signature-Valid-brightgreen" style="text-align:center;display:block;"> <a href="https://twitter.com/Evild3ad79"><img src="https://img.shields.io/twitter/follow/Evild3ad79?style=social" style="text-align:center;display:block;"></a> <a href="https://twitter.com/InvictusIR"><img src="https://img.shields.io/twitter/follow/InvictusIR?style=social" style="text-align:center;display:block;"></a></p>  
+<div align="center">
+  <p>
+    <a href="https://github.com/PowerShell/PowerShell">
+      <img src="https://img.shields.io/badge/Language-Powershell-blue" style="text-align:center;display:block;" alt="PowerShell">
+    </a> 
+    <a href="https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki">
+      <img src="https://img.shields.io/badge/Wiki-Documentation-blue" style="text-align:center;display:block;" alt="Wiki">
+    </a>
+    <a href="https://github.com/evild3ad/Microsoft-Analyzer-Suite/releases/latest">
+      <img src="https://img.shields.io/github/v/release/evild3ad/Microsoft-Analyzer-Suite?label=Release" style="text-align:center;display:block;" alt="Latest Release">
+    </a>
+    <img src="https://img.shields.io/badge/Maintenance%20Level-Actively%20Developed-brightgreen" style="text-align:center;display:block;" alt="Maintenance Level">
+    <img src="https://img.shields.io/badge/Digital%20Signature-Valid-brightgreen" style="text-align:center;display:block;" alt="Digital Signature">
+    <a href="https://twitter.com/Evild3ad79">
+      <img src="https://img.shields.io/twitter/follow/Evild3ad79?style=social" style="text-align:center;display:block;" alt="Lethal Forensics on X">
+    </a>
+    <a href="https://twitter.com/InvictusIR">
+      <img src="https://img.shields.io/twitter/follow/InvictusIR?style=social" style="text-align:center;display:block;" alt="InvictusIR on X">
+    </a>
+  </p>
+</div>
 
 # Microsoft-Analyzer-Suite (Community Edition)
 A collection of PowerShell scripts for analyzing data from Microsoft 365 and Microsoft Entra ID.
@@ -60,9 +80,17 @@ Automated Processing of Microsoft 365 Logs and Microsoft Entra ID Logs extracted
 ![UAL-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/blob/8092610fb8576040fee6834c52d57b858c666248/Screenshots/11.png)  
 **Fig 11:** You can specify a file path or launch the File Browser Dialog to select your log file  
 
+## Contributing
+Contributions are welcome! Please feel free to submit a Pull Request.  
+Note: If your change is larger, or adds a feature, please contact me beforehand so that we can discuss the change.  
+
+## License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.  
+
 ## Links  
 [Microsoft-Extractor-Suite by Invictus-IR](https://github.com/invictus-ir/Microsoft-Extractor-Suite)  
 [Microsoft-Extractor-Suite Documentation](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/)  
 [Microsoft 365 Artifact Reference Guide by the Microsoft Incident Response Team](https://go.microsoft.com/fwlink/?linkid=2257423)  
 [Awesome BEC - Repository of attack and defensive information for Business Email Compromise investigations](https://github.com/randomaccess3/Awesome-BEC)  
 [M365_Oauth_Apps - Repository of suspicious Enterprise Applications (BEC)](https://github.com/randomaccess3/detections/blob/main/M365_Oauth_Apps/MaliciousOauthAppDetections.json)  
+[RogueApps by Huntress Labs](https://huntresslabs.github.io/rogueapps/)  

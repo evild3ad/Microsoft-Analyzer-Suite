@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved. Licensed under the MIT license.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-11-21
+# @date:      2024-12-17
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -28,8 +28,8 @@
 # https://github.com/BurntSushi/xsv
 #
 #
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5131) and PowerShell 5.1 (5.1.19041.5129)
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5131) and PowerShell 7.4.6
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5247) and PowerShell 5.1 (5.1.19041.5247)
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5247) and PowerShell 7.4.6
 #
 #
 #############################################################################################################################################################################################
@@ -503,7 +503,7 @@ if (Get-Module -ListAvailable -Name ImportExcel)
 # Custom CSV
 $Data = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Sort-Object { $_.CreationDate -as [datetime] } -Descending
 
-$Results = @()
+$Results = [Collections.Generic.List[PSObject]]::new()
 ForEach($Record in $Data)
 {
     $AuditData = $Record.AuditData | ConvertFrom-Json
@@ -545,7 +545,7 @@ ForEach($Record in $Data)
     "Workload"              = $AuditData.Workload
     }
 
-    $Results += $Line
+    $Results.Add($Line)
 }
 
 $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Custom.csv" -NoTypeInformation -Encoding UTF8
@@ -889,7 +889,7 @@ if ($Count -gt 0)
     # AuditData
 
     # CSV
-    $Results = @()
+    $Results = [Collections.Generic.List[PSObject]]::new()
     ForEach($Record in $Import)
     {
         $AuditData = $Record.AuditData | ConvertFrom-Json
@@ -933,7 +933,7 @@ if ($Count -gt 0)
         "SessionId"                    = ($AuditData | Select-Object SessionId).SessionId
         }
 
-        $Results += $Line
+        $Results.Add($Line)
     }
 
     $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\New-InboxRule_AuditData.csv" -NoTypeInformation -Encoding UTF8
@@ -1028,7 +1028,7 @@ if ($Count -gt 0)
     # AuditData
 
     # CSV
-    $Results = @()
+    $Results = [Collections.Generic.List[PSObject]]::new()
     ForEach($Record in $Import)
     {
         $AuditData = $Record.AuditData | ConvertFrom-Json
@@ -1072,7 +1072,7 @@ if ($Count -gt 0)
         "SessionId"                    = ($AuditData | Select-Object SessionId).SessionId
         }
 
-        $Results += $Line
+        $Results.Add($Line)
     }
 
     $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Set-InboxRule_AuditData.csv" -NoTypeInformation -Encoding UTF8
@@ -1304,7 +1304,7 @@ if ($Count -gt 0)
         # Custom CSV
         $Data = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\UpdateInboxRules-RedirectToRecipientsAction.csv" -Delimiter "," | Sort-Object { $_.CreationDate -as [datetime] } -Descending
 
-        $Results = @()
+        $Results = [Collections.Generic.List[PSObject]]::new()
         ForEach($Record in $Data)
         {
             $AuditData = $Record.AuditData | ConvertFrom-Json
@@ -1334,7 +1334,7 @@ if ($Count -gt 0)
             "Workload"              = $AuditData.Workload
             }
 
-            $Results += $Line
+            $Results.Add($Line)
         }
 
         $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\UpdateInboxRules-RedirectToRecipientsAction_Custom.csv" -NoTypeInformation
@@ -1549,7 +1549,7 @@ if ($Count -gt 0)
     # AuditData
 
     # CSV
-    $Results = @()
+    $Results = [Collections.Generic.List[PSObject]]::new()
     ForEach($Record in $Import)
     {
         $AuditData = $Record.AuditData | ConvertFrom-Json
@@ -1582,7 +1582,7 @@ if ($Count -gt 0)
         "SessionId"                  = $AuditData.SessionId
         }
 
-        $Results += $Line
+        $Results.Add($Line)
     }
 
     $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Set-Mailbox_AuditData.csv" -NoTypeInformation -Encoding UTF8
@@ -1681,7 +1681,7 @@ if ($Count -gt 0)
     # AuditData
     
     # CSV
-    $Results = @()
+    $Results = [Collections.Generic.List[PSObject]]::new()
     ForEach($Record in $Import)
     {
         $AuditData = $Record.AuditData | ConvertFrom-Json
@@ -1718,7 +1718,7 @@ if ($Count -gt 0)
         "SessionId"                   = $AuditData.SessionId
         }
 
-        $Results += $Line
+        $Results.Add($Line)
     }
 
     $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Set-MailboxJunkEmailConfiguration_AuditData.csv" -NoTypeInformation -Encoding UTF8
@@ -1773,7 +1773,7 @@ if ($Count -gt 0)
     # AuditData
     
     # CSV
-    $Results = @()
+    $Results = [Collections.Generic.List[PSObject]]::new()
     ForEach($Record in $Import)
     {
         $AuditData = $Record.AuditData | ConvertFrom-Json
@@ -1815,7 +1815,7 @@ if ($Count -gt 0)
         "SessionId"                   = $AuditData.SessionId
         }
 
-        $Results += $Line
+        $Results.Add($Line)
     }
 
     $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Add-MailboxPermission.csv" -NoTypeInformation -Encoding UTF8
@@ -1859,7 +1859,7 @@ if ($Count -gt 0)
     # AuditData
     
     # CSV
-    $Results = @()
+    $Results = [Collections.Generic.List[PSObject]]::new()
     ForEach($Record in $Import)
     {
         $AuditData = $Record.AuditData | ConvertFrom-Json
@@ -1893,7 +1893,7 @@ if ($Count -gt 0)
         "SessionId"                   = $AuditData.SessionId
         }
 
-        $Results += $Line
+        $Results.Add($Line)
     }
 
     $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Add-RecipientPermission.csv" -NoTypeInformation -Encoding UTF8
@@ -2024,7 +2024,7 @@ if ($Count -gt 0)
     # AuditData
 
     # CSV
-    $Results = @()
+    $Results = [Collections.Generic.List[PSObject]]::new()
     ForEach($Record in $Import)
     {
         $AuditData = $Record.AuditData | ConvertFrom-Json
@@ -2049,7 +2049,7 @@ if ($Count -gt 0)
         "AppId"                         = $ExtendedProperties | Where-Object { $_.Name -eq "additionalDetails" } | Select-Object -ExpandProperty Value | ForEach-Object{($_ -split ",")[1]} | ForEach-Object{($_ -split ":")[1]} | ForEach-Object {$_ -replace '"',''} | ForEach-Object {$_ -replace '}',''}
         }
 
-        $Results += $Line
+        $Results.Add($Line)
     }
 
     $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Add-service-principal_AuditData.csv" -NoTypeInformation -Encoding UTF8
@@ -2119,7 +2119,7 @@ if ($Count -gt 0)
     # AuditData
 
     # CSV
-    $Results = @()
+    $Results = [Collections.Generic.List[PSObject]]::new()
     ForEach($Record in $Import)
     {
         $AuditData = $Record.AuditData | ConvertFrom-Json
@@ -2154,7 +2154,7 @@ if ($Count -gt 0)
         "TargetContextId"               = $AuditData.TargetContextId
         }
 
-        $Results += $Line
+        $Results.Add($Line)
     }
 
     $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Add-delegated-permissions-grant_AuditData.csv" -NoTypeInformation -Encoding UTF8
@@ -2225,7 +2225,7 @@ if ($Count -gt 0)
     # AuditData
 
     # CSV
-    $Results = @()
+    $Results = [Collections.Generic.List[PSObject]]::new()
     ForEach($Record in $Import)
     {
         $AuditData = $Record.AuditData | ConvertFrom-Json
@@ -2260,7 +2260,7 @@ if ($Count -gt 0)
         "TargetContextId"               = $AuditData.TargetContextId
         }
 
-        $Results += $Line
+        $Results.Add($Line)
     }
 
     $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Add-app-role-assignment-grant-to-user_AuditData.csv" -NoTypeInformation -Encoding UTF8
@@ -2333,7 +2333,7 @@ if ($Count -gt 0)
     # AuditData
 
     # CSV
-    $Results = @()
+    $Results = [Collections.Generic.List[PSObject]]::new()
     ForEach($Record in $Import)
     {
         $AuditData = $Record.AuditData | ConvertFrom-Json
@@ -2372,7 +2372,7 @@ if ($Count -gt 0)
         "TargetContextId"               = $AuditData.TargetContextId
         }
 
-        $Results += $Line
+        $Results.Add($Line)
     }
 
     $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Consent-to-application_AuditData.csv" -NoTypeInformation -Encoding UTF8
@@ -2445,7 +2445,7 @@ if ($Count -gt 0)
     # AuditData
 
     # CSV
-    $Results = @()
+    $Results = [Collections.Generic.List[PSObject]]::new()
     ForEach($Record in $Import)
     {
         $AuditData = $Record.AuditData | ConvertFrom-Json
@@ -2476,7 +2476,7 @@ if ($Count -gt 0)
         "Message"                            = ($AuditData.Reason | ForEach-Object{($_ -split ";")} | Select-String -Pattern ":" -NotMatch | Select-String -Pattern "=" -NotMatch | Out-String).Trim()
         }
 
-        $Results += $Line
+        $Results.Add($Line)
     }
 
     $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\HygieneTenantEvents_AuditData.csv" -NoTypeInformation -Encoding UTF8
@@ -2660,7 +2660,7 @@ if (Test-Path "$($IPinfo)")
     elseif ($TotalRequests -eq "150000"){Write-Output "[Info]  IPinfo Subscription: Basic"} # No Privacy Detection
     elseif ($TotalRequests -eq "250000"){Write-Output "[Info]  IPinfo Subscription: Standard"} # Privacy Detection
     elseif ($TotalRequests -eq "500000"){Write-Output "[Info]  IPinfo Subscription: Business"} # Privacy Detection
-    else {Write-Output "IPinfo Subscription Plan: Enterprise"} # Privacy Detection
+    else {Write-Output "[Info]  IPinfo Subscription Plan: Enterprise"} # Privacy Detection
 }
 
 # IPinfo CLI
@@ -2845,7 +2845,7 @@ if (Test-Path "$($IPinfo)")
                                 $Records = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Custom.csv" -Delimiter "," -Encoding UTF8
 
                                 # CSV
-                                $Results = @()
+                                $Results = [Collections.Generic.List[PSObject]]::new()
                                 ForEach($Record in $Records)
                                 {
                                     # ClientIP or ClientIPAddress
@@ -2910,7 +2910,7 @@ if (Test-Path "$($IPinfo)")
                                         "Workload"              = $Record.Workload
                                     }
 
-                                    $Results += $Line
+                                    $Results.Add($Line)
                                 }
 
                                 $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -NoTypeInformation -Encoding UTF8
@@ -3352,7 +3352,7 @@ if (Test-Path "$($IPinfo)")
                             }
 
                             # CSV
-                            $Results = @()
+                            $Results = [Collections.Generic.List[PSObject]]::new()
                             ForEach($Record in $Records)
                             {
                                 $AuditData     = $Record.AuditData | ConvertFrom-Json
@@ -3410,7 +3410,7 @@ if (Test-Path "$($IPinfo)")
                                 "Attachments"           = $AffectedItems.Attachments
                                 }
 
-                                $Results += $Line
+                                $Results.Add($Line)
                             }
 
                             $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\MoveToDeletedItems.csv" -NoTypeInformation -Encoding UTF8
@@ -3481,7 +3481,7 @@ if (Test-Path "$($IPinfo)")
                             }
 
                             # CSV
-                            $Results = @()
+                            $Results = [Collections.Generic.List[PSObject]]::new()
                             ForEach($Record in $Records)
                             {
                                 $AuditData       = $Record.AuditData | ConvertFrom-Json
@@ -3538,7 +3538,7 @@ if (Test-Path "$($IPinfo)")
                                 "Attachments"           = ($AffectedItems.Attachments) -join "`r`n"
                                 }
 
-                                $Results += $Line
+                                $Results.Add($Line)
                             }
 
                             $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\SoftDelete.csv" -NoTypeInformation -Encoding UTF8
@@ -3630,7 +3630,7 @@ if (Test-Path "$($IPinfo)")
                             }
 
                             # CSV
-                            $Results = @()
+                            $Results = [Collections.Generic.List[PSObject]]::new()
                             ForEach($Record in $Records)
                             {
                                 $AuditData       = $Record.AuditData | ConvertFrom-Json
@@ -3684,7 +3684,7 @@ if (Test-Path "$($IPinfo)")
                                 "Attachments"           = ($AffectedItems.Attachments) -join "`r`n"
                                 }
 
-                                $Results += $Line
+                                $Results.Add($Line)
                             }
 
                             $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\HardDelete.csv" -NoTypeInformation -Encoding UTF8
@@ -3764,7 +3764,7 @@ if (Test-Path "$($IPinfo)")
                             }
 
                             # CSV
-                            $Results = @()
+                            $Results = [Collections.Generic.List[PSObject]]::new()
                             ForEach($Record in $Records)
                             {
                                 $AuditData    = $Record.AuditData | ConvertFrom-Json
@@ -3825,7 +3825,7 @@ if (Test-Path "$($IPinfo)")
 
                                 }
 
-                                $Results += $Line
+                                $Results.Add($Line)
                             }
 
                             $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\Send.csv" -NoTypeInformation -Encoding UTF8
@@ -3893,7 +3893,7 @@ if (Test-Path "$($IPinfo)")
                             }
 
                             # CSV
-                            $Results = @()
+                            $Results = [Collections.Generic.List[PSObject]]::new()
                             ForEach($Record in $Records)
                             {
                                 $AuditData    = $Record.AuditData | ConvertFrom-Json
@@ -3955,7 +3955,7 @@ if (Test-Path "$($IPinfo)")
                                 "SendAsUserSmtp"        = $AuditData.SendAsUserSmtp
                                 }
 
-                                $Results += $Line
+                                $Results.Add($Line)
                             }
 
                             $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\SendAs.csv" -NoTypeInformation -Encoding UTF8
@@ -4025,7 +4025,7 @@ if (Test-Path "$($IPinfo)")
                             }
 
                             # CSV
-                            $Results = @()
+                            $Results = [Collections.Generic.List[PSObject]]::new()
                             ForEach($Record in $Records)
                             {
                                 $AuditData    = $Record.AuditData | ConvertFrom-Json
@@ -4088,7 +4088,7 @@ if (Test-Path "$($IPinfo)")
                                 "SendOnBehalfOfUserSmtp"        = $AuditData.SendOnBehalfOfUserSmtp
                                 }
 
-                                $Results += $Line
+                                $Results.Add($Line)
                             }
 
                             $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\SendOnBehalf.csv" -NoTypeInformation -Encoding UTF8
@@ -4993,7 +4993,7 @@ if(Test-Path "$SCRIPT_DIR\Config\UserType.csv")
 }
 
 # Custom CSV
-$Results = @()
+$Results = [Collections.Generic.List[PSObject]]::new()
 ForEach($Record in $UserLoggedInRecords)
 {
 
@@ -5139,7 +5139,7 @@ ForEach($Record in $UserLoggedInRecords)
         Message            = $Message # Error Code Message
     }
 
-    $Results += $Line
+    $Results.Add($Line)
 }
 
 $Results | Sort-Object { $_.CreationTime -as [datetime] } -Descending | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoggedIn.csv" -NoTypeInformation -Encoding UTF8
@@ -5264,7 +5264,7 @@ if(Test-Path "$SCRIPT_DIR\Config\UserType.csv")
 }
 
 # Custom CSV
-$Results = @()
+$Results = [Collections.Generic.List[PSObject]]::new()
 ForEach($Record in $UserLoginFailedRecords)
 {
 
@@ -5411,7 +5411,7 @@ ForEach($Record in $UserLoginFailedRecords)
         LogonError         = $AuditData.LogonError # For failed logins, this property contains a user-readable description of the reason for the failed login.
     }
 
-    $Results += $Line
+    $Results.Add($Line)
 }
 
 $Results | Sort-Object { $_.CreationTime -as [datetime] } -Descending | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoginFailed.csv" -NoTypeInformation -Encoding UTF8
@@ -5515,7 +5515,7 @@ if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoggedIn.csv")
         $Office365 = ($UserLoggedIn | Where-Object { $_.ObjectId -eq "72782ba9-4490-4f03-8d82-562370ea3566" } | Select-Object -ExpandProperty SessionId -Unique | Measure-Object).Count
         $Office365ExchangeOnline = ($UserLoggedIn | Where-Object { $_.ObjectId -eq "00000002-0000-0ff1-ce00-000000000000" } | Select-Object -ExpandProperty SessionId -Unique | Measure-Object).Count
 
-        $Results = @()
+        $Results = [Collections.Generic.List[PSObject]]::new()
         ForEach($SessionId in $SessionIds)
         {
             # Filter
@@ -5548,7 +5548,7 @@ if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoggedIn.csv")
             "UserLoggedIn"     = ($Data | Where-Object { $_.Operation -eq "UserLoggedIn" } | Measure-Object).Count # Count of 'UserLoggedIn' operations per SessionId
             }
 
-            $Results += $Line
+            $Results.Add($Line)
         }
 
         $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Suspicious-SessionIds.csv" -NoTypeInformation -Encoding UTF8
@@ -5603,7 +5603,7 @@ if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv")
     {
         $SessionIds = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.Operation -eq "UserLoggedIn" } | Where-Object { $_.SessionId -ne "" } | Select-Object -ExpandProperty SessionId -Unique
 
-        $Results = @()
+        $Results = [Collections.Generic.List[PSObject]]::new()
         ForEach($SessionId in $SessionIds)
         {
             $Session = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.SessionId -eq "$SessionId" } | Select-Object CreationDate | Sort-Object { $_.CreationDate -as [datetime] } -Descending
@@ -5620,7 +5620,7 @@ if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv")
             "Duration"     = '{0} days {1} h {2} min {3} sec' -f $Difference.Days, $Difference.Hours,$Difference.Minutes,$Difference.Seconds
             }
 
-            $Results += $Line
+            $Results.Add($Line)
         }
 
         $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\SessionIds-Duration.csv" -NoTypeInformation
@@ -5857,9 +5857,10 @@ Function Get-MailItemsAccessed {
 
 $StartTime_MailItemsAccessed = (Get-Date)
 
-# RecordType: ExchangeItemAggregated --> Events related to the MailItemsAccessed mailbox auditing action.
+# RecordType: ExchangeItem (RecordType: 2) --> Events from an Exchange mailbox audit log for actions that are performed on a single item, such as creating or receiving an email message.
+# RecordType: ExchangeItemAggregated (RecordType: 50) --> Events related to the MailItemsAccessed mailbox auditing action.
 # Operation: MailItemsAccessed --> An operation in the UAL that indicates when a mail item or folder has been accessed or viewed by a user or application.
-$MailboxItemRecords = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeItemAggregated" } | Where-Object { $_.Operations -eq "MailItemsAccessed" } | Sort-Object { $_.CreationDate -as [datetime] } -Descending
+$MailboxItemRecords = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.Operations -eq "MailItemsAccessed" } | Sort-Object { $_.CreationDate -as [datetime] } -Descending
 $Count = [string]::Format('{0:N0}',($MailboxItemRecords | Measure-Object).Count)
 if ($Count -gt 0)
 {
@@ -5916,7 +5917,7 @@ if ($Count -gt 0)
     }
 
     # Custom CSV
-    $Results = @()
+    $Results = [Collections.Generic.List[PSObject]]::new()
     ForEach($Record in $MailboxItemRecords)
     {
 
@@ -5966,12 +5967,12 @@ if ($Count -gt 0)
             OperationCount    = $AuditData.OperationCount # Aggregated Events
         }
 
-        $Results += $Line
+        $Results.Add($Line)
     }
 
     $Results | Sort-Object { $_.CreationTime -as [datetime] } -Descending | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\CSV\MailboxItemsAccessed.csv" -NoTypeInformation -Encoding UTF8
 
-    # MailboxItemsAccessed.xlsx
+    # MailboxItemsAccessed.xlsx --> MailItemsAccessed.xlsx
     if (Get-Module -ListAvailable -Name ImportExcel)
     {
         if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\CSV\MailboxItemsAccessed.csv")
@@ -6054,7 +6055,7 @@ if ($Count -gt 0)
     }
 
     # Custom CSV
-    $Results = @()
+    $Results = [Collections.Generic.List[PSObject]]::new()
     ForEach($Record in $AppIdRecords)
     {
         # AppId
@@ -6077,7 +6078,7 @@ if ($Count -gt 0)
             "PercentUse"  = $Record.PercentUse
         }
 
-        $Results += $Line
+        $Results.Add($Line)
     }
 
     $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\Stats\CSV\DisplayName.csv" -NoTypeInformation -Encoding UTF8
@@ -6353,7 +6354,7 @@ if ($Count -gt 0)
             $Records = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\CSV\MailboxItemsAccessed.csv" -Delimiter "," -Encoding UTF8
 
             # CSV
-            $Results = @()
+            $Results = [Collections.Generic.List[PSObject]]::new()
             ForEach($Record in $Records)
             {
                 # ClientIPAddress
@@ -6403,7 +6404,7 @@ if ($Count -gt 0)
                     SessionId           = $Record.SessionId
                 }
 
-                $Results += $Line
+                $Results.Add($Line)
             }
 
             $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\CSV\Hunt.csv" -Delimiter "," -NoTypeInformation -Encoding UTF8
@@ -6651,7 +6652,7 @@ New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\MicrosoftTeams\CSV" -ItemType Director
 New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\MicrosoftTeams\XLSX" -ItemType Directory -Force | Out-Null
 
 # Custom CSV
-$Results = @()
+$Results = [Collections.Generic.List[PSObject]]::new()
 ForEach($Record in $MicrosoftTeamsRecords)
 {
 
@@ -6698,7 +6699,7 @@ ForEach($Record in $MicrosoftTeamsRecords)
         ItemName                = $AuditData.ItemName
     }
 
-    $Results += $Line
+    $Results.Add($Line)
 }
 
 $Results | Sort-Object { $_.CreationTime -as [datetime] } -Descending | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\MicrosoftTeams\CSV\MicrosoftTeams.csv" -NoTypeInformation -Encoding UTF8
@@ -6828,7 +6829,7 @@ if ($Count -gt 0)
 $MessageSentRecords = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "MicrosoftTeams" } | Where-Object { $_.Operations -eq "MessageSent" } 
 
 # MessageSent.csv
-$Results = @()
+$Results = [Collections.Generic.List[PSObject]]::new()
 ForEach($Record in $MessageSentRecords)
 {
 
@@ -6872,7 +6873,7 @@ ForEach($Record in $MessageSentRecords)
         ItemName                = $AuditData.ItemName
     }
 
-    $Results += $Line
+    $Results.Add($Line)
 }
 
 $Results | Sort-Object { $_.CreationTime -as [datetime] } -Descending | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\MicrosoftTeams\CSV\MessageSent.csv" -NoTypeInformation -Encoding UTF8
@@ -6908,7 +6909,7 @@ if (Get-Module -ListAvailable -Name ImportExcel)
 $MessageCreatedHasLinkRecords = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "MicrosoftTeams" } | Where-Object { $_.Operations -eq "MessageCreatedHasLink" } 
 
 # MessageCreatedHasLink.csv
-$Results = @()
+$Results = [Collections.Generic.List[PSObject]]::new()
 ForEach($Record in $MessageCreatedHasLinkRecords)
 {
 
@@ -6956,7 +6957,7 @@ ForEach($Record in $MessageCreatedHasLinkRecords)
         URLs                    = ($AuditData| Select-Object -ExpandProperty MessageURLs).Count
     }
 
-    $Results += $Line
+    $Results.Add($Line)
 }
 
 $Results | Sort-Object { $_.CreationTime -as [datetime] } -Descending | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\MicrosoftTeams\CSV\MessageCreatedHasLink.csv" -NoTypeInformation -Encoding UTF8
@@ -7048,12 +7049,14 @@ if ($Result -eq "OK" )
 #############################################################################################################################################################################################
 #############################################################################################################################################################################################
 
+# 6043
+# Microsoft_Applications.csv --> MicrosoftApps.csv
 
 # SIG # Begin signature block
 # MIIrxQYJKoZIhvcNAQcCoIIrtjCCK7ICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUUuXgN1cSdxfOr90kwFX2uHaG
-# CXmggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUMMs8XmPcewrxLcWGr82joSAf
+# fSyggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
 # AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
 # MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
 # MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
@@ -7255,33 +7258,33 @@ if ($Result -eq "OK" )
 # YmxpYyBDb2RlIFNpZ25pbmcgQ0EgUjM2AhEAjEGek78rzqyIBig7dhm9PDAJBgUr
 # DgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMx
 # DAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkq
-# hkiG9w0BCQQxFgQUQJGxya3W2aQ/KlQA32weOE0eko8wDQYJKoZIhvcNAQEBBQAE
-# ggIAjytio3F8SjdxHYD043Afngar47Lmg7w2UwcjWahimu9ofv7bIwvmhTxmjTpc
-# NZlW5jj3G0FcUg7hxCsn1xoopkroADPoLfbAHTVYunmU2XqwY0VKmbA5ooKApCZx
-# pT9uC2sv4bXPY+4ZiQ8accYcFp19v7WIeR2ZjeQaI8OvttLvRFQMaurKwt9I1K5p
-# 3Mg2L+1Eaxq92SFIbhYhaEILu63GuyamQU7yhaFPr0c9LKS/NVZh6gNuQ5oYECdR
-# xmufG7gYI1unmwJlfDMd7N4w3UJGER4ouYLcdTf9v8V6C9LUbvB29JX40rCbc+mj
-# te10cQafVJeIZrEjFX7wNuDzF8/uq7uYFMw0trKf5xme2XMGTP4O7SUjlOdgtDeB
-# /jY844eKJDd361VtHn0sjWQpdi/WCyuw0V3H4UW7dSUvtukHAy03xKuXsrrIIrds
-# w4nB6c5Vx1boEhof4MBwubGdOrOJxjbIEZLAleOX/eqBZDvq9yQYfT8HbbfaLGiY
-# aNFgCxaITDHT8D//N0GwGT9CJjyXok9bC2alHE9DJw5Z8axQDOHKXCl8Jvx/6hmx
-# JbPLI6FQfRZ01jAjIs5enyeZTyjztZYdfkIK/G99cApcjFJFAyWCdhS1qR2k+VRE
-# H9o0Xrkza9cKLMn5c6uSrgLcifGQY3koUXy/L2MrWLrOkHqhggMiMIIDHgYJKoZI
+# hkiG9w0BCQQxFgQU63VKJPKSb8H1eusmN8XzgA+F+VIwDQYJKoZIhvcNAQEBBQAE
+# ggIAPjU6dpKzbMwl5Fp0IS6ANhYoEjoK9sv0u83C6QhxFgjVsmQw5EsvVwLzDjjp
+# YmcENAMkzcwnRvL+SbxbVbxkJSoOoMTsReNdwRd4/aAna8ztZnLtDGxMEVGKY9oN
+# gtMoF7UQ+Kl08UT6qXo0ZrCDs5sr0GcDfDWRfdr1+SpahTiztnB4KvKbOc5yu+Qt
+# ttG8k/z9RowFF5AxTbq8dgwv96uGyrdzLzkzEgQlT62FNsE5ylkfGPLtwbvuN7yQ
+# 5QCA0T24xbWI5QMuVrYw50nGa+e3SPw9nLPypE8Zinc/pO1ie+gZPZ0PqTfLKIpW
+# zMrZgXjAkRSs0b9aW92R7uPMAIqXpmVTS9qCClv+jCAcrCm+i2+0Ikxk3KLY50Gx
+# RM6dbc8dZXHFQ7wu8BtOmGztsqTQoBQA8z4ayjVSdDrBpNDEqokqMk+WLLSUOXyt
+# i1zRZ8hHG0/tUExG44Ujci88cUy8JENwCEkv4nIaALizV2TCNZX8tQnzx2t3hzYT
+# cZV8DjvI3RkZeJQ7RJW7g48NvUQ+71BQoV/XF+ImaXmZakQPdSw8GQuvWrMokN3O
+# cASQZNAbqhjwX7q+7QqOWfJsCPJsvRK/gSwLtxbIbm+bDE3dJiXM+7W5fLHA3fQe
+# fJskyPRB5P3HM1Pk/hyTwkOiBNVn50kWDhiOXjrZ0DuWoCWhggMiMIIDHgYJKoZI
 # hvcNAQkGMYIDDzCCAwsCAQEwaTBVMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2Vj
 # dGlnbyBMaW1pdGVkMSwwKgYDVQQDEyNTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1w
 # aW5nIENBIFIzNgIQOlJqLITOVeYdZfzMEtjpiTANBglghkgBZQMEAgIFAKB5MBgG
-# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI0MTEyMTA4
-# MDI1M1owPwYJKoZIhvcNAQkEMTIEMBbNM81SUDl0mMfDGuQxSRFo7ZUXlknHCB3S
-# rcsVn0Dn2OJyJGdJc6hDxl4F+FLElDANBgkqhkiG9w0BAQEFAASCAgApoIaxv5nT
-# 8uYX09ExViTrAudW/rgR/U0qVmIbixL7RA8Ym+yftvRC6Ncip87XfLKSBnOnkBFn
-# K1w3u7CLpONsNWSRfAlG+hAVYxbr+khgXj21oTFd7AT8/Ljk8cr+rXnGY7Wp1yXM
-# O+iNFKgyOahX1Vsw1/4D+uSLWv3zSazteBnJR2mtR8avWdBzki0huE/JfUYfg0eR
-# +S/g60u3xJw73qnoBnttgOAPHhCJTWiLIPlU8LDCbYlzsVTQWouOwSPR9u7Pxaxv
-# gySfDrhvVTWbZdPs+7rzzMgJu2gpuLcAxeAUqdypWG+HpUyHX+9DorktMWdOhaEZ
-# tmOj2V9mclQWrvsFG8iUQ9KZ2R6C8MEUDnHAnkab6xLGND7CD9aCgWlpVMJckisa
-# dowyONm7iAV2FyubB6o+F45t24vvRwfPhIz+hCRJEYW6h5JNFxg5HVpmB9thGkxB
-# xctlAwtDGLeyL44zMlaGU6Ja8iSy1qbqD05RYnP/Nim0ulP3htplJXEsvxfUoNGI
-# T646QOoeTkfdyW+RmrF1pmOtvaKq9Ak4EVmHYpK5P5hVxzuw9fgdDc5pRWbtR3kz
-# x6Uj7Xw+BvK3ytFKOUX8U4+UzUJMvyjnVz6bVDbPbmOJWVS1QFvPmUV3Q7RoUMgM
-# k7OU8tBzsq1pu0oBJ/U3h4t7EuV0CsNVRA==
+# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI0MTIxODA2
+# MTYwMlowPwYJKoZIhvcNAQkEMTIEMFZ93gqeMygAZzpQRkNQcj/1bp/y/V5FeGNF
+# YlKQXbDyT0MT5ZDRIjpiY6ueNcclszANBgkqhkiG9w0BAQEFAASCAgA9dmeqf2ws
+# dKLKQPf6zgn3/9BrxGCAs1sC2Zv30tAHTdw1pw2hBH8eWpLXGRnFP5uUT9CoCZMT
+# 9tJTCbOPFL4CuDnbTKv+zvg0ua/aO1Kwu2T6jw5GKv86CJOaf5jSbZ2aQBq5wJj9
+# HnFPvCoUZ/2vS9Nb1rZPNmk4sWcF4Gswhtqlcf9f4c9+3cEt16sFPgcysIQmfNvz
+# JAwsMg9kO4mxaoIHEUUbr+5667xYMlwW19OFw5he0DhfDGrmIxOYpSNOLsKUqH6S
+# UbTarqJEc1P89qOGXbIMYKT2lUeWB4jEvUi+p/smhCcaZuVhedO1zsSTlQz2hbmf
+# zj2UxpZlqFPYQPN+fmUkTlOK0ggkuho8PCq+pbTReL6cutZbjRJMC2SQ2el6mZa9
+# paIdOxq8t3wkdaWmPWmLCdoRwKb4Hwz964nMYn9Xr9KvwiQHFykBiX6NuAA6zbkd
+# XsLPK4vBOGU7rX0vjUXJXEqyMI6/wYm1IKCBuLxbBj+5z8E0qB5xXykEwxSzjFHl
+# R7aE+SUFClQD8xHxW75Rs0kMcxz/huSPleRfTpo7ZPkRRoD4zmLEXsthCTL53lkG
+# IQZJgVEnKnb3F6CmA/UB/4M2W6iQ/lznsnMSlRhhiPM3jnB/V+E5kebQ1EWWZ0Rc
+# A3HGsIkJkVVsUFeG95vrpOJOAOQNbbbEAw==
 # SIG # End signature block

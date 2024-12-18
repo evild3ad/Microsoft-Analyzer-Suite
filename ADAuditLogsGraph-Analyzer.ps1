@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2024 Martin Willing. All rights reserved. Licensed under the MIT license.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-11-21
+# @date:      2024-12-17
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -28,8 +28,8 @@
 # https://github.com/BurntSushi/xsv
 #
 #
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5131) and PowerShell 5.1 (5.1.19041.5129)
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5131) and PowerShell 7.4.6
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5247) and PowerShell 5.1 (5.1.19041.5247)
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5247) and PowerShell 7.4.6
 #
 #
 #############################################################################################################################################################################################
@@ -386,7 +386,7 @@ New-Item "$OUTPUT_FOLDER\ADAuditLogsGraph\XLSX" -ItemType Directory -Force | Out
 # https://learn.microsoft.com/en-us/entra/identity/monitoring-health/reference-audit-activities
 
 # CSV
-$Results = @()
+$Results = [Collections.Generic.List[PSObject]]::new()
 ForEach($Record in $Data)
 {
     $ActorObjectId = $Record | Select-Object -ExpandProperty initiatedBy | Select-Object -ExpandProperty user | Select-Object -ExpandProperty id
@@ -472,7 +472,7 @@ ForEach($Record in $Data)
     "Id"                        = $Record.id # Indicates the unique ID for the activity.
     }
 
-    $Results += $Line
+    $Results.Add($Line)
 }
 
 $Results | Export-Csv -Path "$OUTPUT_FOLDER\ADAuditLogsGraph\CSV\Untouched.csv" -NoTypeInformation -Encoding UTF8
@@ -907,7 +907,7 @@ if (Test-Path "$($IPinfo)")
     elseif ($TotalRequests -eq "150000"){Write-Output "[Info]  IPinfo Subscription: Basic"} # No Privacy Detection
     elseif ($TotalRequests -eq "250000"){Write-Output "[Info]  IPinfo Subscription: Standard"} # Privacy Detection
     elseif ($TotalRequests -eq "500000"){Write-Output "[Info]  IPinfo Subscription: Business"} # Privacy Detection
-    else {Write-Output "IPinfo Subscription Plan: Enterprise"} # Privacy Detection
+    else {Write-Output "[Info]  IPinfo Subscription Plan: Enterprise"} # Privacy Detection
 }
 
 # IPinfo CLI
@@ -1049,7 +1049,7 @@ if (Test-Path "$($IPinfo)")
                                 $Records = Import-Csv -Path "$OUTPUT_FOLDER\ADAuditLogsGraph\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8
 
                                 # CSV
-                                $Results = @()
+                                $Results = [Collections.Generic.List[PSObject]]::new()
                                 ForEach($Record in $Records)
                                 {
                                     # IPAddress
@@ -1138,7 +1138,7 @@ if (Test-Path "$($IPinfo)")
                                         "Id"                               = $Record.Id
                                     }
 
-                                    $Results += $Line
+                                    $Results.Add($Line)
                                 }
 
                                 $Results | Export-Csv -Path "$OUTPUT_FOLDER\ADAuditLogsGraph\CSV\Hunt.csv" -NoTypeInformation -Encoding UTF8
@@ -2066,12 +2066,11 @@ if ($Result -eq "OK" )
 #############################################################################################################################################################################################
 #############################################################################################################################################################################################
 
-
 # SIG # Begin signature block
 # MIIrxQYJKoZIhvcNAQcCoIIrtjCCK7ICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUTOOAFGpHx9078gKrdoodrKni
-# CRuggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUfMvQdoXT6YbelT3GAG7hZLI3
+# r1WggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
 # AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
 # MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
 # MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
@@ -2273,33 +2272,33 @@ if ($Result -eq "OK" )
 # YmxpYyBDb2RlIFNpZ25pbmcgQ0EgUjM2AhEAjEGek78rzqyIBig7dhm9PDAJBgUr
 # DgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMx
 # DAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkq
-# hkiG9w0BCQQxFgQU3JH6SXuTgyekwLcJBn+oJjMQ9REwDQYJKoZIhvcNAQEBBQAE
-# ggIACZ9egbFaO2lZ5uQe2OOD3QUTAcWZA0q5FG24XlDiHhXHGoMict728ul4znX/
-# cnHENbZvom2tTsRjIrdAa3r2ojxOEkka48FuKGIUXh0zn9E+RD7KQpjFlmnjNh6h
-# rf5G3qx/giAaQxFNF9DGunXazyPOTtftoIjXbe9vLmOaf/MUiKuJY3qPSmQHTCq3
-# vqmYhDeC978BQZYf5DLaTeHrCbRr3DY9urLDLamGxCV9zVO3q6r6lLyefMO83DO1
-# rPRmge1vXXI/GTYrP1Pe/Ok6j7zyw2eqPqYPI4Lud0Dfq8HtL1h7nb+lFQKlLzLC
-# fW3dFwUgWZ3JgJVpY8l3jf27uTrk/zJlCMicxultwTHwWLHvBjuEuZTXa/rXnbtf
-# KbzJyJBy8CqBNCSEU79tt+nWsLtFbnfDet1K4utGVY3hCCFam9vbJo8Ma9/On5bl
-# jmVDzlqaS/LIcjQ01FICjFmGgG9wMPMO0o8iWHJx752YzA9D5+MFsw/1Fcnyv9XI
-# K7yw5RJwl2qCIph7+5ZHEzITBGPV8QMYhJCY1/A9hYPQoEyInmrWhkn4jGhRwGO0
-# dMj9CybxpzFdiPAFQmLRDZw0M/QqFCKMrVpQ0ATcGXvct0ifYYeYeZZpVIg73zD3
-# 6KUrQedl/u1IOEcles3lJHOuWpmJWkm3XA70kojS/vZpRtWhggMiMIIDHgYJKoZI
+# hkiG9w0BCQQxFgQU+HRqhNUZc1CS4Ukk29TaOAs2r1cwDQYJKoZIhvcNAQEBBQAE
+# ggIASWm7lLH6lkagqEICaJ9u9M3tBW917n4CyQUu2R8DAFOBs3/dIKW6ZzuPYgS0
+# ZxOWc4OMRgH3CyTnFIp/Pt25VAIK2MEnugNkN3xSGnWVcO7oYvuNj5B904ovyAol
+# Up8B9U8XluoUcfYRcH7+PeWK+j91rFJRdQIZh5czTLpUyf6mF+7Ghh7eC/Q5CXZT
+# QIqIXAadDxgFnfiQIQ244xJ+kFWVkP78GLofffRvQqaTetHWbd0nfOJxrS1kyt1/
+# SSGIzTnOr9NXp/3RfTZMOwFqN+NUFiIjRG1vuitXHBcU9JZ8ZHzYNq5P9t96sFq2
+# 69K+M+P9HEeHFgRe9M5YOtwjGqmlNnF3/IjuH/qYCwVH7yV0UiAqZSmBLZOtlR1b
+# IoRTNRyTD08DMzwxARntdL87M6DEztj5VZEWHpZLJP8WR9yBnV2D4SbpXn6TS6Lc
+# oy9jODICcJlyZvTONTP5WAI/k5Hq57LqH6GTDkdZ7y/3k7mtL7llZc4/XmtJryfh
+# x6oqce8Zq07wri65atBYZR9vcJRAs4jeqQLGP/uzKrftURhlgCASrdIMgIq1gId6
+# SNfhZuTAnWV5rF93tkg5lGWskYiHIF2bW2eij+uNCR+g4Ii2sDqiInch3WqzjlDd
+# XNAiRQGg236PiEZPUvL2f+3RGfDC2UEg3yYv3NfO9xHFAh2hggMiMIIDHgYJKoZI
 # hvcNAQkGMYIDDzCCAwsCAQEwaTBVMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2Vj
 # dGlnbyBMaW1pdGVkMSwwKgYDVQQDEyNTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1w
 # aW5nIENBIFIzNgIQOlJqLITOVeYdZfzMEtjpiTANBglghkgBZQMEAgIFAKB5MBgG
-# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI0MTEyMTA4
-# MDIyN1owPwYJKoZIhvcNAQkEMTIEMF6oQ72KLaGdf1C2NCl8tp2UuKIWXBTMk+pQ
-# CCFD+VmiEhlYcKiijbfW+BPwC+LcPzANBgkqhkiG9w0BAQEFAASCAgBpYjjIcuKH
-# 3XxYe2ax6Y7OYqfRpNtBHFuZsRmF1qKnIxLfM92Ax0iIli+JdNr1s2M9vPncHukr
-# IuwUHOsJnwDVEaaEdIj1tik1aOPXEupK6YH4LZLvRv6t2+7oiDnN8FJK6k6zS67F
-# THzNcQxtOUPJzyexfpytzowC3xwFt6XU84TZC6msTlxpoakOykmANbdVXL1onzqj
-# YJdPMLvtst0uezqdXqHXWc090K+4Ycwu97C4I9SL8C46FBx/XRBf00dVqwKgXCiJ
-# a4brxS3JuKIFyxUqX2neHDkV2PijZ99beNCzi5yxsjMWi3C6I8YmjIKUfOrld+pc
-# jURmtumDhDpH2hXkGD6D8HTPxwTHjoJMvKOdNKL/IcAttDkktsj5tRz+Lbc8x7Et
-# 7zpEyRNw07zP7Tz+r7pzEoO85EeoanbLetaTpJxtlH9DsTVubOYgExGWGzDNj6RD
-# OcPaRI4q5Aaz927/BLV5TFMYkr15XJqklilCQ6ff7I0v/9qQxz6+hoU5GKcFi8fD
-# HfgLdHvH65WB65G26me+MkDvUwa9pmjHtkjyjl+KQma/CIhEu0frzMx6LOpJbRjD
-# kw9VsQAJUX/0CVN4zdTt9lsPriV3sISZ0UCJPoFnVw1XEa566ty+BE9z6+xKqF+9
-# +g2PDts49vWlcLXhiU5n/Q7M/J+zzKVObg==
+# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI0MTIxODA2
+# MTUzNlowPwYJKoZIhvcNAQkEMTIEMM4bAvzeImNq7mNgyOjUNoiJJb4slc1nilCZ
+# YJ1xKZrUzI/PIUj1frYP36GvZIIvoDANBgkqhkiG9w0BAQEFAASCAgCH2k8LT+3C
+# oADNcXTMFubMzIOZ2T991Rj9nLGJhTaHLCTtojIfiQJGE0ga/9y7qycx6TXJf70x
+# AO7SrRmi9iiYAbWpkytOM+SHIuRNpoDHJfxRLrR7YjdsbJ5AWDj5VgBtdRh+f28+
+# DhsBNI9qgcKdFlsEvRsqnEon1aw0qUXaWMr4DC26t9SDEnhMC1unJuBF0+mjOSJ2
+# FMVjHZfBrE1YmqTy1uhg9h7iaj8biSfiCz93N/NHn5EWztj+191Nd4BMlSj8+SGP
+# WozG5GmzmXZt7xRWBP1iVg/zTZfsubRazsEdLW/Muw/Mjmotv1gaAAszPjIzNF7S
+# 0B9Gy0WZMqzgXkmOq8L4uD/j4Vl/OxzdVAiTLe9OGzpxHoaKo08PTyxCumkHc1SK
+# xjqIhdFgoToAOGPPXwbWteZ3CmFBJqZ8eT7/DVeuxYFD58fsogViq7IN/mM++Mq3
+# PzLKw+BpphQk7xz8d+ZwQ9jbF/axYvBpDzS7u5Ln7Iew/2UWQIoqvqaus6NilR1M
+# kbCLRmZvEW3Sho+FrCIvLBPSPADMQ5DZIZvl1QdfJRTdViPau/lUOGpj4p1KOQH5
+# kl4C9kOjTE/iML6orvSKnqoEZuo2BJhqZn4yQo+Hb2rflTy6Otczr1InChI5JEyc
+# 6x4YB0z26bWah6apSF55uIH5Y+sx8MXyyQ==
 # SIG # End signature block
