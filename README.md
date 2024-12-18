@@ -2,21 +2,21 @@
   <p>
     <a href="https://github.com/PowerShell/PowerShell">
       <img src="https://img.shields.io/badge/Language-Powershell-blue" style="text-align:center;display:block;" alt="PowerShell">
-    </a> 
+    </a>  
     <a href="https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki">
       <img src="https://img.shields.io/badge/Wiki-Documentation-blue" style="text-align:center;display:block;" alt="Wiki">
-    </a>
+    </a>  
     <a href="https://github.com/evild3ad/Microsoft-Analyzer-Suite/releases/latest">
       <img src="https://img.shields.io/github/v/release/evild3ad/Microsoft-Analyzer-Suite?label=Release" style="text-align:center;display:block;" alt="Latest Release">
-    </a>
+    </a>  
     <img src="https://img.shields.io/badge/Maintenance%20Level-Actively%20Developed-brightgreen" style="text-align:center;display:block;" alt="Maintenance Level">
     <img src="https://img.shields.io/badge/Digital%20Signature-Valid-brightgreen" style="text-align:center;display:block;" alt="Digital Signature">
     <a href="https://twitter.com/Evild3ad79">
       <img src="https://img.shields.io/twitter/follow/Evild3ad79?style=social" style="text-align:center;display:block;" alt="Lethal Forensics on X">
-    </a>
+    </a>  
     <a href="https://twitter.com/InvictusIR">
       <img src="https://img.shields.io/twitter/follow/InvictusIR?style=social" style="text-align:center;display:block;" alt="InvictusIR on X">
-    </a>
+    </a>  
   </p>
 </div>
 
