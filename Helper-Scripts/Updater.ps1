@@ -1,10 +1,10 @@
-﻿# Microsoft-Analyzer-Suite Updater v0.2
+﻿# Microsoft-Analyzer-Suite Updater v0.3
 #
 # @author:    Martin Willing
-# @copyright: Copyright (c) 2024 Martin Willing. All rights reserved.
+# @copyright: Copyright (c) 2025 Martin Willing. All rights reserved.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-05-25
+# @date:      2025-01-01
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -24,19 +24,28 @@
 # Release Date: 2024-05-23
 # Fixed: Minor fixes and improvements
 #
+# Version 0.3
+# Release Date: 2025-01-02
+# Added: Microsoft-Analyzer-Suite Updater
+# Added: PowerShell 7 Support
+# Fixed: Minor fixes and improvements
+#
+#
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5247) and PowerShell 5.1 (5.1.19041.5247)
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5247) and PowerShell 7.4.6
+#
 #
 #############################################################################################################################################################################################
 #############################################################################################################################################################################################
 
 <#
 .SYNOPSIS
-  Microsoft-Analyzer-Suite Updater v0.2 - Automated Installer/Updater for the Microsoft-Analyzer-Suite
+  Microsoft-Analyzer-Suite Updater v0.3 - Automated Installer/Updater for the Microsoft-Analyzer-Suite
 
 .DESCRIPTION
-  Updater.ps1 is a PowerShell script utilized to automate the installation and the update process of the "Microsoft-Extractor-Suite" by Invictus Incident Response (incl. all dependencies)
-  and of all dependencies for the "Microsoft-Analyzer-Suite".
+  Updater.ps1 is a PowerShell script utilized to automate the installation and the update process of the "Microsoft-Analyzer-Suite" (incl. all dependencies).
 
-  https://github.com/invictus-ir/Microsoft-Extractor-Suite
+  https://github.com/evild3ad/Microsoft-Analyzer-Suite
 
 .EXAMPLE
   PS> .\Updater.ps1
@@ -55,7 +64,7 @@
 
 # Set Progress Preference to Silently Continue
 $OriginalProgressPreference = $Global:ProgressPreference
-$Script:ProgressPreference = 'SilentlyContinue'
+$Global:ProgressPreference = 'SilentlyContinue'
 
 #endregion Initialisations
 
@@ -67,20 +76,18 @@ $Script:ProgressPreference = 'SilentlyContinue'
 # Declarations
 
 # Script Root
-if ($PSVersionTable.PSVersion.Major -gt 2)
-{
-    # PowerShell 3+
-    $script:SCRIPT_DIR = $PSScriptRoot
-    $Script:PARENT_DIR = Split-Path $SCRIPT_DIR -Parent
-}
+$script:SCRIPT_DIR = $PSScriptRoot
+
+# Parent Directory
+$Script:PARENT_DIR = Split-Path $SCRIPT_DIR -Parent
 
 # Tools
 
 # IPinfo CLI
 $script:IPinfo = "$PARENT_DIR\Tools\IPinfo\ipinfo.exe"
 
-# Microsoft-Extractor-Suite
-$script:MicrosoftExtractorSuite = "$PARENT_DIR\Microsoft-Extractor-Suite-main\Microsoft-Extractor-Suite.psd1"
+# Microsoft-Analyzer-Suite
+$script:MicrosoftAnalyzerSuite = "$PARENT_DIR\CHANGELOG.md"
 
 # xsv
 $script:xsv = "$PARENT_DIR\Tools\xsv\xsv.exe"
@@ -92,16 +99,23 @@ $script:xsv = "$PARENT_DIR\Tools\xsv\xsv.exe"
 
 #region Header
 
-# Windows Title
-$DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
-$Host.UI.RawUI.WindowTitle = "Microsoft Analyzer Suite Updater v0.2 - Automated Installer/Updater for the Microsoft-Analyzer-Suite"
-
 # Check if the PowerShell script is being run with admin rights
 if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
 {
     Write-Host "[Error] This PowerShell script must be run with admin rights." -ForegroundColor Red
     Exit
 }
+
+# PowerShell Version Check
+if (!(($PSVersionTable.PSVersion.Major -eq "5") -or ($PSVersionTable.PSVersion.Major -eq "7")))
+{
+    Write-Host "[Error] This script requires Windows PowerShell 5.1 or PowerShell v7.x." -ForegroundColor Red
+    Exit
+}
+
+# Windows Title
+$DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
+$Host.UI.RawUI.WindowTitle = "Microsoft Analyzer Suite Updater v0.3 - Automated Installer/Updater for the Microsoft-Analyzer-Suite"
 
 # Get Start Time
 $startTime = (Get-Date)
@@ -121,8 +135,8 @@ Write-Output "$Logo"
 Write-Output ""
 
 # Header
-Write-Output "Microsoft-Analyzer-Suite Updater v0.2 - Automated Installer/Updater for the Microsoft-Analyzer-Suite"
-Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
+Write-Output "Microsoft-Analyzer-Suite Updater v0.3 - Automated Installer/Updater for the Microsoft-Analyzer-Suite"
+Write-Output "(c) 2025 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
 Write-Output ""
 
 # Update date (ISO 8601)
@@ -139,99 +153,224 @@ Write-Output ""
 
 Function InternetConnectivityCheck {
 
-    # Internet Connectivity Check (Vista+)
-    $NetworkListManager = [Activator]::CreateInstance([Type]::GetTypeFromCLSID([Guid]‘{DCB00C01-570F-4A9B-8D69-199FDBA5723B}’)).IsConnectedToInternet
+# Internet Connectivity Check (Vista+)
+$NetworkListManager = [Activator]::CreateInstance([Type]::GetTypeFromCLSID([Guid]‘{DCB00C01-570F-4A9B-8D69-199FDBA5723B}’)).IsConnectedToInternet
 
-    # Offline
-    if (!($NetworkListManager -eq "True"))
+# Offline
+if (!($NetworkListManager -eq "True"))
+{
+    Write-Host "[Error] Your computer is NOT connected to the Internet." -ForegroundColor Red
+    $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
+    Exit
+}
+
+# Online
+if ($NetworkListManager -eq "True")
+{
+    # Check if GitHub is reachable
+    if (!(Test-NetConnection -ComputerName github.com -Port 443).TcpTestSucceeded)
     {
-        Write-Host "[Error] Your computer is NOT connected to the Internet." -ForegroundColor Red
+        Write-Host "[Error] github.com is NOT reachable. Please check your network connection and try again." -ForegroundColor Red
         $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
         Exit
     }
+}
 
-    # Online
-    if ($NetworkListManager -eq "True")
+}
+
+#############################################################################################################################################################################################
+
+Function Get-MicrosoftAnalyzerSuite {
+
+# Microsoft-Analyzer-Suite (MAS)
+# https://github.com/evild3ad/Microsoft-Analyzer-Suite
+
+# Check Current Version of Microsoft-Analyzer-Suite
+if (Test-Path "$($MicrosoftAnalyzerSuite)")
+{
+    $CurrentVersion = (Get-Content -Path "$PARENT_DIR\CHANGELOG.md" | Select-String -Pattern '(?<=\[)[^]]+(?=\])' -AllMatches).Matches.Value | Select-Object -First 1
+    $Current = [System.Version]::new($CurrentVersion)
+    $LastUpdate = (Get-Content -Path "$PARENT_DIR\CHANGELOG.md" | Select-String -Pattern '[0-9]{4}\-[0-9]{2}\-[0-9]{2}' -AllMatches).Matches.Value | Select-Object -First 1
+    Write-Output "[Info]  Current Version: Microsoft-Analyzer-Suite v$CurrentVersion ($LastUpdate)"
+}
+else
+{
+    Write-Output "[Info]  Microsoft-Analyzer-Suite NOT found."
+    $CurrentVersion = $null
+}
+
+# Determining latest release on GitHub
+$Repository = "evild3ad/Microsoft-Analyzer-Suite"
+$Releases = "https://api.github.com/repos/$Repository/releases"
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+$Response = (Invoke-WebRequest -Uri $Releases -UseBasicParsing | ConvertFrom-Json)[0]
+$Tag = $Response.tag_name
+$LatestVersion = $Tag.Substring(1)
+$Latest = [System.Version]::new($LatestVersion)
+$Published = $Response.published_at
+
+if ($Published -is [String])
+{
+    $ReleaseDate = $Published.split('T')[0] # Windows PowerShell
+}
+else
+{
+    $ReleaseDate = $Published.ToString("yyyy-MM-dd") # PowerShell 7
+}
+
+$Download = ($Response | Select-Object -ExpandProperty zipball_url | Out-String).Trim()
+
+if ($CurrentVersion)
+{
+    Write-Output "[Info]  Latest Release:  Microsoft-Analyzer-Suite v$LatestVersion ($ReleaseDate)"
+}
+else
+{
+    Write-Output "[Info]  Latest Release: Microsoft-Analyzer-Suite v$LatestVersion ($ReleaseDate)"
+}
+
+# Check if 'Microsoft-Analyzer-Suite' needs to be downloaded/updated
+if ($Current -lt $Latest -Or $null -eq $CurrentVersion)
+{
+    $CurrentDirectory = Get-Location
+    $ParentDirectory  = Split-Path $CurrentDirectory -Parent
+    $NewDirectory     = Split-Path $ParentDirectory -Parent
+
+    Set-Location $NewDirectory
+
+    Write-Output "[Info]  Dowloading Latest Release ..."
+    $Zip = "Microsoft-Analyzer-Suite.zip"
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    Invoke-WebRequest -Uri $Download -OutFile "$NewDirectory\$Zip"
+
+    if (Test-Path "$NewDirectory\$Zip")
     {
-        # Check if GitHub is reachable
-        if (!(Test-NetConnection -ComputerName github.com -Port 443).TcpTestSucceeded)
+        # Delete Directory Content and Remove Directory
+        if (Test-Path "$NewDirectory\Microsoft-Analyzer-Suite")
         {
-            Write-Host "[Error] github.com is NOT reachable. Please check your network connection and try again." -ForegroundColor Red
-            $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
-            Exit
+            Get-ChildItem -Path "$NewDirectory\Microsoft-Analyzer-Suite" -Recurse | Remove-Item -Force -Recurse
+            Remove-Item "$NewDirectory\Microsoft-Analyzer-Suite" -Force
         }
+
+        # Unpacking Archive File
+        Write-Output "[Info]  Extracting Files ..."
+        Expand-Archive -Path "$NewDirectory\$Zip" -DestinationPath "$NewDirectory" -Force
+
+        # Rename Unpacked Directory
+        Start-Sleep 5
+        $Directory = (Get-ChildItem -Path "$NewDirectory\evild3ad-Microsoft-Analyzer-Suite-*").FullName
+        Rename-Item "$Directory" "$NewDirectory\Microsoft-Analyzer-Suite" -Force
+
+        # Remove Downloaded Archive
+        Start-Sleep 5
+        Remove-Item "$NewDirectory\$Zip" -Force
     }
+
+    Set-Location $CurrentDirectory
+}
+else
+{
+    Write-Host "[Info]  You are running the most recent version of Microsoft-Analyzer-Suite." -ForegroundColor Green
+}
+
 }
 
 #############################################################################################################################################################################################
 
 Function Get-MicrosoftExtractorSuite {
 
-# Microsoft-Extractor-Suite
+# Microsoft-Extractor-Suite (MES)
 # https://github.com/invictus-ir/Microsoft-Extractor-Suite
 # https://www.powershellgallery.com/packages/Microsoft-Extractor-Suite/
 
-# Check Current Version of Microsoft-Extractor-Suite
-if (Test-Path "$($MicrosoftExtractorSuite)")
+# PowerShell 7
+if ($PSVersionTable.PSVersion.Major -eq "7")
 {
-    $CurrentVersion = (Get-Content "$MicrosoftExtractorSuite" | Select-String -Pattern "ModuleVersion = " | ForEach-Object{($_ -split "'")[1]} | Out-String).Trim()
-    Write-Output "[Info]  Current Version: Microsoft-Extractor-Suite v$CurrentVersion"
-}
-else
-{
-    Write-Output "[Info]  Microsoft-Extractor-Suite.psd1 NOT found."
-    $CurrentVersion = $null
+    # Check if PowerShell module 'Microsoft-Extractor-Suite' exists
+    if (Get-Module -ListAvailable -Name Microsoft-Extractor-Suite | Where-Object { $_.Path -notmatch "WindowsPowerShell"}) 
+    {
+        # Check if multiple versions of PowerShell module 'Microsoft-Extractor-Suite' exist
+        $Modules = (Get-Module -ListAvailable -Name Microsoft-Extractor-Suite | Where-Object { $_.Path -notmatch "WindowsPowerShell"} | Measure-Object).Count
+
+        if ($Modules -eq "1")
+        {
+            # Check Current Version
+            $CurrentVersion = (Get-Module -ListAvailable -Name Microsoft-Extractor-Suite | Where-Object { $_.Path -notmatch "WindowsPowerShell"}).Version.ToString()
+            $Current = [System.Version]::new($CurrentVersion)
+            Write-Output "[Info]  Current Version: Microsoft-Extractor-Suite v$CurrentVersion"
+        }
+        else
+        {
+            Write-Host "[Info]  Multiple installed versions of PowerShell module 'Microsoft-Extractor-Suite' found. Uninstalling ..."
+            Uninstall-Module -Name Microsoft-Extractor-Suite -AllVersions -ErrorAction SilentlyContinue
+            $CurrentVersion = $null
+        }
+    }
+    else
+    {
+        Write-Output "[Info]  PowerShell module 'Microsoft-Extractor-Suite' NOT found."
+        $CurrentVersion = $null
+    }
 }
 
-# Determining latest release on GitHub
-$Repository = "invictus-ir/Microsoft-Extractor-Suite"
-$Releases = "https://api.github.com/repos/$Repository/releases"
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-$Response = (Invoke-WebRequest -Uri $Releases -UseBasicParsing | ConvertFrom-Json)[0]
-$Tag = $Response.tag_name
-$LatestVersion = $Tag.Substring(1)
-$Published = $Response.published_at
-$ReleaseDate = $Published.split('T')[0]
-$Download = ($Response | Select-Object -ExpandProperty zipball_url | Out-String).Trim()
+# PowerShell 5.1
+if ($PSVersionTable.PSVersion.Major -eq "5")
+{
+    # Check if PowerShell module 'Microsoft-Extractor-Suite' exists
+    if (Get-Module -ListAvailable -Name Microsoft-Extractor-Suite) 
+    {
+        # Check if multiple versions of PowerShell module 'Microsoft-Extractor-Suite' exist
+        $Modules = (Get-Module -ListAvailable -Name Microsoft-Extractor-Suite | Measure-Object).Count
+
+        if ($Modules -eq "1")
+        {
+            # Check Current Version
+            $CurrentVersion = (Get-Module -ListAvailable -Name Microsoft-Extractor-Suite).Version.ToString()
+            $Current = [System.Version]::new($CurrentVersion)
+            Write-Output "[Info]  Current Version: Microsoft-Extractor-Suite v$CurrentVersion"
+        }
+        else
+        {
+            Write-Host "[Info]  Multiple installed versions of PowerShell module 'Microsoft-Extractor-Suite' found. Uninstalling ..."
+            Uninstall-Module -Name Microsoft-Extractor-Suite -AllVersions -ErrorAction SilentlyContinue
+            $CurrentVersion = $null
+        }
+    }
+    else
+    {
+        Write-Output "[Info]  PowerShell module 'Microsoft-Extractor-Suite' NOT found."
+        $CurrentVersion = $null
+    }
+}
+
+# Determining latest version in PSGallery
+$MES = Find-Module -Name Microsoft-Extractor-Suite -WarningAction SilentlyContinue
+$LatestRelease = ($MES).Version.ToString()
+$Latest = [System.Version]::new($LatestRelease)
+$PublishedDate = ($MES | Select-Object -ExpandProperty PublishedDate).ToString("yyyy-MM-dd")
 
 if ($CurrentVersion)
 {
-    Write-Output "[Info]  Latest Release:  Microsoft-Extractor-Suite v$LatestVersion ($ReleaseDate)"
+    Write-Output "[Info]  Latest Release:  Microsoft-Extractor-Suite v$LatestRelease ($PublishedDate)"
 }
 else
 {
-    Write-Output "[Info]  Latest Release: Microsoft-Extractor-Suite v$LatestVersion ($ReleaseDate)"
+    Write-Output "[Info]  Latest Release: Microsoft-Extractor-Suite v$LatestRelease ($PublishedDate)"
 }
 
-# Check if 'Microsoft-Extractor-Suite' needs to be downloaded/updated
-if ($CurrentVersion -ne $LatestVersion -Or $null -eq $CurrentVersion)
+# Check if 'Microsoft-Analyzer-Suite' needs to be downloaded/updated via PowerShell Gallery
+if ($Current -lt $Latest -Or $null -eq $CurrentVersion)
 {
-    Write-Output "[Info]  Dowloading Latest Release ..."
-    $Zip = "Microsoft-Extractor-Suite-main.zip"
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    Invoke-WebRequest -Uri $Download -OutFile "$PARENT_DIR\$Zip"
-
-    if (Test-Path "$PARENT_DIR\$Zip")
+    if ($null -eq $CurrentVersion)
     {
-        # Delete Directory Content and Remove Directory
-        if (Test-Path "$PARENT_DIR\Microsoft-Extractor-Suite-main")
-        {
-            Get-ChildItem -Path "$PARENT_DIR\Microsoft-Extractor-Suite-main" -Recurse | Remove-Item -Force -Recurse
-            Remove-Item "$PARENT_DIR\Microsoft-Extractor-Suite-main" -Force
-        }
-
-        # Unpacking Archive File
-        Write-Output "[Info]  Extracting Files ..."
-        Expand-Archive -Path "$PARENT_DIR\$Zip" -DestinationPath "$PARENT_DIR" -Force
-
-        # Rename Unpacked Directory
-        Start-Sleep 5
-        $Directory = (Get-ChildItem -Path "$PARENT_DIR\invictus-ir-Microsoft-Extractor-Suite-*").FullName
-        Rename-Item "$Directory" "$PARENT_DIR\Microsoft-Extractor-Suite-main" -Force
-
-        # Remove Downloaded Archive
-        Start-Sleep 5
-        Remove-Item "$PARENT_DIR\$Zip" -Force
+        Write-Output "[Info]  Installing PowerShell module 'Microsoft-Extractor-Suite' ..."
+        Install-Module -Name Microsoft-Extractor-Suite -Repository PSGallery -AllowClobber -Force
+    }
+    else
+    {
+        Write-Output "[Info]  Updating PowerShell module 'Microsoft-Extractor-Suite' ..."
+        Uninstall-Module -Name Microsoft-Extractor-Suite -AllVersions
+        Install-Module -Name Microsoft-Extractor-Suite -Repository PSGallery -AllowClobber -Force
     }
 }
 else
@@ -247,49 +386,81 @@ Function Get-ImportExcel {
 
 # ImportExcel
 # https://github.com/dfinke/ImportExcel
+# https://www.powershellgallery.com/packages/ImportExcel
 
-# Check if PowerShell module 'ImportExcel' exists
-if (Get-Module -ListAvailable -Name ImportExcel) 
+# PowerShell 7
+if ($PSVersionTable.PSVersion.Major -eq "7")
 {
-    # Check if multiple versions of PowerShell module 'ImportExcel' exist
-    $Modules = (Get-Module -ListAvailable -Name ImportExcel | Measure-Object).Count
-
-    if ($Modules -eq "1")
+    # Check if PowerShell module 'ImportExcel' exists
+    if (Get-Module -ListAvailable -Name ImportExcel | Where-Object { $_.Path -notmatch "WindowsPowerShell"}) 
     {
-        # Check Current Version
-        $CurrentVersion = (Get-Module -ListAvailable -Name ImportExcel).Version.ToString()
-        Write-Output "[Info]  Current Version: ImportExcel v$CurrentVersion"
+        # Check if multiple versions of PowerShell module 'ImportExcel' exist
+        $Modules = (Get-Module -ListAvailable -Name ImportExcel | Where-Object { $_.Path -notmatch "WindowsPowerShell"} | Measure-Object).Count
+
+        if ($Modules -eq "1")
+        {
+            # Check Current Version
+            $CurrentVersion = (Get-Module -ListAvailable -Name ImportExcel | Where-Object { $_.Path -notmatch "WindowsPowerShell"}).Version.ToString()
+            $Current = [System.Version]::new($CurrentVersion)
+            Write-Output "[Info]  Current Version: ImportExcel v$CurrentVersion"
+        }
+        else
+        {
+            Write-Host "[Info]  Multiple installed versions of PowerShell module 'ImportExcel' found. Uninstalling ..."
+            Uninstall-Module -Name ImportExcel -AllVersions -ErrorAction SilentlyContinue
+            $CurrentVersion = $null
+        }
     }
     else
     {
-        Write-Host "[Info]  Multiple installed versions of PowerShell module 'ImportExcel' found. Uninstalling ..."
-        Uninstall-Module -Name ImportExcel -AllVersions -ErrorAction SilentlyContinue
+        Write-Output "[Info]  PowerShell module 'ImportExcel' NOT found."
         $CurrentVersion = $null
     }
 }
-else
+
+# PowerShell 5.1
+if ($PSVersionTable.PSVersion.Major -eq "5")
 {
-    Write-Output "[Info]  PowerShell module 'ImportExcel' NOT found."
-    $CurrentVersion = $null
+    # Check if PowerShell module 'ImportExcel' exists
+    if (Get-Module -ListAvailable -Name ImportExcel) 
+    {
+        # Check if multiple versions of PowerShell module 'ImportExcel' exist
+        $Modules = (Get-Module -ListAvailable -Name ImportExcel | Measure-Object).Count
+
+        if ($Modules -eq "1")
+        {
+            # Check Current Version
+            $CurrentVersion = (Get-Module -ListAvailable -Name ImportExcel).Version.ToString()
+            $Current = [System.Version]::new($CurrentVersion)
+            Write-Output "[Info]  Current Version: ImportExcel v$CurrentVersion"
+        }
+        else
+        {
+            Write-Host "[Info]  Multiple installed versions of PowerShell module 'ImportExcel' found. Uninstalling ..."
+            Uninstall-Module -Name ImportExcel -AllVersions -ErrorAction SilentlyContinue
+            $CurrentVersion = $null
+        }
+    }
+    else
+    {
+        Write-Output "[Info]  PowerShell module 'ImportExcel' NOT found."
+        $CurrentVersion = $null
+    }
 }
 
-# Determining latest release on GitHub
-$Repository = "dfinke/ImportExcel"
-$Releases = "https://api.github.com/repos/$Repository/releases"
-[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-$Response = (Invoke-WebRequest -Uri $Releases -UseBasicParsing | ConvertFrom-Json)[0]
-$Tag = $Response.tag_name
-$Published = $Response.published_at
-$ReleaseDate = $Published.split('T')[0]
-$LatestRelease = $Tag.Substring(1)
+# Determining latest version in PSGallery
+$ImportExcel = Find-Module -Name ImportExcel -WarningAction SilentlyContinue
+$LatestRelease = ($ImportExcel).Version.ToString()
+$Latest = [System.Version]::new($LatestRelease)
+$PublishedDate = ($ImportExcel | Select-Object -ExpandProperty PublishedDate).ToString("yyyy-MM-dd")
 
 if ($CurrentVersion)
 {
-    Write-Output "[Info]  Latest Release:  ImportExcel $Tag ($ReleaseDate)"
+    Write-Output "[Info]  Latest Release:  ImportExcel v$LatestRelease ($PublishedDate)"
 }
 else
 {
-    Write-Output "[Info]  Latest Release: ImportExcel $Tag ($ReleaseDate)"
+    Write-Output "[Info]  Latest Release: ImportExcel v$LatestRelease ($PublishedDate)"
 }
 
 # Check if ImportExcel needs to be installed
@@ -301,18 +472,18 @@ if ($null -eq $CurrentVersion)
 }
 
 # Check if ImportExcel needs to be updated
-if ($CurrentVersion -lt $LatestRelease)
+if ($Current -lt $Latest)
 {
     # Update PowerShell module 'ImportExcel'
     try
     {
         Write-Output "[Info]  Updating PowerShell module 'ImportExcel' ..."
-        Uninstall-Module -Name ImportExcel -AllVersions
+        Uninstall-Module -Name ImportExcel -AllVersions -Force
         Install-Module -Name ImportExcel -Repository PSGallery -Force
     }
     catch
     {
-        Write-Output "PowerShell module 'ImportExcel' is in use. Please close all PowerShell sessions, and run Updater.ps1 again."
+        Write-Output "PowerShell module 'ImportExcel' is in use. Please close all PowerShell sessions, and run 'Updater.ps1' again."
     }   
 }
 else
@@ -333,8 +504,8 @@ Function Get-IPinfo {
 if (Test-Path "$($IPinfo)")
 {
     $CurrentVersion = & $IPinfo version
-    $LastWriteTime = ((Get-Item $IPinfo).LastWriteTime).ToString("yyyy-MM-dd")
-    Write-Output "[Info]  Current Version: IPinfo CLI v$CurrentVersion ($LastWriteTime)"
+    $Current = [System.Version]::new($CurrentVersion)
+    Write-Output "[Info]  Current Version: IPinfo CLI v$CurrentVersion"
 }
 else
 {
@@ -362,22 +533,32 @@ while($true) {
 }
 
 $TagName = $Response[$Asset].tag_name
-$Tag = $TagName.Split("-")[1] 
+$LatestRelease = $TagName.Split("-")[1]
+$Latest = [System.Version]::new($LatestRelease)
 $Published = $Response[$Asset].published_at
-$Download = ($Response[$Asset].assets | Select-Object -ExpandProperty browser_download_url | Select-String -Pattern "windows_amd64" | Out-String).Trim()
-$ReleaseDate = $Published.split('T')[0]
 
-if ($CurrentVersion)
+if ($Published -is [String])
 {
-    Write-Output "[Info]  Latest Release:  IPinfo CLI v$Tag ($ReleaseDate)"
+    $ReleaseDate = $Published.split('T')[0] # Windows PowerShell
 }
 else
 {
-    Write-Output "[Info]  Latest Release: IPinfo CLI v$Tag ($ReleaseDate)"
+    $ReleaseDate = $Published.ToString("yyyy-MM-dd") # PowerShell 7
+}
+
+$Download = ($Response[$Asset].assets | Select-Object -ExpandProperty browser_download_url | Select-String -Pattern "windows_amd64" | Out-String).Trim()
+
+if ($CurrentVersion)
+{
+    Write-Output "[Info]  Latest Release:  IPinfo CLI v$LatestRelease ($ReleaseDate)"
+}
+else
+{
+    Write-Output "[Info]  Latest Release: IPinfo CLI v$LatestRelease ($ReleaseDate)"
 }
 
 # Check if IPinfo CLI needs to be downloaded/updated
-if ($CurrentVersion -ne $Tag -Or $null -eq $CurrentVersion)
+if ($Current -lt $Latest -Or $null -eq $CurrentVersion)
 {
     # Download latest release from GitHub
     Write-Output "[Info]  Dowloading Latest Release ..."
@@ -427,8 +608,8 @@ Function Get-XSV {
 if (Test-Path "$($xsv)")
 {
     $CurrentVersion = & $xsv --version
-    $LastWriteTime = ((Get-Item $xsv).LastWriteTime).ToString("yyyy-MM-dd")
-    Write-Output "[Info]  Current Version: xsv v$CurrentVersion ($LastWriteTime)"
+    $Current = [System.Version]::new($CurrentVersion)
+    Write-Output "[Info]  Current Version: xsv v$CurrentVersion"
 }
 else
 {
@@ -441,22 +622,32 @@ $Repository = "BurntSushi/xsv"
 $Releases = "https://api.github.com/repos/$Repository/releases/latest"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $Response = (Invoke-WebRequest -Uri $Releases -UseBasicParsing | ConvertFrom-Json)
-$Tag = $Response.tag_name
+$LatestRelease = $Response.tag_name
+$Latest = [System.Version]::new($LatestRelease)
 $Published = $Response.published_at
-$Download = ($Response.assets | Select-Object -ExpandProperty browser_download_url | Select-String -Pattern "-x86_64-pc-windows-msvc" | Out-String).Trim()
-$ReleaseDate = $Published.split('T')[0]
 
-if ($CurrentVersion)
+if ($Published -is [String])
 {
-    Write-Output "[Info]  Latest Release:  xsv v$Tag ($ReleaseDate)"
+    $ReleaseDate = $Published.split('T')[0] # Windows PowerShell
 }
 else
 {
-    Write-Output "[Info]  Latest Release: xsv v$Tag ($ReleaseDate)"
+    $ReleaseDate = $Published.ToString("yyyy-MM-dd") # PowerShell 7
+}
+
+$Download = ($Response.assets | Select-Object -ExpandProperty browser_download_url | Select-String -Pattern "-x86_64-pc-windows-msvc" | Out-String).Trim()
+
+if ($CurrentVersion)
+{
+    Write-Output "[Info]  Latest Release:  xsv v$LatestRelease ($ReleaseDate)"
+}
+else
+{
+    Write-Output "[Info]  Latest Release: xsv v$LatestRelease ($ReleaseDate)"
 }
 
 # Check if xsv needs to be downloaded/updated
-if ($CurrentVersion -ne $Tag -Or $null -eq $CurrentVersion)
+if ($Current -lt $Latest -Or $null -eq $CurrentVersion)
 {
     # Download latest release from GitHub
     Write-Output "[Info]  Dowloading Latest Release ..."
@@ -497,31 +688,92 @@ Function Get-Az {
 # https://www.powershellgallery.com/packages/Az/
 # https://github.com/Azure/azure-powershell
 
-# Check if Azure PowerShell modules exists
-if (!(Get-Module -ListAvailable -Name Az.*))
+# PowerShell 5.1
+if ($PSVersionTable.PSVersion.Major -eq "5")
 {
-    Write-Output "[Info]  PowerShell module 'Az' NOT found."
-    $CurrentVersion = $null
+    # Check if 'Azure PowerShell' modules exist
+    if (!(Get-Module -ListAvailable -Name Az.*))
+    {
+        Write-Output "[Info]  Collection of 'Azure PowerShell' modules NOT found."
+        $CurrentVersion = $null
+    }
+    else
+    {
+        $CurrentVersion = "UNKNOWN"
+    }
 }
-else
+
+# PowerShell 7
+if ($PSVersionTable.PSVersion.Major -eq "7")
 {
-    $CurrentVersion = "UNKNOWN"
+    # Check if 'Azure PowerShell' modules exist
+    if (Get-Module -ListAvailable -Name Az.* | Where-Object { $_.Path -notmatch "WindowsPowerShell"})
+    {
+        # Check Current Version
+        $CurrentVersion = (Get-Module -ListAvailable Az | Where-Object { $_.Path -notmatch "WindowsPowerShell"}).Version.ToString()
+        $Current = [System.Version]::new($CurrentVersion)
+        Write-Output "[Info]  Current Version: Azure PowerShell v$CurrentVersion"
+    }
+    else
+    {
+        Write-Output "[Info]  Collection of 'Azure PowerShell' modules NOT found."
+        $CurrentVersion = $null
+    }
 }
 
 # Determining latest version in PSGallery
-$LatestVersion = (Find-Module -Name Az).Version.ToString()
-Write-Output "[Info]  Latest Version: Az v$LatestVersion"
+$Az = Find-Module -Name Az -WarningAction SilentlyContinue
+$LatestVersion = ($Az).Version.ToString()
+$Latest = [System.Version]::new($LatestVersion)
+$PublishedDate = ($Az | Select-Object -ExpandProperty PublishedDate).ToString("yyyy-MM-dd")
 
-# Install/Update via PSGallery
-if ($null -eq $CurrentVersion)
+if ($CurrentVersion)
 {
-    Install-Module -Name Az -Repository PSGallery -Force
+    Write-Output "[Info]  Latest Version:  Azure PowerShell v$LatestVersion ($PublishedDate)"
 }
 else
 {
-    Write-Output "[Info]  Current Version of Az cannot be determined. Updating the collection of 'Azure PowerShell' modules [approx. 1-3 min] ..."
-    Uninstall-Module -Name Az -AllVersions
-    Install-Module -Name Az -Repository PSGallery -Force
+    Write-Output "[Info]  Latest Version: Azure PowerShell v$LatestVersion ($PublishedDate)"
+}
+
+# PowerShell 5.1
+if ($PSVersionTable.PSVersion.Major -eq "5")
+{
+    # Install/Update via PSGallery
+    if ($null -eq $CurrentVersion)
+    {
+        Write-Output "[Info]  Installing 'Azure PowerShell' modules [time-consuming task] ..."
+        Install-Module -Name Az -Repository PSGallery -Force
+    }
+    else
+    {
+        Write-Output "[Info]  Current Version of 'Azure PowerShell' cannot be determined. Updating 'Azure PowerShell' modules [time-consuming task] ..."
+        Uninstall-Module -Name Az -AllVersions
+        Install-Module -Name Az -Repository PSGallery -Force
+    }
+}
+
+# Check if 'Azure PowerShell' needs to be downloaded/updated
+if ($PSVersionTable.PSVersion.Major -eq "7")
+{
+    if ($Current -lt $Latest -Or $null -eq $CurrentVersion)
+    {
+        if ($null -eq $CurrentVersion)
+        {
+            Write-Output "[Info]  Installing 'Azure PowerShell' modules [time-consuming task] ..."
+            Install-Module -Name Az -Repository PSGallery -Force
+        }
+        else
+        {
+            Write-Output "[Info]  Updating 'Azure PowerShell' modules ..."
+            Uninstall-Module -Name Az -AllVersions
+            Install-Module -Name Az -Repository PSGallery -Force
+        }
+    }
+    else
+    {
+        Write-Host "[Info]  You are running the most recent version of 'Azure PowerShell'." -ForegroundColor Green
+    }
 }
 
 }
@@ -533,33 +785,59 @@ Function Get-AzureADPreview {
 # AzureADPreview
 # https://www.powershellgallery.com/packages/AzureADPreview/
 
-# Check if PowerShell module 'AzureADPreview' exists
-if (Get-Module -ListAvailable -Name AzureADPreview) 
+# PowerShell 7
+if ($PSVersionTable.PSVersion.Major -eq "7")
 {
-    # Check Current Version
-    $CurrentVersion = (Get-Module -ListAvailable -Name AzureADPreview).Version.ToString()
-    Write-Output "[Info]  Current Version: AzureADPreview v$CurrentVersion"
+    # Check if PowerShell module 'AzureADPreview' exists
+    if (Get-Module -ListAvailable -Name AzureADPreview | Where-Object { $_.Path -notmatch "WindowsPowerShell"}) 
+    {
+        # Check Current Version
+        $CurrentVersion = (Get-Module -ListAvailable -Name AzureADPreview | Where-Object { $_.Path -notmatch "WindowsPowerShell"}).Version.ToString()
+        $Current = [System.Version]::new($CurrentVersion)
+        Write-Output "[Info]  Current Version: AzureADPreview v$CurrentVersion"
+    }
+    else
+    {
+        Write-Output "[Info]  PowerShell module 'AzureADPreview' NOT found."
+        $CurrentVersion = $null
+    }
 }
-else
+
+# PowerShell 5.1
+if ($PSVersionTable.PSVersion.Major -eq "5")
 {
-    Write-Output "[Info]  PowerShell module 'AzureADPreview' NOT found."
-    $CurrentVersion = $null
+    # Check if PowerShell module 'AzureADPreview' exists
+    if (Get-Module -ListAvailable -Name AzureADPreview) 
+    {
+        # Check Current Version
+        $CurrentVersion = (Get-Module -ListAvailable -Name AzureADPreview).Version.ToString()
+        $Current = [System.Version]::new($CurrentVersion)
+        Write-Output "[Info]  Current Version: AzureADPreview v$CurrentVersion"
+    }
+    else
+    {
+        Write-Output "[Info]  PowerShell module 'AzureADPreview' NOT found."
+        $CurrentVersion = $null
+    }
 }
 
 # Determining latest version in PSGallery
-$LatestVersion = (Find-Module -Name AzureADPreview).Version.ToString()
+$AzureADPreview = Find-Module -Name AzureADPreview -WarningAction SilentlyContinue
+$LatestVersion = ($AzureADPreview).Version.ToString()
+$Latest = [System.Version]::new($LatestVersion)
+$PublishedDate = ($AzureADPreview | Select-Object -ExpandProperty PublishedDate).ToString("yyyy-MM-dd")
 
 if ($CurrentVersion)
 {
-    Write-Output "[Info]  Latest Version:  AzureADPreview v$LatestVersion"
+    Write-Output "[Info]  Latest Version:  AzureADPreview v$LatestVersion ($PublishedDate)"
 }
 else
 {
-    Write-Output "[Info]  Latest Version: AzureADPreview v$LatestVersion"
+    Write-Output "[Info]  Latest Version: AzureADPreview v$LatestVersion ($PublishedDate)"
 }
 
 # Check if 'AzureADPreview' needs to be downloaded/updated via PowerShell Gallery
-if ($CurrentVersion -ne $LatestVersion -Or $null -eq $CurrentVersion)
+if ($Current -lt $Latest -Or $null -eq $CurrentVersion)
 {
     if ($null -eq $CurrentVersion)
     {
@@ -588,33 +866,83 @@ Function Get-ExchangeOnlineManagement {
 # https://www.powershellgallery.com/packages/ExchangeOnlineManagement/
 # https://learn.microsoft.com/en-us/powershell/exchange/exchange-online-powershell-v2?view=exchange-ps#updates-for-version-300-the-exo-v3-module
 
-# Check if PowerShell module 'ExchangeOnlineManagement' exists
-if (Get-Module -ListAvailable -Name ExchangeOnlineManagement) 
+# PowerShell 7
+if ($PSVersionTable.PSVersion.Major -eq "7")
 {
-    # Check Current Version
-    $CurrentVersion = (Get-Module -ListAvailable -Name ExchangeOnlineManagement).Version.ToString()
-    Write-Output "[Info]  Current Version: ExchangeOnlineManagement v$CurrentVersion"
+    # Check if PowerShell module 'ExchangeOnlineManagement' exists
+    if (Get-Module -ListAvailable -Name ExchangeOnlineManagement | Where-Object { $_.Path -notmatch "WindowsPowerShell"}) 
+    {
+        # Check if multiple versions of PowerShell module 'ImportExcel' exist
+        $Modules = (Get-Module -ListAvailable -Name ExchangeOnlineManagement | Where-Object { $_.Path -notmatch "WindowsPowerShell"} | Measure-Object).Count
+        
+        if ($Modules -eq "1")
+        {
+            # Check Current Version
+            $CurrentVersion = (Get-Module -ListAvailable -Name ExchangeOnlineManagement | Where-Object { $_.Path -notmatch "WindowsPowerShell"}).Version.ToString()
+            $Current = [System.Version]::new($CurrentVersion)
+            Write-Output "[Info]  Current Version: ExchangeOnlineManagement v$CurrentVersion"
+        }
+        else
+        {
+            Write-Host "[Info]  Multiple installed versions of PowerShell module 'ExchangeOnlineManagement' found. Uninstalling ..."
+            Uninstall-Module -Name ExchangeOnlineManagement -AllVersions -ErrorAction SilentlyContinue
+            $CurrentVersion = $null
+        }  
+    }
+    else
+    {
+        Write-Output "[Info]  PowerShell module 'ExchangeOnlineManagement' NOT found."
+        $CurrentVersion = $null
+    }
 }
-else
+
+# PowerShell 5.1
+if ($PSVersionTable.PSVersion.Major -eq "5")
 {
-    Write-Output "[Info]  PowerShell module 'ExchangeOnlineManagement' NOT found."
-    $CurrentVersion = $null
+    # Check if PowerShell module 'ExchangeOnlineManagement' exists
+    if (Get-Module -ListAvailable -Name ExchangeOnlineManagement) 
+    {
+        # Check if multiple versions of PowerShell module 'ExchangeOnlineManagement' exist
+        $Modules = (Get-Module -ListAvailable -Name ExchangeOnlineManagement | Measure-Object).Count
+
+        if ($Modules -eq "1")
+        {
+            # Check Current Version
+            $CurrentVersion = (Get-Module -ListAvailable -Name ExchangeOnlineManagement).Version.ToString()
+            $Current = [System.Version]::new($CurrentVersion)
+            Write-Output "[Info]  Current Version: ExchangeOnlineManagement v$CurrentVersion"
+        }
+        else
+        {
+            Write-Host "[Info]  Multiple installed versions of PowerShell module 'ExchangeOnlineManagement' found. Uninstalling ..."
+            Uninstall-Module -Name ExchangeOnlineManagement -AllVersions -ErrorAction SilentlyContinue
+            $CurrentVersion = $null
+        }   
+    }
+    else
+    {
+        Write-Output "[Info]  PowerShell module 'ExchangeOnlineManagement' NOT found."
+        $CurrentVersion = $null
+    }
 }
 
 # Determining latest version in PSGallery
-$LatestVersion = (Find-Module -Name ExchangeOnlineManagement).Version.ToString()
+$ExchangeOnlineManagement = Find-Module -Name ExchangeOnlineManagement -WarningAction SilentlyContinue
+$LatestVersion = ($ExchangeOnlineManagement).Version.ToString()
+$Latest = [System.Version]::new($LatestVersion)
+$PublishedDate = ($ExchangeOnlineManagement | Select-Object -ExpandProperty PublishedDate).ToString("yyyy-MM-dd")
 
 if ($CurrentVersion)
 {
-    Write-Output "[Info]  Latest Version:  ExchangeOnlineManagement v$LatestVersion"
+    Write-Output "[Info]  Latest Version:  ExchangeOnlineManagement v$LatestVersion ($PublishedDate)"
 }
 else
 {
-    Write-Output "[Info]  Latest Version: ExchangeOnlineManagement v$LatestVersion"
+    Write-Output "[Info]  Latest Version: ExchangeOnlineManagement v$LatestVersion ($PublishedDate)"
 }
 
 # Check if ExchangeOnlineManagement needs to be downloaded/updated via PowerShell Gallery
-if ($CurrentVersion -ne $LatestVersion -Or $null -eq $CurrentVersion)
+if ($Current -lt $Latest -Or $null -eq $CurrentVersion)
 {
     if ($null -eq $CurrentVersion)
     {
@@ -642,17 +970,40 @@ Function Get-MicrosoftGraph {
 # Microsoft.Graph
 # https://github.com/microsoftgraph/msgraph-sdk-powershell
 
-# Check if PowerShell module 'Microsoft.Graph' exists
-if (Get-Module -ListAvailable -Name Microsoft.Graph) 
+# PowerShell 7
+if ($PSVersionTable.PSVersion.Major -eq "7")
 {
-    # Check Current Version
-    $CurrentVersion = (Get-Module -ListAvailable -Name Microsoft.Graph).Version.ToString()
-    Write-Output "[Info]  Current Version: Microsoft.Graph v$CurrentVersion"
+    # Check if PowerShell module 'Microsoft.Graph' exists
+    if (Get-Module -ListAvailable -Name Microsoft.Graph | Where-Object { $_.Path -notmatch "WindowsPowerShell"}) 
+    {
+        # Check Current Version
+        $CurrentVersion = (Get-Module -ListAvailable -Name Microsoft.Graph | Where-Object { $_.Path -notmatch "WindowsPowerShell"}).Version.ToString()
+        $Current = [System.Version]::new($CurrentVersion)
+        Write-Output "[Info]  Current Version: Microsoft.Graph v$CurrentVersion"
+    }
+    else
+    {
+        Write-Output "[Info]  PowerShell module 'Microsoft.Graph' NOT found."
+        $CurrentVersion = $null
+    }
 }
-else
+
+# PowerShell 5.1
+if ($PSVersionTable.PSVersion.Major -eq "5")
 {
-    Write-Output "[Info]  PowerShell module 'Microsoft.Graph' NOT found."
-    $CurrentVersion = $null
+    # Check if PowerShell module 'Microsoft.Graph' exists
+    if (Get-Module -ListAvailable -Name Microsoft.Graph) 
+    {
+        # Check Current Version
+        $CurrentVersion = (Get-Module -ListAvailable -Name Microsoft.Graph).Version.ToString()
+        $Current = [System.Version]::new($CurrentVersion)
+        Write-Output "[Info]  Current Version: Microsoft.Graph v$CurrentVersion"
+    }
+    else
+    {
+        Write-Output "[Info]  PowerShell module 'Microsoft.Graph' NOT found."
+        $CurrentVersion = $null
+    }
 }
 
 # Determining latest release on GitHub
@@ -660,21 +1011,30 @@ $Repository = "microsoftgraph/msgraph-sdk-powershell"
 $Releases = "https://api.github.com/repos/$Repository/releases"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $Response = (Invoke-WebRequest -Uri $Releases -UseBasicParsing | ConvertFrom-Json)[0]
-$Tag = $Response.tag_name
+$LatestRelease = $Response.tag_name
+$Latest = [System.Version]::new($LatestRelease)
 $Published = $Response.published_at
-$ReleaseDate = $Published.split('T')[0]
 
-if ($CurrentVersion)
+if ($Published -is [String])
 {
-    Write-Output "[Info]  Latest Release:  Microsoft.Graph v$Tag ($ReleaseDate)"
+    $ReleaseDate = $Published.split('T')[0] # Windows PowerShell
 }
 else
 {
-    Write-Output "[Info]  Latest Release: Microsoft.Graph v$Tag ($ReleaseDate)"
+    $ReleaseDate = $Published.ToString("yyyy-MM-dd") # PowerShell 7
+}
+
+if ($CurrentVersion)
+{
+    Write-Output "[Info]  Latest Release:  Microsoft.Graph v$LatestRelease ($ReleaseDate)"
+}
+else
+{
+    Write-Output "[Info]  Latest Release: Microsoft.Graph v$LatestRelease ($ReleaseDate)"
 }
 
 # Check if Microsoft.Graph needs to be downloaded/updated via PowerShell Gallery
-if ($CurrentVersion -ne $Tag -Or $null -eq $CurrentVersion)
+if ($Current -lt $Latest -Or $null -eq $CurrentVersion)
 {
     if ($null -eq $CurrentVersion)
     {
@@ -703,17 +1063,40 @@ Function Get-MicrosoftGraphBeta {
 # https://github.com/microsoftgraph/msgraph-sdk-powershell
 # Note: Requirement for Get-ADSignInLogs.
 
-# Check if PowerShell module 'Microsoft.Graph.Beta' exists
-if (Get-Module -ListAvailable -Name Microsoft.Graph.Beta) 
+# PowerShell 7
+if ($PSVersionTable.PSVersion.Major -eq "7")
 {
-    # Check Current Version
-    $CurrentVersion = (Get-Module -ListAvailable -Name Microsoft.Graph.Beta).Version.ToString()
-    Write-Output "[Info]  Current Version: Microsoft.Graph.Beta v$CurrentVersion"
+    # Check if PowerShell module 'Microsoft.Graph.Beta' exists
+    if (Get-Module -ListAvailable -Name Microsoft.Graph.Beta | Where-Object { $_.Path -notmatch "WindowsPowerShell"}) 
+    {
+        # Check Current Version
+        $CurrentVersion = (Get-Module -ListAvailable -Name Microsoft.Graph.Beta | Where-Object { $_.Path -notmatch "WindowsPowerShell"}).Version.ToString()
+        $Current = [System.Version]::new($CurrentVersion)
+        Write-Output "[Info]  Current Version: Microsoft.Graph.Beta v$CurrentVersion"
+    }
+    else
+    {
+        Write-Output "[Info]  PowerShell module 'Microsoft.Graph.Beta' NOT found."
+        $CurrentVersion = $null
+    }
 }
-else
+
+# PowerShell 5.1
+if ($PSVersionTable.PSVersion.Major -eq "5")
 {
-    Write-Output "[Info]  PowerShell module 'Microsoft.Graph.Beta' NOT found."
-    $CurrentVersion = $null
+    # Check if PowerShell module 'Microsoft.Graph.Beta' exists
+    if (Get-Module -ListAvailable -Name Microsoft.Graph.Beta) 
+    {
+        # Check Current Version
+        $CurrentVersion = (Get-Module -ListAvailable -Name Microsoft.Graph.Beta).Version.ToString()
+        $Current = [System.Version]::new($CurrentVersion)
+        Write-Output "[Info]  Current Version: Microsoft.Graph.Beta v$CurrentVersion"
+    }
+    else
+    {
+        Write-Output "[Info]  PowerShell module 'Microsoft.Graph.Beta' NOT found."
+        $CurrentVersion = $null
+    }
 }
 
 # Determining latest release on GitHub
@@ -721,21 +1104,30 @@ $Repository = "microsoftgraph/msgraph-sdk-powershell"
 $Releases = "https://api.github.com/repos/$Repository/releases"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $Response = (Invoke-WebRequest -Uri $Releases -UseBasicParsing | ConvertFrom-Json)[0]
-$Tag = $Response.tag_name
+$LatestRelease = $Response.tag_name
+$Latest = [System.Version]::new($LatestRelease)
 $Published = $Response.published_at
-$ReleaseDate = $Published.split('T')[0]
 
-if ($CurrentVersion)
+if ($Published -is [String])
 {
-    Write-Output "[Info]  Latest Release:  Microsoft.Graph.Beta v$Tag ($ReleaseDate)"
+    $ReleaseDate = $Published.split('T')[0] # Windows PowerShell
 }
 else
 {
-    Write-Output "[Info]  Latest Release: Microsoft.Graph.Beta v$Tag ($ReleaseDate)"
+    $ReleaseDate = $Published.ToString("yyyy-MM-dd") # PowerShell 7
+}
+
+if ($CurrentVersion)
+{
+    Write-Output "[Info]  Latest Release:  Microsoft.Graph.Beta v$LatestRelease ($ReleaseDate)"
+}
+else
+{
+    Write-Output "[Info]  Latest Release: Microsoft.Graph.Beta v$LatestRelease ($ReleaseDate)"
 }
 
 # Check if Microsoft.Graph.Beta needs to be downloaded/updated via PowerShell Gallery
-if ($CurrentVersion -ne $Tag -Or $null -eq $CurrentVersion)
+if ($Current -lt $Latest -Or $null -eq $CurrentVersion)
 {
     if ($null -eq $CurrentVersion)
     {
@@ -760,6 +1152,7 @@ else
 
 # Main
 InternetConnectivityCheck
+Get-MicrosoftAnalyzerSuite
 Get-MicrosoftExtractorSuite
 Get-ImportExcel
 Get-IPinfo

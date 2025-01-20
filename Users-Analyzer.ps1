@@ -1,10 +1,10 @@
 ﻿# Users-Analyzer
 #
 # @author:    Martin Willing
-# @copyright: Copyright (c) 2024 Martin Willing. All rights reserved. Licensed under the MIT license.
+# @copyright: Copyright (c) 2025 Martin Willing. All rights reserved. Licensed under the MIT license.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-12-17
+# @date:      2025-01-20
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -20,8 +20,8 @@
 # ImportExcel v7.8.10 (2024-10-21)
 # https://github.com/dfinke/ImportExcel
 #
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5247) and PowerShell 5.1 (5.1.19041.5247)
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5247) and PowerShell 7.4.6
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 5.1 (5.1.19041.5369)
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 7.4.6
 #
 #
 #############################################################################################################################################################################################
@@ -34,7 +34,7 @@
 .DESCRIPTION
   Users-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of the User Information extracted via "Microsoft Extractor Suite" by Invictus Incident Response.
 
-  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v2.1.1)
+  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v3.0.0)
 
   https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/GetUserInfo.html#retrieve-information-for-all-users
 
@@ -107,16 +107,24 @@ else
 
 #region Header
 
-# Windows Title
-$DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
-$Host.UI.RawUI.WindowTitle = "Users-Analyzer - Automated Processing of 'Users.csv' (Microsoft-Extractor-Suite by Invictus-IR)"
-
 # Check if the PowerShell script is being run with admin rights
 if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
 {
     Write-Host "[Error] This PowerShell script must be run with admin rights." -ForegroundColor Red
     Exit
 }
+
+# Check if PowerShell module 'ImportExcel' is installed
+if (!(Get-Module -ListAvailable -Name ImportExcel))
+{
+    Write-Host "[Error] Please install 'ImportExcel' PowerShell module." -ForegroundColor Red
+    Write-Host "[Info]  Check out: https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki#setup"
+    Exit
+}
+
+# Windows Title
+$DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
+$Host.UI.RawUI.WindowTitle = "Users-Analyzer - Automated Processing of 'Users.csv' (Microsoft-Extractor-Suite by Invictus-IR)"
 
 # Flush Output Directory
 if (Test-Path "$OUTPUT_FOLDER")
@@ -195,7 +203,7 @@ Write-Output ""
 
 # Header
 Write-Output "Users-Analyzer - Automated Processing of 'Users.csv'"
-Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
+Write-Output "(c) 2025 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
 Write-Output ""
 
 # Analysis date (ISO 8601)
@@ -247,27 +255,20 @@ Write-Output "[Info]  Total Lines: $Rows"
 Write-Output "[Info]  Processing Users.csv ..."
 
 # XLSX
-if (Get-Module -ListAvailable -Name ImportExcel)
+if (Test-Path "$LogFile")
 {
-    if (Test-Path "$LogFile")
+    if(!([String]::IsNullOrWhiteSpace((Get-Content "$LogFile"))))
     {
-        if(!([String]::IsNullOrWhiteSpace((Get-Content "$LogFile"))))
-        {
-            $IMPORT = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Select-Object Id,AccountEnabled,DisplayName,UserPrincipalName,Mail,@{Name="CreatedDateTime";Expression={([DateTime]::Parse($_.CreatedDateTime).ToString("yyyy-MM-dd HH:mm:ss"))}},@{Name="LastPasswordChangeDateTime";Expression={([DateTime]::Parse($_.LastPasswordChangeDateTime).ToString("yyyy-MM-dd HH:mm:ss"))}},@{Name="DeletedDateTime";Expression={([DateTime]::Parse($_.DeletedDateTime).ToString("yyyy-MM-dd HH:mm:ss"))}},JobTitle,Department,OfficeLocation,City,State,Country | Sort-Object { $_.CreatedDateTime -as [datetime] } -Descending
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\Users.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "User Information" -CellStyleSB {
-            param($WorkSheet)
-            # BackgroundColor and FontColor for specific cells of TopRow
-            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:N1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-N
-            $WorkSheet.Cells["A:N"].Style.HorizontalAlignment="Center"
-            }
+        $IMPORT = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Select-Object Id,AccountEnabled,DisplayName,UserPrincipalName,Mail,@{Name="CreatedDateTime";Expression={([DateTime]::Parse($_.CreatedDateTime).ToString("yyyy-MM-dd HH:mm:ss"))}},@{Name="LastPasswordChangeDateTime";Expression={([DateTime]::Parse($_.LastPasswordChangeDateTime).ToString("yyyy-MM-dd HH:mm:ss"))}},@{Name="DeletedDateTime";Expression={([DateTime]::Parse($_.DeletedDateTime).ToString("yyyy-MM-dd HH:mm:ss"))}},JobTitle,Department,OfficeLocation,City,State,Country | Sort-Object { $_.CreatedDateTime -as [datetime] } -Descending
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\Users.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "User Information" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:N1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of columns A-N
+        $WorkSheet.Cells["A:N"].Style.HorizontalAlignment="Center"
         }
     }
-}
-else
-{
-    Write-Host "[Error] PowerShell module 'ImportExcel' NOT found." -ForegroundColor Red
 }
 
 # File Size (XLSX)
@@ -379,8 +380,8 @@ $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
 # SIG # Begin signature block
 # MIIrxQYJKoZIhvcNAQcCoIIrtjCCK7ICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUmuIqBC5gCayMO5/16TPgFFhr
-# VsGggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUiHR96FxsaOyn+CauWm2vwHoI
+# GQ+ggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
 # AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
 # MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
 # MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
@@ -582,33 +583,33 @@ $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
 # YmxpYyBDb2RlIFNpZ25pbmcgQ0EgUjM2AhEAjEGek78rzqyIBig7dhm9PDAJBgUr
 # DgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMx
 # DAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkq
-# hkiG9w0BCQQxFgQUZhz6x5D8Z288NFOE0OaFmJglDtMwDQYJKoZIhvcNAQEBBQAE
-# ggIAYyfiYnmYe/EADOW16VxLoMFlQszPlgU/Fdf+e5Ki/hBYwoaeQv7GqtJ3K4kf
-# moYmf7YusnNbTONN0NswHnp6HdP6iYnkX0QhbCMlDFC8j/IK/ecg8GxZ5VfBd6xY
-# hbjq7OPUMGy5z1Nqj7/A18Sb14Xz9CA4QlWXqEuegdFHSmihQll6DtWBWi8C/39S
-# NXT6yVIem5hOph7oojFDTADHe7Gw0zrr80327wZB6cM4Gni5X6zPzAJnji9fbt1h
-# EgBZdQhl0G3MzPOZ8+eg19HRj0xnpDDmtPxIPnKyco28z6aN2nUp4Nu1+lRL382y
-# AQc/DnzAFQNRmF466IS01OEqUwfRBbDcd/hhlVS11pFXjjC/7idqvc03TxThsjT3
-# PON368zhOPo7UZdbKko+TD2Evxjcd26WI6lZOkqdh0GisC5O8zx9T06KZKRgSOaG
-# SlHr7n6S/oS1DGJp8JKdzCalwQKFdEGClTID8NOzbItEf5plrEGis7r+oJLg6K6a
-# BGNIezW3i9tcioRXdnorB9XswBe57Qq4D3+adjnPmKaZ6xl2KvI28uwEdQ23/bxN
-# iExSVUQH7diA7plSZsC/2XCrbOXpnGq1mIR9fuDPFp6iXV2fV8rqFZ+zXf/JbBsp
-# Iy8gddrO7qrfb4Gl5DbAImhdmnxsd8imT273Ce6pqkv2WpuhggMiMIIDHgYJKoZI
+# hkiG9w0BCQQxFgQUJyNyrybNHKdrV/6JYXjLuPfdd0MwDQYJKoZIhvcNAQEBBQAE
+# ggIAO27f7eVeuoHdmCHBaHAJbwJ5vQH0C0weWUJe4zU24/TaSY8p5xdRCAimHtjP
+# 3qaBSFmdyko8qFAWvlkMFlthO0F60SF6Be6BVoTjMNQ9M+kkWMJgPHUiGNFLb5gk
+# yO+jg3qjsHaMuY7n91bL5anVGv3pkqEfLea/of/Tch1/nsOoKdW+yTKCy2x+OiV3
+# SYhVg78vO0i/eIBR9zgyhoCUMEU+jWg1/5xIowpaRwBV0XbDb284VLC9pEleO+LW
+# Qo/tqpRJqAH1GcFK5Pq5FSqO/0QbuSIHCZCD/TA2Hlc4uPRDOzL53H4K1QIuNCeb
+# WYSThGeR0sv6L9nJ215bnq7dixoeIT596iNPwUIFFSD4XI9MUo6dT0+qHuSXMvJy
+# 51DDXNf1qiqcbU8MId392kA8UWyIk/zdkspqIroGvyQH1/TbboylgH1jSxYA874r
+# PF9Ctk9L6+VDuFSsGBUQZI6h/0hbtW03l8yxK3K+NmB2JkJWsOciVuVEfZcUSrHo
+# rbZDbKy36B0q7bxclUPj15MgYNoLkANW7eaSppjxousRvaHA0EFe3MqzPJgDC+yd
+# xkvlq34l7K9FhYe3QizHyfZaoarnITTbP6uZqcsf+5t9h52UQRtmCnbCoPRqUYFT
+# 5z6+2bQFy3rcA8BB6DWFOFP+inwF4WPqB+O0+iANLkE6BjqhggMiMIIDHgYJKoZI
 # hvcNAQkGMYIDDzCCAwsCAQEwaTBVMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2Vj
 # dGlnbyBMaW1pdGVkMSwwKgYDVQQDEyNTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1w
 # aW5nIENBIFIzNgIQOlJqLITOVeYdZfzMEtjpiTANBglghkgBZQMEAgIFAKB5MBgG
-# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI0MTIxODA2
-# MTYwNVowPwYJKoZIhvcNAQkEMTIEMAKYdTGfB8h6wLrwDl4s67+wY250SlMq+QsD
-# tXaOpQQWHeLesVagtpn+o3Eoic7OjTANBgkqhkiG9w0BAQEFAASCAgBHkNwTj1Ww
-# vG0usocjzRgDfuWyb9Cf4LVdpOucqiwGTaGTHsvwx0+Rv8y7HRYg8W0Mqvzl9ArN
-# yc2Xc4n7Qww7OLQvM1FzhiOd7x1GrL2Wfvrop3MAjuHUlHqyufrl++Q7mfalfhIx
-# Cn4jTDWmzrYnpqRSw/opr1y/cWnM6tqbW7+lAXBOGXuBwVzksGBOxL1Zmw+YU/DJ
-# WaiBylVbhoJdZ1rTA3Kt2GYh/GJoNpC6QVfTsRhl+IWPSJ0b7rNLWpxKbAOczWiS
-# qN0wsAU9gMRMVGTvzCi/LQNe4bqP++0aQUCHHrL+TFmvdFeUybzLmmqa7xoeZwu1
-# /F1MWd8YDWTZ/vZz00efrL6xczWXa6xflaKvQagxJ1dCKzstQEMw6qdnblBqzqlO
-# nAubMtpefv4tyh2MdMYQWlm+PbKKC+N+FkaI8tO22F9aHMU4UBzBjFnzRwWX20Qh
-# rWvwMuB1yzHFhLuA4OfE1bKybcvGtXaIfbRUs/RfWgtCiagpsgLe5783j8aZhVG6
-# 42MWQW65bIcEk0G8YHoKDH5J5C6CBYVNy60TfIL021lvmSQtgLm9Ceu7hsfYAj1t
-# LfsfpmLUJS1fLMu7DGU3y/ZzNqO/2V3lQYGSp9g5dU6eNWs1hECOgY3QobotPtqW
-# W0hB9h8wJOI2z3IUQ/rm5Y+mYopgXxZa7w==
+# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI1MDEyMDA1
+# NTAwM1owPwYJKoZIhvcNAQkEMTIEMGvU+ngmPKdsaf6ScSjSSOUwkZ/UYNmruwtq
+# +7HQ5IQYZcqbHwAjq7Hp95yGzeg7IjANBgkqhkiG9w0BAQEFAASCAgAJycWbVXCT
+# dgM+EyUJOEZxSakv6JPS7IbMuQrkvr3mj9Roq3f69LKvPy8Ym7hhxjvOdbmB3K6f
+# Eorxm5nvIYKHkRIVJ7rf7StEf/hqi0IsGv722l9sC2a39hcYdfWN3Ud7Arwy8dfV
+# jIhT+o7kriT3PyPCvZ8iRIvnJg3cS9qF1uYYSRbcDj64tApk9Z/p4nK+wG5G8g8r
+# DS9ZQeCPZ6oID2//OA1u+NLoJyumTSYRtt7WEXC/3pMYRlZUS5y5YfajVN+wdzUY
+# +6F3SGhuP+WfKnyFldlqdZ+Q5V+b+exfseO8haBLBrfjIGswqvYvOYWxk3E+uGP9
+# WmuBPSEXvEu+HDdn2HoP6WmArkc8p7W1PbL0c5nEDTx11eVTjfrlHySc2sFm60mN
+# ldZYhHRAt4QneQ2ocqjFGskgmgwL50EtTqs9VmcB0r9TiaAy7ISjhU5TZRNS0OQp
+# HzwwXZNwyTWt+iUdvPvsa3AE3kWqzfmoDwFT5lOVgcwHCR5RR72DJhoFhOvjp3Hf
+# 4yTb7CZL9Song00A/kRJ1gC7oDiE5ZQpM3L1KazWWkaZEQXFaZTIcSN0cgPc7RdO
+# CiqV4JSnR+QYW6WqycuR1Y/u+jh9Ov5bIJBDkCjNEP1qK0WBti+FNfb5RlAs5GYY
+# oeO+3sZGhit5U7oeUqw3QD6UPjPVtbxNYA==
 # SIG # End signature block

@@ -1,10 +1,10 @@
 ﻿# OAuthPermissions-Analyzer
 #
 # @author:    Martin Willing
-# @copyright: Copyright (c) 2024 Martin Willing. All rights reserved. Licensed under the MIT license.
+# @copyright: Copyright (c) 2025 Martin Willing. All rights reserved. Licensed under the MIT license.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-12-17
+# @date:      2025-01-20
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -24,8 +24,8 @@
 # https://github.com/BurntSushi/xsv
 #
 #
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5247) and PowerShell 5.1 (5.1.19041.5247)
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5247) and PowerShell 7.4.6
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 5.1 (5.1.19041.5369)
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 7.4.6
 #
 #
 #############################################################################################################################################################################################
@@ -38,7 +38,7 @@
 .DESCRIPTION
   OAuthPermissions-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of M365 OAuth Permissions extracted via "Microsoft Extractor Suite" by Invictus Incident Response.
 
-  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v2.1.1)
+  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v3.0.0)
 
   https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/OAuthPermissions.html
 
@@ -153,16 +153,24 @@ $script:xsv = "$SCRIPT_DIR\Tools\xsv\xsv.exe"
 
 #region Header
 
-# Windows Title
-$DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
-$Host.UI.RawUI.WindowTitle = "OAuthPermissions-Analyzer - Automated Processing of M365 OAuth Permissions for DFIR"
-
 # Check if the PowerShell script is being run with admin rights
 if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
 {
     Write-Host "[Error] This PowerShell script must be run with admin rights." -ForegroundColor Red
     Exit
 }
+
+# Check if PowerShell module 'ImportExcel' is installed
+if (!(Get-Module -ListAvailable -Name ImportExcel))
+{
+    Write-Host "[Error] Please install 'ImportExcel' PowerShell module." -ForegroundColor Red
+    Write-Host "[Info]  Check out: https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki#setup"
+    Exit
+}
+
+# Windows Title
+$DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
+$Host.UI.RawUI.WindowTitle = "OAuthPermissions-Analyzer - Automated Processing of M365 OAuth Permissions for DFIR"
 
 # Flush Output Directory
 if (Test-Path "$OUTPUT_FOLDER")
@@ -250,7 +258,7 @@ Write-Output ""
 
 # Header
 Write-Output "OAuthPermissions-Analyzer - Automated Processing of M365 OAuth Permissions for DFIR"
-Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
+Write-Output "(c) 2025 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
 Write-Output ""
 
 # Analysis date (ISO 8601)
@@ -348,57 +356,54 @@ Write-Output "[Info]  Processing M365 OAuth Permissions ..."
 New-Item "$OUTPUT_FOLDER\OAuthPermissions\XLSX" -ItemType Directory -Force | Out-Null
 
 # XLSX
-if (Get-Module -ListAvailable -Name ImportExcel)
+if (Test-Path "$LogFile")
 {
-    if (Test-Path "$LogFile")
+    if([int](& $xsv count -d "," "$LogFile") -gt 0)
     {
-        if([int](& $xsv count -d "," "$LogFile") -gt 0)
+        $IMPORT = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Select-Object PermissionType,ClientDisplayName,AppId,ClientObjectId,ResourceDisplayName,ResourceObjectId,Permission,@{Name='Description';Expression={if($_.Description){$_.Description}else{Get-ScopeLink $_.Permission}}},ConsentType,PrincipalObjectId,Homepage,PublisherName,ReplyUrls,@{Name="ExpiryTime";Expression={([DateTime]::ParseExact($_.ExpiryTime, "dd.MM.yyyy HH:mm:ss", $null).ToString("yyyy-MM-dd HH:mm:ss"))}},PrincipalDisplayName,IsEnabled,@{Name="CreationTimestamp";Expression={([DateTime]::ParseExact($_.CreationTimestamp, "dd.MM.yyyy HH:mm:ss", $null).ToString("yyyy-MM-dd HH:mm:ss"))}}
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\XLSX\OAuthPermissions.xlsx" -NoHyperLinkConversion * -FreezePane 2,4 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "OAuthPermissions" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:Q1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of columns A-G, I-J, L and N-Q
+        $WorkSheet.Cells["A:G"].Style.HorizontalAlignment="Center"
+        $WorkSheet.Cells["I:J"].Style.HorizontalAlignment="Center"
+        $WorkSheet.Cells["L:L"].Style.HorizontalAlignment="Center"
+        $WorkSheet.Cells["N:Q"].Style.HorizontalAlignment="Center"
+        # Font Style "Underline" of column H (Link)
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["H:H"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Link",$H1)))' -Underline
+
+        # Iterating over the Application-Blacklist HashTable
+        foreach ($AppId in $ApplicationBlacklist_HashTable.Keys) 
         {
-            $IMPORT = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Select-Object PermissionType,ClientDisplayName,AppId,ClientObjectId,ResourceDisplayName,ResourceObjectId,Permission,@{Name='Description';Expression={if($_.Description){$_.Description}else{Get-ScopeLink $_.Permission}}},ConsentType,PrincipalObjectId,Homepage,PublisherName,ReplyUrls,@{Name="ExpiryTime";Expression={([DateTime]::ParseExact($_.ExpiryTime, "dd.MM.yyyy HH:mm:ss", $null).ToString("yyyy-MM-dd HH:mm:ss"))}},PrincipalDisplayName,IsEnabled,@{Name="CreationTimestamp";Expression={([DateTime]::ParseExact($_.CreationTimestamp, "dd.MM.yyyy HH:mm:ss", $null).ToString("yyyy-MM-dd HH:mm:ss"))}}
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\XLSX\OAuthPermissions.xlsx" -NoHyperLinkConversion * -FreezePane 2,4 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "OAuthPermissions" -CellStyleSB {
-            param($WorkSheet)
-            # BackgroundColor and FontColor for specific cells of TopRow
-            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:Q1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-G, I-J, L and N-Q
-            $WorkSheet.Cells["A:G"].Style.HorizontalAlignment="Center"
-            $WorkSheet.Cells["I:J"].Style.HorizontalAlignment="Center"
-            $WorkSheet.Cells["L:L"].Style.HorizontalAlignment="Center"
-            $WorkSheet.Cells["N:Q"].Style.HorizontalAlignment="Center"
-            # Font Style "Underline" of column H (Link)
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["H:H"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Link",$H1)))' -Underline
+            $Severity = $ApplicationBlacklist_HashTable["$AppId"][1]
+            $ConditionValue = 'NOT(ISERROR(FIND("{0}",$C1)))' -f $AppId
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["B:C"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
+        }
 
-            # Iterating over the Application-Blacklist HashTable
-            foreach ($AppId in $ApplicationBlacklist_HashTable.Keys) 
-            {
-                $Severity = $ApplicationBlacklist_HashTable["$AppId"][1]
-                $ConditionValue = 'NOT(ISERROR(FIND("{0}",$C1)))' -f $AppId
-                Add-ConditionalFormatting -Address $WorkSheet.Cells["B:C"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
-            }
+        # Iterating over the ApplicationPermission-Blacklist HashTable
+        foreach ($Permission in $ApplicationPermissionBlacklist_HashTable.Keys) 
+        {
+            $Severity = $ApplicationPermissionBlacklist_HashTable["$Permission"][1]
+            if ($Severity -eq "High"){$BackgroundColor = $HighColor}
+            if ($Severity -eq "Medium"){$BackgroundColor = $MediumColor}
+            if ($Severity -eq "Low"){$BackgroundColor = $LowColor}
+            $ConditionValue = '=AND($A1="Application",$G1="{0}")' -f $Permission
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["G:G"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $BackgroundColor
+        }
 
-            # Iterating over the ApplicationPermission-Blacklist HashTable
-            foreach ($Permission in $ApplicationPermissionBlacklist_HashTable.Keys) 
-            {
-                $Severity = $ApplicationPermissionBlacklist_HashTable["$Permission"][1]
-                if ($Severity -eq "High"){$BackgroundColor = $HighColor}
-                if ($Severity -eq "Medium"){$BackgroundColor = $MediumColor}
-                if ($Severity -eq "Low"){$BackgroundColor = $LowColor}
-                $ConditionValue = '=AND($A1="Application",$G1="{0}")' -f $Permission
-                Add-ConditionalFormatting -Address $WorkSheet.Cells["G:G"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $BackgroundColor
-            }
+        # Iterating over the DelegatedPermission-Blacklist HashTable
+        foreach ($Permission in $DelegatedPermissionBlacklist_HashTable.Keys) 
+        {
+            $Severity = $DelegatedPermissionBlacklist_HashTable["$Permission"][1]
+            if ($Severity -eq "High"){$BackgroundColor = $HighColor}
+            if ($Severity -eq "Medium"){$BackgroundColor = $MediumColor}
+            if ($Severity -eq "Low"){$BackgroundColor = $LowColor}
+            $ConditionValue = '=AND($A1="Delegated",$G1="{0}")' -f $Permission
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["G:G"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $BackgroundColor
+        }
 
-            # Iterating over the DelegatedPermission-Blacklist HashTable
-            foreach ($Permission in $DelegatedPermissionBlacklist_HashTable.Keys) 
-            {
-                $Severity = $DelegatedPermissionBlacklist_HashTable["$Permission"][1]
-                if ($Severity -eq "High"){$BackgroundColor = $HighColor}
-                if ($Severity -eq "Medium"){$BackgroundColor = $MediumColor}
-                if ($Severity -eq "Low"){$BackgroundColor = $LowColor}
-                $ConditionValue = '=AND($A1="Delegated",$G1="{0}")' -f $Permission
-                Add-ConditionalFormatting -Address $WorkSheet.Cells["G:G"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $BackgroundColor
-            }
-
-            }
         }
     }
 }
@@ -532,21 +537,18 @@ ForEach($App in $Applications)
 }
 
 # XLSX
-if (Get-Module -ListAvailable -Name ImportExcel)
+if (Test-Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ClientDisplayName.csv")
 {
-    if (Test-Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ClientDisplayName.csv")
+    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ClientDisplayName.csv") -gt 0)
     {
-        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ClientDisplayName.csv") -gt 0)
-        {
-            $IMPORT = Import-Csv "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ClientDisplayName.csv" -Delimiter ","
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\XLSX\ClientDisplayName.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "ClientDisplayName" -CellStyleSB {
-            param($WorkSheet)
-            # BackgroundColor and FontColor for specific cells of TopRow
-            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:B1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of column B
-            $WorkSheet.Cells["B:B"].Style.HorizontalAlignment="Center"
-            }
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ClientDisplayName.csv" -Delimiter ","
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\XLSX\ClientDisplayName.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "ClientDisplayName" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:B1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of column B
+        $WorkSheet.Cells["B:B"].Style.HorizontalAlignment="Center"
         }
     }
 }
@@ -568,30 +570,27 @@ ForEach($App in $Applications)
 }
 
 # XLSX
-if (Get-Module -ListAvailable -Name ImportExcel)
+if (Test-Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ClientDisplayName-AppId.csv")
 {
-    if (Test-Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ClientDisplayName-AppId.csv")
+    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ClientDisplayName-AppId.csv") -gt 0)
     {
-        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ClientDisplayName-AppId.csv") -gt 0)
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ClientDisplayName-AppId.csv" -Delimiter "," | Sort-Object ClientDisplayName
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\XLSX\ClientDisplayName-AppId.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "ClientDisplayName" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of column B-C
+        $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
+
+        # Iterating over the Application-Blacklist HashTable
+        foreach ($AppId in $ApplicationBlacklist_HashTable.Keys) 
         {
-            $IMPORT = Import-Csv "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ClientDisplayName-AppId.csv" -Delimiter "," | Sort-Object ClientDisplayName
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\XLSX\ClientDisplayName-AppId.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "ClientDisplayName" -CellStyleSB {
-            param($WorkSheet)
-            # BackgroundColor and FontColor for specific cells of TopRow
-            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of column B-C
-            $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
+            $Severity = $ApplicationBlacklist_HashTable["$AppId"][1]
+            $ConditionValue = 'NOT(ISERROR(FIND("{0}",$B1)))' -f $AppId
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["A:C"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
+        }
 
-            # Iterating over the Application-Blacklist HashTable
-            foreach ($AppId in $ApplicationBlacklist_HashTable.Keys) 
-            {
-                $Severity = $ApplicationBlacklist_HashTable["$AppId"][1]
-                $ConditionValue = 'NOT(ISERROR(FIND("{0}",$B1)))' -f $AppId
-                Add-ConditionalFormatting -Address $WorkSheet.Cells["A:C"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
-            }
-
-            }
         }
     }
 }
@@ -613,21 +612,18 @@ ForEach($Id in $ClientObjectIds)
 }
 
 # XLSX
-if (Get-Module -ListAvailable -Name ImportExcel)
+if (Test-Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ClientObjectId.csv")
 {
-    if (Test-Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ClientObjectId.csv")
+    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ClientObjectId.csv") -gt 0)
     {
-        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ClientObjectId.csv") -gt 0)
-        {
-            $IMPORT = Import-Csv "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ClientObjectId.csv" -Delimiter "," | Sort-Object { [int]$_.Users } -Descending
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\XLSX\ClientObjectId.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "ClientObjectId" -CellStyleSB {
-            param($WorkSheet)
-            # BackgroundColor and FontColor for specific cells of TopRow
-            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of column B-C
-            $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
-            }
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ClientObjectId.csv" -Delimiter "," | Sort-Object { [int]$_.Users } -Descending
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\XLSX\ClientObjectId.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "ClientObjectId" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of column B-C
+        $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
         }
     }
 }
@@ -636,46 +632,43 @@ if (Get-Module -ListAvailable -Name ImportExcel)
 Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Select-Object PermissionType,Permission,@{Name='Description';Expression={if($_.Description){$_.Description}else{Get-ScopeLink $_.Permission}}} | Group-Object PermissionType,Permission,Description | Select-Object Count,@{Name='PermissionType'; Expression={ $_.Values[0] }},@{Name='Permission'; Expression={ $_.Values[1] }},@{Name='Description'; Expression={ $_.Values[2] }} | Sort-Object Count -Descending | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\Permissions.csv" -NoTypeInformation -Encoding UTF8
 
 # XLSX
-if (Get-Module -ListAvailable -Name ImportExcel)
+if (Test-Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\Permissions.csv")
 {
-    if (Test-Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\Permissions.csv")
+    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\Permissions.csv") -gt 0)
     {
-        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\Permissions.csv") -gt 0)
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\Permissions.csv" -Delimiter ","
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\XLSX\Permissions.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Permissions" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of columns A-C
+        $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
+        # Font Style "Underline" of column D (Link)
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["D:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Link",$D1)))' -Underline
+
+        # Iterating over the ApplicationPermission-Blacklist HashTable
+        foreach ($Permission in $ApplicationPermissionBlacklist_HashTable.Keys) 
         {
-            $IMPORT = Import-Csv "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\Permissions.csv" -Delimiter ","
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\XLSX\Permissions.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Permissions" -CellStyleSB {
-            param($WorkSheet)
-            # BackgroundColor and FontColor for specific cells of TopRow
-            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-C
-            $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
-            # Font Style "Underline" of column D (Link)
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["D:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Link",$D1)))' -Underline
+            $Severity = $ApplicationPermissionBlacklist_HashTable["$Permission"][1]
+            if ($Severity -eq "High"){$BackgroundColor = $HighColor}
+            if ($Severity -eq "Medium"){$BackgroundColor = $MediumColor}
+            if ($Severity -eq "Low"){$BackgroundColor = $LowColor}
+            $ConditionValue = '=AND($B1="Application",$C1="{0}")' -f $Permission
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["C:C"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $BackgroundColor
+        }
 
-            # Iterating over the ApplicationPermission-Blacklist HashTable
-            foreach ($Permission in $ApplicationPermissionBlacklist_HashTable.Keys) 
-            {
-                $Severity = $ApplicationPermissionBlacklist_HashTable["$Permission"][1]
-                if ($Severity -eq "High"){$BackgroundColor = $HighColor}
-                if ($Severity -eq "Medium"){$BackgroundColor = $MediumColor}
-                if ($Severity -eq "Low"){$BackgroundColor = $LowColor}
-                $ConditionValue = '=AND($B1="Application",$C1="{0}")' -f $Permission
-                Add-ConditionalFormatting -Address $WorkSheet.Cells["C:C"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $BackgroundColor
-            }
+        # Iterating over the DelegatedPermission-Blacklist HashTable
+        foreach ($Permission in $DelegatedPermissionBlacklist_HashTable.Keys) 
+        {
+            $Severity = $DelegatedPermissionBlacklist_HashTable["$Permission"][1]
+            if ($Severity -eq "High"){$BackgroundColor = $HighColor}
+            if ($Severity -eq "Medium"){$BackgroundColor = $MediumColor}
+            if ($Severity -eq "Low"){$BackgroundColor = $LowColor}
+            $ConditionValue = '=AND($B1="Delegated",$C1="{0}")' -f $Permission
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["C:C"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $BackgroundColor
+        }
 
-            # Iterating over the DelegatedPermission-Blacklist HashTable
-            foreach ($Permission in $DelegatedPermissionBlacklist_HashTable.Keys) 
-            {
-                $Severity = $DelegatedPermissionBlacklist_HashTable["$Permission"][1]
-                if ($Severity -eq "High"){$BackgroundColor = $HighColor}
-                if ($Severity -eq "Medium"){$BackgroundColor = $MediumColor}
-                if ($Severity -eq "Low"){$BackgroundColor = $LowColor}
-                $ConditionValue = '=AND($B1="Delegated",$C1="{0}")' -f $Permission
-                Add-ConditionalFormatting -Address $WorkSheet.Cells["C:C"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $BackgroundColor
-            }
-
-            }
         }
     }
 }
@@ -685,44 +678,41 @@ $Total = (Import-Csv -Path "$LogFile" -Delimiter "," | Select-Object PermissionT
 Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Group-Object PermissionType,Permission | Select-Object @{Name='PermissionType'; Expression={ $_.Values[0] }},@{Name='Permission'; Expression={ $_.Values[1] }},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PermissionType-Permission.csv" -NoTypeInformation -Encoding UTF8
 
 # XLSX
-if (Get-Module -ListAvailable -Name ImportExcel)
+if (Test-Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PermissionType-Permission.csv")
 {
-    if (Test-Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PermissionType-Permission.csv")
+    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PermissionType-Permission.csv") -gt 0)
     {
-        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PermissionType-Permission.csv") -gt 0)
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PermissionType-Permission.csv" -Delimiter ","
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\XLSX\PermissionType-Permission.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Permissions" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of columns A-D
+        $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
+
+        # Iterating over the ApplicationPermission-Blacklist HashTable
+        foreach ($Permission in $ApplicationPermissionBlacklist_HashTable.Keys) 
         {
-            $IMPORT = Import-Csv "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PermissionType-Permission.csv" -Delimiter ","
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\XLSX\PermissionType-Permission.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Permissions" -CellStyleSB {
-            param($WorkSheet)
-            # BackgroundColor and FontColor for specific cells of TopRow
-            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-D
-            $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
+            $Severity = $ApplicationPermissionBlacklist_HashTable["$Permission"][1]
+            if ($Severity -eq "High"){$BackgroundColor = $HighColor}
+            if ($Severity -eq "Medium"){$BackgroundColor = $MediumColor}
+            if ($Severity -eq "Low"){$BackgroundColor = $LowColor}
+            $ConditionValue = '=AND($A1="Application",$B1="{0}")' -f $Permission
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["B:B"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $BackgroundColor
+        }
 
-            # Iterating over the ApplicationPermission-Blacklist HashTable
-            foreach ($Permission in $ApplicationPermissionBlacklist_HashTable.Keys) 
-            {
-                $Severity = $ApplicationPermissionBlacklist_HashTable["$Permission"][1]
-                if ($Severity -eq "High"){$BackgroundColor = $HighColor}
-                if ($Severity -eq "Medium"){$BackgroundColor = $MediumColor}
-                if ($Severity -eq "Low"){$BackgroundColor = $LowColor}
-                $ConditionValue = '=AND($A1="Application",$B1="{0}")' -f $Permission
-                Add-ConditionalFormatting -Address $WorkSheet.Cells["B:B"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $BackgroundColor
-            }
+        # Iterating over the DelegatedPermission-Blacklist HashTable
+        foreach ($Permission in $DelegatedPermissionBlacklist_HashTable.Keys) 
+        {
+            $Severity = $DelegatedPermissionBlacklist_HashTable["$Permission"][1]
+            if ($Severity -eq "High"){$BackgroundColor = $HighColor}
+            if ($Severity -eq "Medium"){$BackgroundColor = $MediumColor}
+            if ($Severity -eq "Low"){$BackgroundColor = $LowColor}
+            $ConditionValue = '=AND($A1="Delegated",$B1="{0}")' -f $Permission
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["B:B"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $BackgroundColor
+        }
 
-            # Iterating over the DelegatedPermission-Blacklist HashTable
-            foreach ($Permission in $DelegatedPermissionBlacklist_HashTable.Keys) 
-            {
-                $Severity = $DelegatedPermissionBlacklist_HashTable["$Permission"][1]
-                if ($Severity -eq "High"){$BackgroundColor = $HighColor}
-                if ($Severity -eq "Medium"){$BackgroundColor = $MediumColor}
-                if ($Severity -eq "Low"){$BackgroundColor = $LowColor}
-                $ConditionValue = '=AND($A1="Delegated",$B1="{0}")' -f $Permission
-                Add-ConditionalFormatting -Address $WorkSheet.Cells["B:B"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $BackgroundColor
-            }
-
-            }
         }
     }
 }
@@ -744,21 +734,18 @@ ForEach($PrincipalDisplayName in $PrincipalDisplayNames)
 }
 
 # XLSX
-if (Get-Module -ListAvailable -Name ImportExcel)
+if (Test-Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PrincipalDisplayName.csv")
 {
-    if (Test-Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PrincipalDisplayName.csv")
+    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PrincipalDisplayName.csv") -gt 0)
     {
-        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PrincipalDisplayName.csv") -gt 0)
-        {
-            $IMPORT = Import-Csv "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PrincipalDisplayName.csv" -Delimiter ","
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\XLSX\PrincipalDisplayName.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "PrincipalDisplayName" -CellStyleSB {
-            param($WorkSheet)
-            # BackgroundColor and FontColor for specific cells of TopRow
-            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of column B-C
-            $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
-            }
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PrincipalDisplayName.csv" -Delimiter ","
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\XLSX\PrincipalDisplayName.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "PrincipalDisplayName" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of column B-C
+        $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
         }
     }
 }
@@ -771,21 +758,18 @@ Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Select-Object Publis
 Write-Output "[Info]  $PublisherNames Publisher Name(s) found ($Total)"
 
 # XLSX
-if (Get-Module -ListAvailable -Name ImportExcel)
+if (Test-Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PublisherName.csv")
 {
-    if (Test-Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PublisherName.csv")
+    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PublisherName.csv") -gt 0)
     {
-        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PublisherName.csv") -gt 0)
-        {
-            $IMPORT = Import-Csv "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PublisherName.csv" -Delimiter ","
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\XLSX\PublisherName.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "PublisherName" -CellStyleSB {
-            param($WorkSheet)
-            # BackgroundColor and FontColor for specific cells of TopRow
-            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns B-C
-            $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
-            }
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PublisherName.csv" -Delimiter ","
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\XLSX\PublisherName.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "PublisherName" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of columns B-C
+        $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
         }
     }
 }
@@ -795,21 +779,18 @@ $Total = (Import-Csv -Path "$LogFile" -Delimiter "," | Select-Object PublisherNa
 Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Group-Object PublisherName,ClientDisplayName | Select-Object @{Name='PublisherName'; Expression={ $_.Values[0] }},@{Name='ClientDisplayName'; Expression={ $_.Values[1] }},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PublisherName-ClientDisplayName.csv" -NoTypeInformation -Encoding UTF8
 
 # XLSX
-if (Get-Module -ListAvailable -Name ImportExcel)
+if (Test-Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PublisherName-ClientDisplayName.csv")
 {
-    if (Test-Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PublisherName-ClientDisplayName.csv")
+    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PublisherName-ClientDisplayName.csv") -gt 0)
     {
-        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PublisherName-ClientDisplayName.csv") -gt 0)
-        {
-            $IMPORT = Import-Csv "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PublisherName-ClientDisplayName.csv" -Delimiter ","
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\XLSX\PublisherName-ClientDisplayName.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "PublisherName" -CellStyleSB {
-            param($WorkSheet)
-            # BackgroundColor and FontColor for specific cells of TopRow
-            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-D
-            $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
-            }
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\PublisherName-ClientDisplayName.csv" -Delimiter ","
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\XLSX\PublisherName-ClientDisplayName.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "PublisherName" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of columns A-D
+        $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
         }
     }
 }
@@ -819,21 +800,18 @@ $Total = (Import-Csv -Path "$LogFile" -Delimiter "," | Select-Object ResourceDis
 Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Select-Object ResourceDisplayName | Where-Object {$_.ResourceDisplayName -ne '' } | Where-Object { $null -ne ($_.PSObject.Properties | ForEach-Object {$_.Value})} | Group-Object ResourceDisplayName | Select-Object @{Name='ResourceDisplayName'; Expression={ $_.Values[0] }},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ResourceDisplayName.csv" -NoTypeInformation -Encoding UTF8
 
 # XLSX
-if (Get-Module -ListAvailable -Name ImportExcel)
+if (Test-Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ResourceDisplayName.csv")
 {
-    if (Test-Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ResourceDisplayName.csv")
+    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ResourceDisplayName.csv") -gt 0)
     {
-        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ResourceDisplayName.csv") -gt 0)
-        {
-            $IMPORT = Import-Csv "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ResourceDisplayName.csv" -Delimiter ","
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\XLSX\ResourceDisplayName.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "ResourceDisplayName" -CellStyleSB {
-            param($WorkSheet)
-            # BackgroundColor and FontColor for specific cells of TopRow
-            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns B-C
-            $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
-            }
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\OAuthPermissions\Stats\CSV\ResourceDisplayName.csv" -Delimiter ","
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\OAuthPermissions\Stats\XLSX\ResourceDisplayName.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "ResourceDisplayName" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of columns B-C
+        $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
         }
     }
 }
@@ -920,8 +898,8 @@ if ($Result -eq "OK" )
 # SIG # Begin signature block
 # MIIrxQYJKoZIhvcNAQcCoIIrtjCCK7ICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUc08W9UegiCbr7ga116vQ/d2Z
-# aoCggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUZRtqHa9SHENf1hWkwQDNN6Vn
+# PpGggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
 # AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
 # MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
 # MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
@@ -1123,33 +1101,33 @@ if ($Result -eq "OK" )
 # YmxpYyBDb2RlIFNpZ25pbmcgQ0EgUjM2AhEAjEGek78rzqyIBig7dhm9PDAJBgUr
 # DgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMx
 # DAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkq
-# hkiG9w0BCQQxFgQUZ7G31AgpP7/0GnoNOZTmPsGqUJAwDQYJKoZIhvcNAQEBBQAE
-# ggIAvRbmvPHngelicLQ36RQ88jSnVCvG0QSf8vG13zB9uLNMIIx5tLHfQr5jFepg
-# QKXDhPIijwCA2AM92IWAsRMEje1oOTWaDahkuSNEyPWJ15yZT+4SGl8x0QpPzIM3
-# 9JhXfjBoLf6TCQvdMg/ziAT9W2qAbwsN8hz1ft3kzUXBaNunEwpOJYJZRMEm/2L0
-# NOjwDTvVPBhbHR2vlLG76fDMjV9TkeKL1JnGjXO9oMeoD0l9fY1yD42oLf+GZlhY
-# XFxYqOadwNRFTSf6Rjp/xHFoxgbQlqrg31nFM15lVBX8FyMhHM8Mz/uQBEDDjNN5
-# dm1hTf2WcF/lrfNhHah0gyJPjkIetQNHZBzl28oKVwpcwhU8kIhXTQSIYaaViHQV
-# LgR9/IbCfZJ6Ot7G68by8F/o/ilvMSwEG/0yFmPmS+WHPMh5gN1l02XV/9nwCk2I
-# jzPM0Xfi01FBBvP77q2JV57h4B6w+Xvhvj1uwYR6Ig8vpQKJ5YCHY8cyLRYpsRTH
-# ubT+ww2XkI5xkSXQxF3AB29kopz4bqc3WnX72HLqL45FhU0ggWVFAaowIkuEx+g7
-# wqEpZocqnpFZ8CRy88L13MTvvKfsppuDOrI3tXRCgoKDpPhAt9SfVXe+a9MGnBPU
-# pFpxAQa182myruNkfwyUq/xt0I/ZhruSUaYjiEbpCxY4uSKhggMiMIIDHgYJKoZI
+# hkiG9w0BCQQxFgQUtZDNA+lciqCZ6Mnq0Pq+tRzQEhIwDQYJKoZIhvcNAQEBBQAE
+# ggIAVxVdpMQg6IRmSA4cSIAWhmZV7HrNUg7SjaYJ/0HElGq9gmunxXywYl51+GVs
+# AjflvXmdVJI5Upf8NN826WuI0NcTreZt6Nertl9/j+lo9HGj72qL6dEhC9eXG7zI
+# +hXmlebiEYM5toenHpjBz6kn6HwCxtQma1nE8fcNYbmPLGdgRfPAxZm3axtsCP6T
+# AoESbfCq4prUubBvGU2+1GGuKrGG9Jm+Db0sEEw0QhNKaP4IeDXkmM8Iz6PFxyAK
+# F2m14MBAx4Do9+6sYjWLARAToxFL2jPgA+VGdD+XxQk2z/uPj5iyijxk17A9iCM5
+# jq8bOKrYzbuqgp0vSLjyxS1S+uulWdKH+pfnvkPlIclrsAL+lEFNSzK18Ayo936I
+# hImqThrlJ8xkHYYw3gJiXYlaWVXtZG8a/Xm1B0d3Ro/NHOiXl7Ks+tMcxnzTxlmh
+# IMxyoF9hblwiGhggLg7J0kb8KAg0gBJEe0ujmh8Kfiio88uKcYGrU36bk34mf372
+# 1seWcCHlfGmQl414LYy3Nk5uARCio8uRzVj7nWPZ0UNXKldGNz6nrOsnH64TeZi7
+# 2g56mvYXsgAXdzHa2zVYPXag8EJDa5V82ZjvEJ18xtzFAtHrQ4oBeNGGBJ0rtU08
+# wMDNJ+7t3aDy+b2dL8WUwMt14rpR7l4uCWMqA7Y52jfS/3uhggMiMIIDHgYJKoZI
 # hvcNAQkGMYIDDzCCAwsCAQEwaTBVMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2Vj
 # dGlnbyBMaW1pdGVkMSwwKgYDVQQDEyNTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1w
 # aW5nIENBIFIzNgIQOlJqLITOVeYdZfzMEtjpiTANBglghkgBZQMEAgIFAKB5MBgG
-# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI0MTIxODA2
-# MTU0OVowPwYJKoZIhvcNAQkEMTIEMK1x0KlFBO5uuw8yh1GDB7FUA/jymr/6qIFW
-# WWIrH5jQaUXEQiH/aWX+eHNqf7xcozANBgkqhkiG9w0BAQEFAASCAgCF0Kc1MK+y
-# VHS5kV01pxSOtfRDQ6ZMYbBRqGP5nG4HCUFFY73JDr3zzN0bz7/1Rl3DSSVDnoWt
-# TUC9y4msBEnD65wY2Zf8h2xnUJ9krQFF6/71R5s8h0T50ESRfvQPqqI0zPyd7FCo
-# jQbhojl2xtgmH9D29XrM7MQI35H+zU8oloojzcghndPTD9iiTMGZysaiAs5QLCHv
-# 5HoOx9LH2PhG9Mrsb2dCXT2nu1b/BnlfR7IX5rXTC/Pb66eN+Rd/SPvlkGkq/cZO
-# +f1haLqtBN0KuZZvJW67JR8p+7pNQMVqaQD4juqtfBMHN39/x0L7KZ8wh9S1mEar
-# N2pb4HJC1QcHSLm5nUPQ0wNmg7lhObJH5hnT4k3CcaUjxa7LTds70FOuz/ITJSKK
-# rzBcNl+PhxVoD4oLmOBb8T6tOB8rAAJKO81p7kW4ko/0enKWJ7JnuPNVErSaX+s6
-# jXU/4k75rB1Ae2hs/zmS9hvoOQtPO5ny4EKPDOFeiqxHnqcNUJWoFR98KEl9P9k7
-# ValUgGq9feOPHcERkS4qBSvFdDKseFv1mGShNKASQC3agec6PacDsj2fXpJVCmYs
-# 1S63ibtW3f8hboRo+fOUr+jQ5ShOmwrLMixs2NHfGI8PRT8a5JqW6YTgOR8iy7+7
-# tLBylyj3V1fXci4l9txDGZviXfD+Iqxizw==
+# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI1MDEyMDA1
+# NDk0NlowPwYJKoZIhvcNAQkEMTIEMAlD2wFh0MRTBcKAs/B3q7ceuY0/vBDPHKeG
+# nCX1CBaN+fEvYWfV32uypzDmk74YjzANBgkqhkiG9w0BAQEFAASCAgAkRTKaspjz
+# gNrdtazMectWUDAbyN3yPkkoNHDiPckpGqDUI/Ns8cmmse9TNluz8HoLq0w+hn/+
+# NEri7oXhPgCzidB6+sVA5u2Xx4L69eDx6Sf6zgKaMafutjce8ln3V7gkk8Kfh0yN
+# s+vbLaiMsdw8Wl3302Z47KsbxyY+Q5m/GbliUIxP55U8ukfVFDB+NTdAfzp3eK9G
+# Rp7OGQqnHxXNw1nNJRRWziPE164C/tKog5iNMBh1xZtiMJ7c4iWN1rJQVZVOg+wb
+# PNBBkoLUMA+2BLZuENKMU3Ovsr8FxERK6lyyDQpmi6NNzglYF6ApKQRFRbyIqhbU
+# 9WzAKF1rg0QYqs1JVBdpD0D5v4AVMS3T42JNvujFsn+vJ4ZPFx0+tJFaqCeKWYzh
+# JUuKnGh72o+8Y/R7u/NLpworGXKRY1PdCLQ2bXCtishiJl9DvaYCiBNT6Yx5uoSC
+# GvwEHja+KIH9PD5InF53u92hvimQZ4krudN7XHbNoj3uwpVxuzlJ8T3zJ305TytS
+# UrOHidH8pdb7u4gfhOUdJxvv6D5vFwFocoFWzD+JumSZ2p2/Dc+S0DZnwrlNCrDo
+# X0ORMHeS8cw2gw0Abi7LUyboKQyunh+OXU2onhmwjLLJ0UohZC2hpBmIUbtP8gaj
+# jm/J+sI0lX6Kv3IaBGPLzVDvgLoBQYMEuA==
 # SIG # End signature block

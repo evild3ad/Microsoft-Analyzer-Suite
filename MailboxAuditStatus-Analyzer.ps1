@@ -1,4 +1,4 @@
-﻿# RiskyUsers-Analyzer
+﻿# MailboxAuditStatus-Analyzer
 #
 # @author:    Martin Willing
 # @copyright: Copyright (c) 2025 Martin Willing. All rights reserved. Licensed under the MIT license.
@@ -30,33 +30,31 @@
 
 <#
 .SYNOPSIS
-  RiskyUsers-Analyzer - Automated Processing of 'RiskyUsers.csv' (Microsoft-Extractor-Suite by Invictus-IR)
+  MailboxAuditStatus-Analyzer - Automated Processing of Mailbox Audit Settings for DFIR
 
 .DESCRIPTION
-  RiskyUsers-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of the Risky Users from the Entra ID Identity Protection extracted via "Microsoft Extractor Suite" by Invictus Incident Response.
-
-  Note: Using the riskyUsers API requires a Microsoft Entra ID P2 license.
+  MailboxAuditStatus-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of the Mailbox Audit Settings extracted via "Microsoft-Extractor-Suite" by Invictus Incident Response.
 
   https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v3.0.0)
 
-  https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/GetUserInfo.html#retrieves-the-risky-users
+  https://microsoft-365-extractor-suite.readthedocs.io/en/latest/
 
 .PARAMETER OutputDir
-  Specifies the output directory. Default is "$env:USERPROFILE\Desktop\RiskyUsers-Analyzer".
+  Specifies the output directory. Default is "$env:USERPROFILE\Desktop\MailboxAuditStatus-Analyzer".
 
-  Note: The subdirectory 'RiskyUsers-Analyzer' is automatically created.
+  Note: The subdirectory 'MailboxAuditStatus-Analyzer' is automatically created.
 
 .PARAMETER Path
-  Specifies the path to the CSV-based input file (*-RiskyUsers.csv).
+  Specifies the path to the CSV-based input file (*-MailboxAuditStatus.csv).
 
 .EXAMPLE
-  PS> .\RiskyUsers-Analyzer.ps1
+  PS> .\MailboxAuditStatus-Analyzer.ps1
 
 .EXAMPLE
-  PS> .\RiskyUsers-Analyzer.ps1 -Path "$env:USERPROFILE\Desktop\*-RiskyUsers.csv"
+  PS> .\MailboxAuditStatus-Analyzer.ps1 -Path "$env:USERPROFILE\Desktop\*-MailboxAuditStatus.csv"
 
 .EXAMPLE
-  PS> .\RiskyUsers-Analyzer.ps1 -Path "H:\Microsoft-Extractor-Suite\*-RiskyUsers.csv" -OutputDir "H:\Microsoft-Analyzer-Suite"
+  PS> .\MailboxAuditStatus-Analyzer.ps1 -Path "H:\Microsoft-Extractor-Suite\*-MailboxAuditStatus.csv" -OutputDir "H:\Microsoft-Analyzer-Suite"
 
 .NOTES
   Author - Martin Willing
@@ -85,22 +83,10 @@ Param(
 
 # Declarations
 
-# Script Root
-if ($PSVersionTable.PSVersion.Major -gt 2)
-{
-    # PowerShell 3+
-    $SCRIPT_DIR = $PSScriptRoot
-}
-else
-{
-    # PowerShell 2
-    $SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Definition
-}
-
 # Output Directory
 if (!($OutputDir))
 {
-    $script:OUTPUT_FOLDER = "$env:USERPROFILE\Desktop\RiskyUsers-Analyzer" # Default
+    $script:OUTPUT_FOLDER = "$env:USERPROFILE\Desktop\MailboxAuditStatus-Analyzer" # Default
 }
 else
 {
@@ -111,9 +97,14 @@ else
     }
     else
     {
-        $script:OUTPUT_FOLDER = "$OutputDir\RiskyUsers-Analyzer" # Custom
+        $script:OUTPUT_FOLDER = "$OutputDir\MailboxAuditStatus-Analyzer" # Custom
     }
 }
+
+# Colors
+Add-Type -AssemblyName System.Drawing
+$script:Green  = [System.Drawing.Color]::FromArgb(0,176,80) # Green
+$script:Orange = [System.Drawing.Color]::FromArgb(255,192,0) # Orange
 
 #endregion Declarations
 
@@ -139,7 +130,7 @@ if (!(Get-Module -ListAvailable -Name ImportExcel))
 
 # Windows Title
 $DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
-$Host.UI.RawUI.WindowTitle = "RiskyUsers-Analyzer - Automated Processing of 'RiskyUsers.csv' (Microsoft-Extractor-Suite by Invictus-IR)"
+$Host.UI.RawUI.WindowTitle = "MailboxAuditStatus-Analyzer - Automated Processing of Mailbox Audit Settings for DFIR"
 
 # Flush Output Directory
 if (Test-Path "$OUTPUT_FOLDER")
@@ -172,7 +163,7 @@ if(!($Path))
         [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") | Out-Null
         $OpenFileDialog = New-Object System.Windows.Forms.OpenFileDialog
         $OpenFileDialog.InitialDirectory = $InitialDirectory
-        $OpenFileDialog.Filter = "Risky Users|*-RiskyUsers.csv|All Files (*.*)|*.*"
+        $OpenFileDialog.Filter = "Mailbox Audit Status|*-MailboxAuditStatus.csv|All Files (*.*)|*.*"
         $OpenFileDialog.ShowDialog()
         $OpenFileDialog.Filename
         $OpenFileDialog.ShowHelp = $true
@@ -217,7 +208,7 @@ Write-Output "$Logo"
 Write-Output ""
 
 # Header
-Write-Output "RiskyUsers-Analyzer - Automated Processing of 'RiskyUsers.csv'"
+Write-Output "MailboxAuditStatus-Analyzer - Automated Processing of Mailbox Audit Settings for DFIR"
 Write-Output "(c) 2025 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
 Write-Output ""
 
@@ -233,9 +224,10 @@ Write-Output ""
 
 #region Analysis
 
-# Get-MgRiskyUser
-# https://learn.microsoft.com/en-us/powershell/module/microsoft.graph.identity.signins/get-mgriskyuser?view=graph-powershell-1.0
-# https://learn.microsoft.com/en-us/graph/api/resources/riskyuser?view=graph-rest-1.0
+# Manage Mailbox Auditing
+# https://learn.microsoft.com/en-us/purview/audit-mailboxes
+# https://github.com/nathanmcnulty/nathanmcnulty/blob/master/ExchangeOnline/Enable-AdvancedAuditing.ps1
+# https://learn.microsoft.com/en-us/powershell/module/exchange/get-mailboxauditbypassassociation?view=exchange-ps
 
 # Input-Check
 if (!(Test-Path "$LogFile"))
@@ -267,226 +259,171 @@ switch -File "$LogFile" { default { ++$Count } }
 $Rows = '{0:N0}' -f $Count
 Write-Output "[Info]  Total Lines: $Rows"
 
-# Processing RiskyUsers.csv
-Write-Output "[Info]  Processing RiskyUsers.csv ..."
-New-Item "$OUTPUT_FOLDER\CSV" -ItemType Directory -Force | Out-Null
-New-Item "$OUTPUT_FOLDER\XLSX" -ItemType Directory -Force | Out-Null
-
-# Check Timestamp Format
-$Timestamp = (Import-Csv -Path "$LogFile" -Delimiter "," | Select-Object RiskLastUpdatedDateTime -First 1).RiskLastUpdatedDateTime
-
-# de-DE
-if ($Timestamp -match "\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}:\d{2}")
-{
-    $script:TimestampFormat = "dd.MM.yyyy HH:mm:ss"
-}
-
-# en-US
-if ($Timestamp -match "\d{1,2}/\d{1,2}/\d{4} \d{1,2}:\d{2}:\d{2} (AM|PM)")
-{
-    $script:TimestampFormat = "M/d/yyyy h:mm:ss tt"
-}
-
-# Time Frame
-$StartDate = (Import-Csv -Path "$LogFile" -Delimiter "," | Select-Object @{Name="RiskLastUpdatedDateTime";Expression={([DateTime]::ParseExact($_.RiskLastUpdatedDateTime, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}} | Sort-Object { $_.RiskLastUpdatedDateTime -as [datetime] } -Descending | Select-Object -Last 1).RiskLastUpdatedDateTime
-$EndDate = (Import-Csv -Path "$LogFile" -Delimiter "," | Select-Object @{Name="RiskLastUpdatedDateTime";Expression={([DateTime]::ParseExact($_.RiskLastUpdatedDateTime, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}} | Sort-Object { $_.RiskLastUpdatedDateTime -as [datetime] } -Descending | Select-Object -First 1).RiskLastUpdatedDateTime
-Write-Output "[Info]  Log data from $StartDate UTC until $EndDate UTC"
+# Processing Mailbox Audit Status
+Write-Output "[Info]  Processing Mailbox Audit Status ..."
 
 # XLSX
-if (Test-Path "$LogFile")
-{
-    if(!([String]::IsNullOrWhiteSpace((Get-Content "$LogFile"))))
-    {
-        $IMPORT = Import-Csv "$LogFile" -Delimiter "," | Select-Object @{Name="RiskLastUpdatedDateTime";Expression={([DateTime]::ParseExact($_.RiskLastUpdatedDateTime, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}},Id,UserDisplayName,UserPrincipalName,RiskDetail,RiskLevel,RiskState,IsDeleted,IsProcessing,History | Sort-Object { $_.RiskLastUpdatedDateTime -as [datetime] } -Descending
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\XLSX\RiskyUsers.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Risky Users" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:J1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns A-J
-        $WorkSheet.Cells["A:J"].Style.HorizontalAlignment="Center"
-        # ConditionalFormatting - RiskLevel
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["F:F"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("high",$F1)))' -BackgroundColor Red
-        $Orange = [System.Drawing.Color]::FromArgb(255,192,0)
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["F:F"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("medium",$F1)))' -BackgroundColor $Orange
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["F:F"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("low",$F1)))' -BackgroundColor Yellow
-        $Green = [System.Drawing.Color]::FromArgb(0,176,80)
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["F:F"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("none",$F1)))' -BackgroundColor $Green
-        # ConditionalFormatting - RiskState
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["G:G"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("atRisk",$G1)))' -BackgroundColor Red
-        }
-    }
+$Import = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Sort-Object UserPrincipalName
+$Import | Export-Excel -Path "$OUTPUT_FOLDER\MailboxAuditStatus.xlsx" -NoNumberConversion * -FreezePane 2,7 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Mailbox Audit Status" -CellStyleSB {
+param($WorkSheet)
+# BackgroundColor and FontColor for specific cells of TopRow
+$BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+Set-Format -Address $WorkSheet.Cells["A1:M1"] -BackgroundColor $BackgroundColor -FontColor White
+# HorizontalAlignment "Center" of columns A-M
+$WorkSheet.Cells["A:M"].Style.HorizontalAlignment="Center"
+# ConditionalFormatting - AuditEnabled
+Add-ConditionalFormatting -Address $WorkSheet.Cells["D:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(SEARCH("True",$D1)))' -BackgroundColor $Green
+Add-ConditionalFormatting -Address $WorkSheet.Cells["D:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(SEARCH("False",$D1)))' -BackgroundColor Red
+# ConditionalFormatting - AuditBypassEnabled
+Add-ConditionalFormatting -Address $WorkSheet.Cells["E:E"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(SEARCH("False",$E1)))' -BackgroundColor $Green
+Add-ConditionalFormatting -Address $WorkSheet.Cells["E:E"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(SEARCH("True",$E1)))' -BackgroundColor Red
+# ConditionalFormatting - DefaultAuditSet
+$LastRow = $WorkSheet.Dimension.End.Row
+Add-ConditionalFormatting -Address $WorkSheet.Cells["F2:F$LastRow"] -WorkSheet $WorkSheet -RuleType 'Expression' '(ISERROR(FIND("Admin, Delegate, Owner",$F2)))' -BackgroundColor Red
+Add-ConditionalFormatting -Address $WorkSheet.Cells["F:F"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Admin, Delegate, Owner",$F1)))' -BackgroundColor $Green
+# ConditionalFormatting - EffectiveAuditState
+Add-ConditionalFormatting -Address $WorkSheet.Cells["M:M"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Enabled",$M1)))' -BackgroundColor $Green
+Add-ConditionalFormatting -Address $WorkSheet.Cells["M:M"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Disabled",$M1)))' -BackgroundColor Red
 }
 
-# Count Risky Users
-$Count = (Import-Csv -Path "$LogFile" -Delimiter "," | Select-Object Id | Measure-Object).Count
-$RiskyUsers = '{0:N0}' -f $Count
-Write-Output "[Info]  $RiskyUsers Risky Users found"
+# File Size (XLSX)
+if (Test-Path "$OUTPUT_FOLDER\MailboxAuditStatus.xlsx")
+{
+    $Size = Get-FileSize((Get-Item "$OUTPUT_FOLDER\MailboxAuditStatus.xlsx").Length)
+    Write-Output "[Info]  File Size (XLSX): $Size"
+}
 
-# Number of attacks blocked by Identity Protection
+# Mailbox Statistics
 
-# Risky Users detected within the last 7 days
-$Date = (Get-Date).AddDays(-7)
-$Count = (Import-Csv -Path "$LogFile" -Delimiter "," | Where-Object -FilterScript {[DateTime]::Parse($_.RiskLastUpdatedDateTime) -gt $Date} | Measure-Object).Count
-$RiskyUsers = '{0:N0}' -f $Count
-Write-Output "[Info]  $RiskyUsers Risky Users detected within the last 7 days"
+# Total Mailboxes
+$Total = ($Import | Measure-Object).Count
+Write-Output "[Info]  Total Mailboxes: $Total"
 
-# Risky Users detected within the last 30 days
-$Date = (Get-Date).AddDays(-30)
-$Count = (Import-Csv -Path "$LogFile" -Delimiter "," | Where-Object -FilterScript {[DateTime]::Parse($_.RiskLastUpdatedDateTime) -gt $Date} | Measure-Object).Count
-$RiskyUsers = '{0:N0}' -f $Count
-Write-Output "[Info]  $RiskyUsers Risky Users detected within the last 30 days"
+# Audit Enabled
+$AuditEnabled = ($Import | Where-Object {$_.AuditEnabled -eq "True"} | Measure-Object).Count
+Write-Host "[Info]  Audit Enabled: $AuditEnabled" -ForegroundColor Green
 
-# Risky Users detected within the last 90 days
-$Date = (Get-Date).AddDays(-90)
-$Count = (Import-Csv -Path "$LogFile" -Delimiter "," | Where-Object -FilterScript {[DateTime]::Parse($_.RiskLastUpdatedDateTime) -gt $Date} | Measure-Object).Count
-$RiskyUsers = '{0:N0}' -f $Count
-Write-Output "[Info]  $RiskyUsers Risky Users detected within the last 90 days"
+# Audit Disabled
+$AuditDisabled = ($Import | Where-Object {$_.AuditEnabled -eq "False"} | Measure-Object).Count
+if ($AuditDisabled -eq "0")
+{
+    Write-Host "[Info]  Audit Disabled: $AuditDisabled"
+}
+else
+{
+    Write-Host "[Alert] Audit Disabled: $AuditDisabled" -ForegroundColor Red
+}
 
-# Risky Users detected within the last 6 months
-$Date = (Get-Date).AddDays(-180)
-$Count = (Import-Csv -Path "$LogFile" -Delimiter "," | Where-Object -FilterScript {[DateTime]::Parse($_.RiskLastUpdatedDateTime) -gt $Date} | Measure-Object).Count
-$RiskyUsers = '{0:N0}' -f $Count
-Write-Output "[Info]  $RiskyUsers Risky Users detected within the last 6 months"
+# Mailbox Audit Bypass Enabled
+$AuditBypassEnabled = ($Import | Where-Object {$_.AuditBypass -eq "True"} | Measure-Object).Count
+if ($AuditBypassEnabled -eq "0")
+{
+    Write-Host "[Info]  Audit Bypass Enabled: $AuditBypassEnabled" -ForegroundColor Green
+}
+else
+{
+    Write-Host "[Alert] Audit Bypass Enabled: $AuditBypassEnabled" -ForegroundColor Red
+}
 
-# Risky Users detected within the last 12 months
-$Date = (Get-Date).AddDays(-360)
-$Count = (Import-Csv -Path "$LogFile" -Delimiter "," | Where-Object -FilterScript {[DateTime]::Parse($_.RiskLastUpdatedDateTime) -gt $Date} | Measure-Object).Count
-$RiskyUsers = '{0:N0}' -f $Count
-Write-Output "[Info]  $RiskyUsers Risky Users detected within the last 12 months"
+# DefaultAuditSet (Default Mailbox Auditing --> Default Mailbox Actions)
+$DefaultAuditSet = ($Import | Where-Object {$_.DefaultAuditSet -eq "Admin, Delegate, Owner"} | Measure-Object).Count
+Write-Host "[Info]  Default Mailbox Auditing (Admin, Delegate, Owner): $DefaultAuditSet" -ForegroundColor Green
+
+# CustomAuditSet (Custom Mailbox Auditing --> Custom Mailbox Actions)
+$CustomAuditSet = $($Total - $DefaultAuditSet)
+if ($CustomAuditSet -eq "0")
+{
+    Write-Host "[Info]  Custom Mailbox Auditing: 0"
+}
+else
+{
+    Write-Host "[Alert] Custom Mailbox Auditing: $CustomAuditSet" -ForegroundColor Red
+}
+
+# Mailbox Auditing (on by default)
+# Ensure that Mailbox Auditing (on by default) is turned on for your organization (Default = AuditDisabled: False).
+# Note: When mailbox auditing on by default is turned on for the organization, the 'AuditEnabled' property for affected mailboxes won't be changed from 'False' to 'True'. In other words, mailbox auditing on by default ignores the 'AuditEnabled' property on mailboxes. Mailbox Auditing on by default in the organization overrides the mailbox auditing settings on individual mailboxes.
+# https://learn.microsoft.com/en-us/purview/audit-mailboxes
+$MailboxAuditingOnByDefault = $Import | Select-Object -ExpandProperty EffectiveAuditState -Unique
+if($MailboxAuditingOnByDefault -eq "Enabled (Organization Policy)")
+{
+    Write-Host "[Info]  Mailbox Auditing (on by default) is turned on for your organization." -ForegroundColor Green
+    Write-Host "        Note: Mailbox Auditing (on by default) in the organization overrides the mailbox auditing settings on individual mailboxes." -ForegroundColor Green
+}
+
+# Sign-in Types
+
+# Admin
+# - The mailbox is searched with one of the following Microsoft eDiscovery tools: 
+#   - eDiscovery in the Microsoft Purview portal or compliance portal.
+#   - In-Place eDiscovery in Exchange Online.
+# - The mailbox is accessed by using the Microsoft Exchange Server MAPI Editor.
+# - The mailbox is accessed by an account impersonating another user. This occurs when the ApplicationImpersonation role is assigned to an account, such as an application, which is now actively accessing the data.
+
+# Delegate
+# - A user who's been assigned the SendAs, SendOnBehalf, or FullAccess permission to another mailbox.
+# - An admin who's been assigned the FullAccess permission to a user's mailbox.
+
+# Owner
+# - The mailbox owner (the account that's associated with the mailbox).
 
 # Stats
-New-Item "$OUTPUT_FOLDER\Stats\CSV" -ItemType Directory -Force | Out-Null
-New-Item "$OUTPUT_FOLDER\Stats\XLSX" -ItemType Directory -Force | Out-Null
+New-Item "$OUTPUT_FOLDER\Stats" -ItemType Directory -Force | Out-Null
 
-# RiskDetail (Stats)
-$Total = (Import-Csv -Path "$LogFile" -Delimiter "," | Select-Object RiskDetail | Measure-Object).Count
-Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Group-Object RiskDetail | Select-Object @{Name='RiskLevel'; Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\Stats\CSV\RiskDetail.csv" -NoTypeInformation -Encoding UTF8
+# RecipientTypeDetails (Stats)
+$Data = $Import | Select-Object RecipientTypeDetails
+$Total = ($Import | Measure-Object).Count
 
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\RiskDetail.csv")
+if ($Total -ge "1")
 {
-    if(!([String]::IsNullOrWhiteSpace((Get-Content "$OUTPUT_FOLDER\Stats\CSV\RiskDetail.csv"))))
+    $Stats = $Data | Group-Object RecipientTypeDetails | Select-Object @{Name='RecipientTypeDetails'; Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+
+    if (Get-Module -ListAvailable -Name ImportExcel)
     {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\Stats\CSV\RiskDetail.csv" -Delimiter ","
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\RiskDetail.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "RiskDetail" -CellStyleSB {
+        $Stats | Export-Excel -Path "$OUTPUT_FOLDER\Stats\RecipientTypeDetails.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "RecipientTypeDetails" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
         $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
         Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns B-C
+        # HorizontalAlignment "Center" of column B-C
         $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
         }
     }
 }
 
-# RiskLevel (Stats)
-$Total = (Import-Csv -Path "$LogFile" -Delimiter "," | Select-Object RiskLevel | Measure-Object).Count
-Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Group-Object RiskLevel | Select-Object @{Name='RiskLevel'; Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\Stats\CSV\RiskLevel.csv" -NoTypeInformation -Encoding UTF8
+# DefaultAuditSet (Stats)
+$Data = $Import | Select-Object DefaultAuditSet
+$Total = ($Import | Measure-Object).Count
 
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\RiskLevel.csv")
+if ($Total -ge "1")
 {
-    if(!([String]::IsNullOrWhiteSpace((Get-Content "$OUTPUT_FOLDER\Stats\CSV\RiskLevel.csv"))))
+    $Stats = $Data | Group-Object DefaultAuditSet | Select-Object @{Name='DefaultAuditSet'; Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+
+    if (Get-Module -ListAvailable -Name ImportExcel)
     {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\Stats\CSV\RiskLevel.csv" -Delimiter ","
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\RiskLevel.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "RiskLevel" -CellStyleSB {
+        $Stats | Export-Excel -Path "$OUTPUT_FOLDER\Stats\DefaultAuditSet.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "DefaultAuditSet" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
         $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
         Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns A-C
-        $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
-        # ConditionalFormatting - RiskLevel
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:A"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("high",$A1)))' -BackgroundColor Red
-        $Orange = [System.Drawing.Color]::FromArgb(255,192,0)
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:A"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("medium",$A1)))' -BackgroundColor $Orange
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:A"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("low",$A1)))' -BackgroundColor Yellow
-        $Green = [System.Drawing.Color]::FromArgb(0,176,80)
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:A"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("none",$A1)))' -BackgroundColor $Green
+        # HorizontalAlignment "Center" of column B-C
+        $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
+        # ConditionalFormatting - DefaultAuditSet
+        $LastRow = $WorkSheet.Dimension.End.Row
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["A2:C$LastRow"] -WorkSheet $WorkSheet -RuleType 'Expression' '(ISERROR(FIND("Admin, Delegate, Owner",$A2)))' -BackgroundColor Red
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Admin, Delegate, Owner",$A1)))' -BackgroundColor $Green
         }
     }
 }
 
-# RiskLevel
-# none   - No Risk
-# low    - Low Risk Users
-# medium - Medium Risk Users
-# high   - High Risk Users
-# hidden - Microsoft Entra ID P2 license required
-# unknownFutureValue
+# Mailbox Auditing (on by default)
+# Ensure that Mailbox Auditing (on by default) is turned on for your organization (Default = AuditDisabled: False).
+# Note: When mailbox auditing on by default is turned on for the organization, the 'AuditEnabled' property for affected mailboxes won't be changed from 'False' to 'True'. In other words, mailbox auditing on by default ignores the 'AuditEnabled' property on mailboxes.
+# https://learn.microsoft.com/en-us/purview/audit-mailboxes
 
-# RiskState (Stats)
-$Total = (Import-Csv -Path "$LogFile" -Delimiter "," | Select-Object RiskState | Measure-Object).Count
-Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Group-Object RiskState | Select-Object @{Name='RiskState'; Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\Stats\CSV\RiskState.csv" -NoTypeInformation -Encoding UTF8
-
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\RiskState.csv")
-{
-    if(!([String]::IsNullOrWhiteSpace((Get-Content "$OUTPUT_FOLDER\Stats\CSV\RiskState.csv"))))
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\Stats\CSV\RiskState.csv" -Delimiter ","
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\RiskState.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "RiskState" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns A-C
-        $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
-        # ConditionalFormatting - RiskState
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:A"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("atRisk",$A1)))' -BackgroundColor Red
-        }
-    }
-}
-
-# Line Charts
-New-Item "$OUTPUT_FOLDER\Stats\XLSX\LineCharts" -ItemType Directory -Force | Out-Null
-
-# Risky Users (Line Chart) --> Risky Users per day
-$Import = Import-Csv "$LogFile" -Delimiter "," | Select-Object @{Name="RiskLastUpdatedDateTime";Expression={([DateTime]::ParseExact($_.RiskLastUpdatedDateTime, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}}
-$Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
-if ($Count -gt 0)
-{
-    $RiskyUsers = $Import | Group-Object{($_.RiskLastUpdatedDateTime -split "\s+")[0]} | Select-Object Count,@{Name='RiskLastUpdatedDateTime'; Expression={ $_.Values[0] }} | Sort-Object { $_.RiskLastUpdatedDateTime -as [datetime] }
-    $ChartDefinition = New-ExcelChartDefinition -XRange RiskLastUpdatedDateTime -YRange Count -Title "Risky Users" -ChartType Line -NoLegend -Width 1200
-    $RiskyUsers | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\LineCharts\RiskyUsers.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
-}
-
-# Risky Users (Line Chart) --> Risky Users per day (Last 90 days)
-$Date = (Get-Date).AddDays(-90)
-$Import = Import-Csv "$LogFile" -Delimiter "," | Where-Object -FilterScript {[DateTime]::Parse($_.RiskLastUpdatedDateTime) -gt $Date} | Select-Object @{Name="RiskLastUpdatedDateTime";Expression={([DateTime]::ParseExact($_.RiskLastUpdatedDateTime, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}}
-$Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
-if ($Count -gt 0)
-{
-    $RiskyUsers = $Import | Group-Object{($_.RiskLastUpdatedDateTime -split "\s+")[0]} | Select-Object Count,@{Name='RiskLastUpdatedDateTime'; Expression={ $_.Values[0] }} | Sort-Object { $_.RiskLastUpdatedDateTime -as [datetime] }
-    $ChartDefinition = New-ExcelChartDefinition -XRange RiskLastUpdatedDateTime -YRange Count -Title "Risky Users (Last 90 days)" -ChartType Line -NoLegend -Width 1200
-    $RiskyUsers | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\LineCharts\RiskyUsers_Last-90-days.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
-}
-
-# atRisk
-# dismissed --> e.g. dismissed automatically
-# remediated
-
-# Number of Risky Users with Risk Level "High" (Past 12 months)
-$Date = (Get-Date).AddDays(-360)
-$Count = (Import-Csv -Path "$LogFile" -Delimiter "," | Where-Object -FilterScript {[DateTime]::Parse($_.RiskLastUpdatedDateTime) -gt $Date}  | Where-Object { $_.RiskLevel -eq "high" } | Measure-Object).Count
-if ($Count -gt 0)
-{
-    $HighRiskUsers = '{0:N0}' -f $Count
-    Write-Host "[Alert] Number of High Risk Users (Past 12 months): $HighRiskUsers" -ForegroundColor Red
-}
-else
-{
-    Write-Host "[Info]  Number of High Risk Users (Past 12 months): 0" -ForegroundColor Green
-}
-
-# Number of Users whose Risk State is "Remediated" or "Dismissed"
-$Import = Import-Csv -Path "$LogFile" -Delimiter "," | Where-Object { $_.RiskState -eq "Remediated" -or $_.RiskState -eq "Dismissed" }
-$Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
-if ($Count -gt 0)
-{
-    Write-Host "[Alert] Number of Users whose Risk State is 'Remediated' or 'Dismissed': $Count"
-}
+# Remediation
+# If mailbox audit logging has been disabled at the tenant level, run the following command to enable it:
+# Set-OrganizationConfig –AuditDisabled $false
 
 #endregion Analysis
 
@@ -509,7 +446,7 @@ Write-Output "$ElapsedTime"
 # Stop logging
 Write-Host ""
 Stop-Transcript
-Start-Sleep 2
+Start-Sleep 0.5
 
 # Reset Windows Title
 $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
@@ -522,8 +459,8 @@ $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
 # SIG # Begin signature block
 # MIIrxQYJKoZIhvcNAQcCoIIrtjCCK7ICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUDo3Qn/yujqTYBaFCPINgBQTc
-# b3KggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUDjrXbmvs8YwPp/jXvuXURq2+
+# WpmggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
 # AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
 # MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
 # MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
@@ -725,33 +662,33 @@ $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
 # YmxpYyBDb2RlIFNpZ25pbmcgQ0EgUjM2AhEAjEGek78rzqyIBig7dhm9PDAJBgUr
 # DgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMx
 # DAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkq
-# hkiG9w0BCQQxFgQUIOviXdd9sY0P2Ns+peoqYCSd3cEwDQYJKoZIhvcNAQEBBQAE
-# ggIAlp/0aZ4BiXMkWMR5iEiNckWX+7ShvkAai2PSeBDTVqIXVUJtivmK3rKzjd0o
-# gF7oQ4oE4xx8Gwe5ngAa/eK/9UlNFopLHqdaBq00kMLdBnDGQFM2cLtInKHHRsgf
-# XfdhXGYzSE8/0SYjYRvgPIBhcUMLNjJhP9aenXY0FDrXX/46Q3iaW1nvsw/TQQ9a
-# 8dABU06cT2jmPGgAkqE20olRpIwjWDB3Di8ct2ARmBaMqfvtYCQw6maoOCBKFXRL
-# 7YRYxxkJlR2xdiiz84LTSmGPpUOBmqNpaNSz2dWdCBmOHqeLDmJcLAJJ49VgDo/S
-# fa8huYEzk5gk2rtuBBrvrPn/gOifhzxyoykjoa53BLlT8ELVjPHKY3Jya7ekMboR
-# mFeCc3uVoUUaFJNuceM53AVaEmBq83NyYPnXwGUyRFvkuGEdoy9d6OWV85yOeZKd
-# O/FK597K6bwqaRAd0tswWp0AtglIdHCVn1+OSR3t16wVoNP95TEuMgCxwz5om5e3
-# Ye8hUiknefQq5XqcegHS/yO8NjXWPcaThHGPMOrMdwQgzfOtoemCKEKUVCB5Ia0F
-# veNjql40tT2k0rtz0mJIEw91PhWdbbAa2zoBlimT1NPHfaasXYRfWi75vwgNHbO2
-# 2pGPRJ3VhUI9QrSppysT14CgLwC9ukQvJTBhse8BQ1FyommhggMiMIIDHgYJKoZI
+# hkiG9w0BCQQxFgQUV/277/e2Eeq7+oAL3zVVowCUXFswDQYJKoZIhvcNAQEBBQAE
+# ggIAkgAAQ/OhvEzpUyVKJr4f4I1rZcSR0YV8bn94b/G89I1+pDqXK/CVNeppMNo/
+# 2MvMZhN+aru7FU3weI7xvnhQbjIqjPP6okXF4MQEKnAsqPjxumwH9gj+R3gV1rXv
+# 2I7Daq4DeCvAtBoyqmSxMiCPaXhkpQ9fV00gATMBSpHxugSpPT6rgy0yqKFp60Pz
+# b/FzkoJEhZyBPHGhDtfF7zCnHgEQza5PZJEqwdTAmdXA6u1jwloceNVOJY+xiV/C
+# twdbHzGddEJj8oY3fwbK5O8qADcawddQSyM++LKINo5nM++uT7WKV7QLwLkUaIzU
+# kHQHeGr0iRRf3c48sTB8VdX5lH5OptUJnn9PA4Ri1BES/VXaIiHdyFwZ075bcT41
+# PxJdCwaKoASWafJNFgt/KJQQ2kHaqlkbCMkso05X7IN5snQZFzCOjm35T873z3Su
+# QbCwHBu3Ts6TOvi0s04fGThNqPnAFeLHrM/8SyStyi4K6+ywEqRbo7C0iF1H0H0/
+# 54uiVLCZBxNk+3jfceAxR+8tzm9OFWlRD91HJlEPUGeZ1vKwEOM3b7+kfmtW3T51
+# 3YMkdsiT6BAn4ThzT4CTnO+UFhdRFohyngljVn+ZoyGkA/YMHbjhpVIeqmhPXbhJ
+# 10MjUtAPaVpfKsNSbTNEVusvxZZP475WXHV/2sF8wL37MpyhggMiMIIDHgYJKoZI
 # hvcNAQkGMYIDDzCCAwsCAQEwaTBVMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2Vj
 # dGlnbyBMaW1pdGVkMSwwKgYDVQQDEyNTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1w
 # aW5nIENBIFIzNgIQOlJqLITOVeYdZfzMEtjpiTANBglghkgBZQMEAgIFAKB5MBgG
 # CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI1MDEyMDA1
-# NDk1M1owPwYJKoZIhvcNAQkEMTIEMJrGTgYiuin817DPtagX8FDVv8yS3rGx6s1J
-# HXr9uGnvmSe+tu8lZuLMHVhvGwAI3zANBgkqhkiG9w0BAQEFAASCAgBPUulbDnAP
-# fbFE0OH5dCQluqO6vNrgz3CqyAFL9ccFJ3D4YPWMR6i82tW55sRWAkA6z16ipW0m
-# SyBJcB+E7E0oqOpoUH+n9/v3i8fvmc5uGL/tVdX1Mh9kadxHCb1JDYRSPk7naVJm
-# OUojRpuqsqEsbBo3S6SFhQD00p+Y8B6hIHgEbjJuZG7cW6vJJkobDhi/ZZSLOPGW
-# 9GnpTRUX7MtIsm2NyZJ9d4eOpMxTo99TBHMFwQAetMmhQzosk4KYwbae/iNJdkjG
-# hfw0JoSIOHkD66298/As9ZUWVDybo6oOd/HQI8caJO7JSJalZBJ5MGubVgERaDTW
-# 6FVRK7GDHpPUbqfjeBD7GxDk6KA/1yfZAyqCLPXniKX0iHSVcuojZxXf8IxLmwTV
-# vb4p5cZZNQVvEGdLv+H6Qm7IZ1N6BCruL+nmwukj7OvNHB2F14BK+H+Rd/tfmdQU
-# uTVbVKtVeHSO9gdM7RCFcmI9zyAmptU6TeZxli/qmZiPYmsclsFScGgTt3Hx7Et8
-# AqXu21+fprU3LsaO1Hiqk3lU1ILgpPNQEM5s7S9e7EliaonyHjwAmHdxGnOjsoCY
-# kHMXLu0sGubj1gWFfRZWuL+/XzPH8En50t4syrVPEua9whE1V7+k6tPqPxWZoVDb
-# 3Vm+YeDyKHSuHtuYi5bcV+dgf4oFcC8zjQ==
+# NDkzM1owPwYJKoZIhvcNAQkEMTIEMAn462tlWYo5tmYc2uM6aQRqrW6d9YwxWrLC
+# tB3QmmjSqZnbpupcJ2Z4TjmKRTcT7DANBgkqhkiG9w0BAQEFAASCAgBWATp1huNw
+# 42lgSG9IrNjSMk46ILpJntKm4v1njy5ej/PGRoc6rurhYKRKLDLjQq68t0vjwQEe
+# TUeqq0iD5MOLom+SdFjt/S2W778j4uk/lx2AAWGLv0DKWLoLJuoO6hpUIQt14ATG
+# 3lsEUnlGwE/+77Jh2gKZf3HFooAgGbD0wvXiwG/GW0Cr0J/0MbWW4vdwpXNL9kl5
+# QnhTWTIGiZdGw0OOsVSv4CsrgB0UL4Hj8zRCaaJtjmD8JRul7CZI0IRj6hBPI9Ip
+# Tx1iAG98Tt/gUy7TiS9SMT8eCN4fYc8W3PVNL3N005XGlNDGbb+F7ixBRL/KK88f
+# dVUl+AFqX9PsVuNMrNSp62aC0X03FFHSPyd9N84Yt6szexRZXeYbUEyEy0VsERdG
+# 0vDMfLd4kgpEg5klStaAco/vzanj+JZh2jcD6oPBTaeuV3KzERgymN/Md72alKNB
+# Ccpu3nReK/ZqiZ0CbM6NuIm4P3+LGDcasgE8kVpQLU1Ppk9zDwydqixeHSGxnKb0
+# /e21lahsvoUb6d1nUrARjwUMYkzQySlVoQ9ghP17ZSHIQz1QuOvvgAaGYiNkqiHg
+# 6rO+DBYadehs7XX/Yvcsw6VhXHUUHecCez+oBvVZc8ksQ/Q5gJYS/bsOXW9K43UM
+# jcu55GvdwDjUsITusEQMBMmga9l3JH2hiA==
 # SIG # End signature block

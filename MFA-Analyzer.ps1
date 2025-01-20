@@ -1,10 +1,10 @@
 ﻿# MFA-Analyzer
 #
 # @author:    Martin Willing
-# @copyright: Copyright (c) 2024 Martin Willing. All rights reserved. Licensed under the MIT license.
+# @copyright: Copyright (c) 2025 Martin Willing. All rights reserved. Licensed under the MIT license.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-12-17
+# @date:      2025-01-20
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -21,8 +21,8 @@
 # https://github.com/dfinke/ImportExcel
 #
 #
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5247) and PowerShell 5.1 (5.1.19041.5247)
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5247) and PowerShell 7.4.6
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 5.1 (5.1.19041.5369)
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 7.4.6
 #
 #
 #############################################################################################################################################################################################
@@ -35,7 +35,7 @@
 .DESCRIPTION
   MFA-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of the MFA Status of all users extracted via "Microsoft Extractor Suite" by Invictus Incident Response.
 
-  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v2.1.1)
+  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v3.0.0)
 
   https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/GetUserInfo.html#retrieves-mfa-status
 
@@ -108,10 +108,6 @@ else
 
 #region Header
 
-# Windows Title
-$DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
-$Host.UI.RawUI.WindowTitle = "MFA-Analyzer - Automated Analysis of Authentication Methods and User Registration Details for DFIR"
-
 # Check if the PowerShell script is being run with admin rights
 if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
 {
@@ -119,6 +115,18 @@ if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]
     $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
     Exit
 }
+
+# Check if PowerShell module 'ImportExcel' is installed
+if (!(Get-Module -ListAvailable -Name ImportExcel))
+{
+    Write-Host "[Error] Please install 'ImportExcel' PowerShell module." -ForegroundColor Red
+    Write-Host "[Info]  Check out: https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki#setup"
+    Exit
+}
+
+# Windows Title
+$DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
+$Host.UI.RawUI.WindowTitle = "MFA-Analyzer - Automated Analysis of Authentication Methods and User Registration Details for DFIR"
 
 # Flush Output Directory
 if (Test-Path "$OUTPUT_FOLDER")
@@ -197,7 +205,7 @@ Write-Output ""
 
 # Header
 Write-Output "MFA-Analyzer - Automated Analysis of Authentication Methods and User Registration Details for DFIR"
-Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
+Write-Output "(c) 2025 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
 Write-Output ""
 
 # Analysis date (ISO 8601)
@@ -278,27 +286,20 @@ if (Test-Path "$AuthenticationMethods")
 }
 
 # XLSX
-if (Get-Module -ListAvailable -Name ImportExcel)
+if (Test-Path "$AuthenticationMethods")
 {
-    if (Test-Path "$AuthenticationMethods")
+    if(!([String]::IsNullOrWhiteSpace((Get-Content "$OUTPUT_FOLDER\CSV\AuthenticationMethods.csv"))))
     {
-        if(!([String]::IsNullOrWhiteSpace((Get-Content "$OUTPUT_FOLDER\CSV\AuthenticationMethods.csv"))))
-        {
-            $IMPORT = Import-Csv -Path "$OUTPUT_FOLDER\CSV\AuthenticationMethods.csv" -Delimiter "," -Encoding UTF8
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\XLSX\AuthenticationMethods.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Authentication Methods" -CellStyleSB {
-            param($WorkSheet)
-            # BackgroundColor and FontColor for specific cells of TopRow
-            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:K1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns B-K
-            $WorkSheet.Cells["B:K"].Style.HorizontalAlignment="Center"
-            }
+        $IMPORT = Import-Csv -Path "$OUTPUT_FOLDER\CSV\AuthenticationMethods.csv" -Delimiter "," -Encoding UTF8
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\XLSX\AuthenticationMethods.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Authentication Methods" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:K1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of columns B-K
+        $WorkSheet.Cells["B:K"].Style.HorizontalAlignment="Center"
         }
     }
-}
-else
-{
-    Write-Host "[Error] PowerShell module 'ImportExcel' NOT found." -ForegroundColor Red
 }
 
 # File Size (XLSX)
@@ -531,21 +532,18 @@ if (Test-Path "$UserRegistrationDetails")
 }
 
 # XLSX
-if (Get-Module -ListAvailable -Name ImportExcel)
+if (Test-Path "$UserRegistrationDetails")
 {
-    if (Test-Path "$UserRegistrationDetails")
+    if(!([String]::IsNullOrWhiteSpace((Get-Content "$OUTPUT_FOLDER\CSV\UserRegistrationDetails.csv"))))
     {
-        if(!([String]::IsNullOrWhiteSpace((Get-Content "$OUTPUT_FOLDER\CSV\UserRegistrationDetails.csv"))))
-        {
-            $IMPORT = Import-Csv -Path "$OUTPUT_FOLDER\CSV\UserRegistrationDetails.csv" -Delimiter "," -Encoding UTF8
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\XLSX\UserRegistrationDetails.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "User Registration Details" -CellStyleSB {
-            param($WorkSheet)
-            # BackgroundColor and FontColor for specific cells of TopRow
-            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:O1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns B-O
-            $WorkSheet.Cells["B:O"].Style.HorizontalAlignment="Center"
-            }
+        $IMPORT = Import-Csv -Path "$OUTPUT_FOLDER\CSV\UserRegistrationDetails.csv" -Delimiter "," -Encoding UTF8
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\XLSX\UserRegistrationDetails.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "User Registration Details" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:O1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of columns B-O
+        $WorkSheet.Cells["B:O"].Style.HorizontalAlignment="Center"
         }
     }
 }
@@ -650,8 +648,8 @@ $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
 # SIG # Begin signature block
 # MIIrxQYJKoZIhvcNAQcCoIIrtjCCK7ICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUaPV1c0UtIB0tShQ1wTiuR1NS
-# +SuggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUzuRC6RHzVf8HV1/wohhuy+rf
+# QTaggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
 # AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
 # MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
 # MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
@@ -853,33 +851,33 @@ $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
 # YmxpYyBDb2RlIFNpZ25pbmcgQ0EgUjM2AhEAjEGek78rzqyIBig7dhm9PDAJBgUr
 # DgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMx
 # DAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkq
-# hkiG9w0BCQQxFgQU9sjEf7JMrar9HNc0mliUgG3NmH4wDQYJKoZIhvcNAQEBBQAE
-# ggIAiDt1nFlXmcC/3RmnI+m6iKWd7sNSEgcnB7lHbEGd38dDMRt7/HTeXgX/kTrc
-# DPYTWy3deFQ2D6Cxq6nQF6jAAWjACw8m/6plNdNAwxkmNHhZFm8eJnF8WoR4lnOW
-# GlBRFhvs7UgXUikXIJVIWabmznXFkF/hrsyYXxQvhXAEXGZEffcolP5AkDVASC7f
-# 4eFzENn3ienmcxMYg+iagn1xqP/0ZQz29XJLuUddemVVHRTUPnjztjPifnxDilGg
-# 9y8NIffCosfam3cmGeWIs5wAAs9Matk0wLvkzG7iPLFGEaVp5wsf6H6FNx2Ab8+G
-# FI7y0wVm1fc8DAr01YJOyv8W0msBPxxH9s55qH50XVTId1Tz9nMAG8lHWWzwyNrM
-# z8Ba+JEvp3xYLbVq2vDXZKf5jhKXRPjlE/vGFe4txvzDSRFpGNY2aQUC9lN8sztZ
-# xETzMzaBvgAiYtjR1fmmMXbpQ65qtCcH/jBXZgsjGOQG6a7jguWRJlKIoXqT5yEF
-# duVkUhm5O6c8/F+Ph2ZqmWr/FHlWUKdQi0owR/YyRaItPI9lttahUH0DvPD+Dz/y
-# Viv7pWqVhx6lSxykYbwgkBEDgxNnJOj3i8Q85k0xgHwTxY4O2yEiYFMOmNqBV7h6
-# rYgZvjKxtSFOoZAFbUb3yrJyD9clOH4VT3XHzOt4O3xGyHqhggMiMIIDHgYJKoZI
+# hkiG9w0BCQQxFgQU7znlqEswU5S4B+2aiBzwxu+Ed+gwDQYJKoZIhvcNAQEBBQAE
+# ggIAly+8xPE1LbKEtCn/We/w82xrF6Xp6j/R//6YL9UAF+b0Z4/GSFfaBWauO7ak
+# eO3z0VBpvyIxzdBkS+5cmgj/xog8flFRETyPIKEUrM7VXl9Ny0sQpM5nRXMtycAV
+# kFWpqh9PEMYqgAHM+3McBvwj/HcA1RtJ5p4ZX9pGWa3nO1EPvLmCx+ldl5QkTkmA
+# k8lem3ZxG6sArgRgf2XrtmZXkXYPbTZJF44XxJF9z15gcyYDcE7wBVsvvf9bcUxh
+# jG3LwEYTFi7p4fGE7qjZNI7KCZnOeaxbW8LlkBoZgMAwnV5OP6r4ElEjHnQR8N2J
+# P3P/+s986/4xp2xEt1qDoDgzTUMlHVhUHgCnOTv5HSjuulHT3H6qCE2sTf0IDhnT
+# d/lLhfWgiYvwErXHtX4axgjjCoWkPWQHcv//ZPQ/B9rtoQReGgNTo7tXGSF+rd51
+# RcmOjynK1N09dVMtK7pzo7fqu7G/EZXDKE9zR09FFBJ7VDWeJ6a8ra2CWuuxBw5l
+# OX3vJvXX8BIYEq3l12IyUC6JAkWkGHfvtaOJDIBIirRVqIpdZ2Y1o7hhHMeJTr9U
+# 8cGvjMnmGMEA3vkvsQBYz0jsFIyEDx1a+mzAZ7eDhX0sfTeAPPnJevKHcU0niYp/
+# zNDPtbeGS3mggSS1XarUDdWxh7IFx0woktwQUMT4nUeWUGehggMiMIIDHgYJKoZI
 # hvcNAQkGMYIDDzCCAwsCAQEwaTBVMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2Vj
 # dGlnbyBMaW1pdGVkMSwwKgYDVQQDEyNTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1w
 # aW5nIENBIFIzNgIQOlJqLITOVeYdZfzMEtjpiTANBglghkgBZQMEAgIFAKB5MBgG
-# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI0MTIxODA2
-# MTU0M1owPwYJKoZIhvcNAQkEMTIEMAQ19kmRok3oUhx3nFGBQ4hX4fxvzlK/Xqbj
-# 9ZAiq0f+GwmWQFnJXud10YoSFvmUNDANBgkqhkiG9w0BAQEFAASCAgACnA0C2+ry
-# YjTZga1LA3982e9WCpeW6vyyet3eMavYFz95S+nSCTR1QapP8Pk0K0dicYbPAn76
-# t1Eap1AXIm6cRGcuzup27/iygiCU4z+sPwxtUWg+iWBP9FJooKoWfwqO5ihEZRbc
-# SBpoQ1WiUvTTHUcZ0cD8wKcoK+J0xhBRvidOs2Il8Zlye1OPflKS66gWOkHSn/oU
-# VOZAr8o4DWouRVzbv8uozUeBf/FRo48EZPhKKnEjE8XqDwqTmQ+DVqX7IuqN/0QD
-# HJfuCfs75FM2Dh2+7GmIdc/aH5FVTAr5MgitGc2kgI+sSViIsIBGRlYQSlMQR28V
-# MZgCo880wCByBTl/arfqCZd0lgW/bH7kA33ZODhVTIJ7+P8ert25FAwlW5dGFxoV
-# QZXTSkXEaSjub7Gopg7EYWIUwH22DdhxbjQKORLI8k8drsObEiuHH9nlGVHQgKo1
-# bl1prhyPuOk6aC5oOfWDNkiik3VGYmXSMd6s2DI5kwUkF1YeVLPziG6vEvIZn1ox
-# 0kGvvlX3Y8ruVef0244R/3IG+H4jFMwFwe+NgeW5ZaLcDhpplpn5/qk7J5rua3Hu
-# VKX8HqMo9DCuXzi6Ot/k+lJ6P+58oVJV/33NhjUiltGIdzWjSh8fZyUuV9W8tDCg
-# 3VicYr/aZw1aG85PjSjs1foIV/TUu/sgeg==
+# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI1MDEyMDA1
+# NDk0MFowPwYJKoZIhvcNAQkEMTIEMNPbnc+ADG9gRw9Q/sgJzwmPXhYKG8mJVHJi
+# a3klpU/jt3U6qa80UTnaBIbORx8eDzANBgkqhkiG9w0BAQEFAASCAgAqWrEqMPIh
+# pspKoFek8cvb8+3ps77atlw5oJWUIuqKYcXa2Bl3pF855rKS98mDnOBcR7pW853U
+# riLYZNnLRVSFyKw52Z4Q34M1enEg7FXVtmDZruGNcEjzSsbBpevz/vJZcF3iuVd4
+# Vi1wgowLWyCZ+9IdHaT3lGmDmObkleeiIkmh5uxmal37pwg3RfCgvuuMNf+RE+vG
+# /912KLa7t14dIOorX6hx5pBjxUSt2zw8GHS+R9hXSlxYoRADc7LOuUWJxbXq0Oxr
+# wS7UabSwnX25dFyytbQ+w7tuIokpLb4jlo5VgOhwQSHFQri0YTH//RzsVm6i3C23
+# wgF6DKkcm7pJEMUZ4vBjPStLIOIlGCUwY2i7ZjPK/ekct1fDMddCs57sGinvQZTd
+# vf9aSHT0BZwKsLEUyxIRi0doG+yqGRypzqsnnxdNZkiqyem+ugWX2SJRlJXH1Lk/
+# mQrlDO/BtK+y9TrD+5t1Uv79bcTPkZIW+EPc3XYfSu0q896Fw5aTczpoXmRjkBX6
+# M3wJv0sRoP85bSXWCc5Si8b7jX8sCDRH2HEr/Q2WvIZSjdmfzuPkpG0FONUfTJwd
+# vrLe95YCCnI/TRzNSjf4zDotZ6DVMy2feptZ/ckKC/IIaiMe4UQVCB5+Xd/3RRQX
+# Hn+9RyTrWzqpcYpILDMqmYRHjPLQDtqFVQ==
 # SIG # End signature block

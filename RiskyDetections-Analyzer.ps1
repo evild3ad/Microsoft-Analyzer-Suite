@@ -1,10 +1,10 @@
 ﻿# RiskyDetections-Analyzer
 #
 # @author:    Martin Willing
-# @copyright: Copyright (c) 2024 Martin Willing. All rights reserved. Licensed under the MIT license.
+# @copyright: Copyright (c) 2025 Martin Willing. All rights reserved. Licensed under the MIT license.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-12-17
+# @date:      2025-01-20
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -21,8 +21,8 @@
 # https://github.com/dfinke/ImportExcel
 #
 #
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5247) and PowerShell 5.1 (5.1.19041.5247)
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5247) and PowerShell 7.4.6
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 5.1 (5.1.19041.5369)
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 7.4.6
 #
 #
 #############################################################################################################################################################################################
@@ -35,7 +35,7 @@
 .DESCRIPTION
   RiskyDetections-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of the Risk Detections from the Entra ID Identity Protection extracted via "Microsoft-Extractor-Suite" by Invictus Incident Response.
 
-  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v2.1.1)
+  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v3.0.0)
 
   https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/GetUserInfo.html#retrieves-the-risky-detections
 
@@ -108,16 +108,24 @@ else
 
 #region Header
 
-# Windows Title
-$DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
-$Host.UI.RawUI.WindowTitle = "RiskyDetections-Analyzer - Automated Processing of 'RiskyDetections.csv' (Microsoft-Extractor-Suite by Invictus-IR)"
-
 # Check if the PowerShell script is being run with admin rights
 if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
 {
     Write-Host "[Error] This PowerShell script must be run with admin rights." -ForegroundColor Red
     Exit
 }
+
+# Check if PowerShell module 'ImportExcel' is installed
+if (!(Get-Module -ListAvailable -Name ImportExcel))
+{
+    Write-Host "[Error] Please install 'ImportExcel' PowerShell module." -ForegroundColor Red
+    Write-Host "[Info]  Check out: https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki#setup"
+    Exit
+}
+
+# Windows Title
+$DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
+$Host.UI.RawUI.WindowTitle = "RiskyDetections-Analyzer - Automated Processing of 'RiskyDetections.csv' (Microsoft-Extractor-Suite by Invictus-IR)"
 
 # Flush Output Directory
 if (Test-Path "$OUTPUT_FOLDER")
@@ -196,7 +204,7 @@ Write-Output ""
 
 # Header
 Write-Output "RiskyDetections-Analyzer - Automated Processing of 'RiskyDetections.csv'"
-Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
+Write-Output "(c) 2025 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
 Write-Output ""
 
 # Analysis date (ISO 8601)
@@ -330,48 +338,41 @@ ForEach($Record in $Data)
 $Results | Export-Csv -Path "$OUTPUT_FOLDER\CSV\RiskyDetections.csv" -NoTypeInformation -Encoding UTF8
 
 # XLSX
-if (Get-Module -ListAvailable -Name ImportExcel)
+if (Test-Path "$OUTPUT_FOLDER\CSV\RiskyDetections.csv")
 {
-    if (Test-Path "$OUTPUT_FOLDER\CSV\RiskyDetections.csv")
+    if(!([String]::IsNullOrWhiteSpace((Get-Content "$OUTPUT_FOLDER\CSV\RiskyDetections.csv"))))
     {
-        if(!([String]::IsNullOrWhiteSpace((Get-Content "$OUTPUT_FOLDER\CSV\RiskyDetections.csv"))))
-        {
-            $IMPORT = Import-Csv "$OUTPUT_FOLDER\CSV\RiskyDetections.csv" -Delimiter "," -Encoding UTF8
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\XLSX\RiskyDetections.xlsx" -NoNumberConversion * -FreezePane 2,6 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Risky Detections" -CellStyleSB {
-            param($WorkSheet)
-            # BackgroundColor and FontColor for specific cells of TopRow
-            $BackgroundColor = [System.Drawing.Color]::FromArgb(255,220,0)
-            Set-Format -Address $WorkSheet.Cells["A1:AO1"] -BackgroundColor $BackgroundColor -FontColor Black
-            # HorizontalAlignment "Center" of columns A-AO
-            $WorkSheet.Cells["A:AO"].Style.HorizontalAlignment="Center"
-            # ConditionalFormatting - MITRE ATT&CK Techniques
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["H:H"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("T1110.001",$H1)))' -BackgroundColor Red # Brute Force: Password Guessing --> https://attack.mitre.org/techniques/T1110/001/
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["H:H"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("T1110.003",$H1)))' -BackgroundColor Red # Brute Force: Password Spraying --> https://attack.mitre.org/techniques/T1110/003/
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["H:H"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("T1114.003",$H1)))' -BackgroundColor Red # Email Collection: Email Forwarding Rule --> https://attack.mitre.org/techniques/T1114/003/
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["H:H"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("T1539",$H1)))' -BackgroundColor Red # Steal Web Session Cookie --> https://attack.mitre.org/techniques/T1539/
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["H:H"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("T1564.008",$H1)))' -BackgroundColor Red # Hide Artifacts: Email Hiding Rules --> https://attack.mitre.org/techniques/T1564/008/
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["H:H"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("T1589.001",$H1)))' -BackgroundColor Red # Gather Victim Identity Information: Credentials --> https://attack.mitre.org/techniques/T1589/001/
-            # ConditionalFormatting - RiskEventType
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["J:J"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("maliciousIPAddress",$J1)))' -BackgroundColor Red
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["J:J"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("mcasSuspiciousInboxManipulationRules",$J1)))' -BackgroundColor Red
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["J:J"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("nationStateIP",$J1)))' -BackgroundColor Red
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["J:J"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("passwordSpray",$J1)))' -BackgroundColor Red
-            # ConditionalFormatting - RiskLevel
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["K:K"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("high",$K1)))' -BackgroundColor Red
-            $Orange = [System.Drawing.Color]::FromArgb(255,192,0)
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["K:K"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("medium",$K1)))' -BackgroundColor $Orange
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["K:K"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("low",$K1)))' -BackgroundColor Yellow
-            $Green = [System.Drawing.Color]::FromArgb(0,176,80)
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["K:K"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("none",$K1)))' -BackgroundColor $Green
-            # ConditionalFormatting - RiskState
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["M:M"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("atRisk",$M1)))' -BackgroundColor Red
-            }
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\CSV\RiskyDetections.csv" -Delimiter "," -Encoding UTF8
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\XLSX\RiskyDetections.xlsx" -NoNumberConversion * -FreezePane 2,6 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Risky Detections" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:AO1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of columns A-AO
+        $WorkSheet.Cells["A:AO"].Style.HorizontalAlignment="Center"
+        # ConditionalFormatting - MITRE ATT&CK Techniques
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["H:H"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("T1110.001",$H1)))' -BackgroundColor Red # Brute Force: Password Guessing --> https://attack.mitre.org/techniques/T1110/001/
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["H:H"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("T1110.003",$H1)))' -BackgroundColor Red # Brute Force: Password Spraying --> https://attack.mitre.org/techniques/T1110/003/
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["H:H"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("T1114.003",$H1)))' -BackgroundColor Red # Email Collection: Email Forwarding Rule --> https://attack.mitre.org/techniques/T1114/003/
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["H:H"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("T1539",$H1)))' -BackgroundColor Red # Steal Web Session Cookie --> https://attack.mitre.org/techniques/T1539/
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["H:H"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("T1564.008",$H1)))' -BackgroundColor Red # Hide Artifacts: Email Hiding Rules --> https://attack.mitre.org/techniques/T1564/008/
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["H:H"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("T1589.001",$H1)))' -BackgroundColor Red # Gather Victim Identity Information: Credentials --> https://attack.mitre.org/techniques/T1589/001/
+        # ConditionalFormatting - RiskEventType
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["J:J"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("maliciousIPAddress",$J1)))' -BackgroundColor Red
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["J:J"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("mcasSuspiciousInboxManipulationRules",$J1)))' -BackgroundColor Red
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["J:J"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("nationStateIP",$J1)))' -BackgroundColor Red
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["J:J"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("passwordSpray",$J1)))' -BackgroundColor Red
+        # ConditionalFormatting - RiskLevel
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["K:K"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("high",$K1)))' -BackgroundColor Red
+        $Orange = [System.Drawing.Color]::FromArgb(255,192,0)
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["K:K"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("medium",$K1)))' -BackgroundColor $Orange
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["K:K"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("low",$K1)))' -BackgroundColor Yellow
+        $Green = [System.Drawing.Color]::FromArgb(0,176,80)
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["K:K"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("none",$K1)))' -BackgroundColor $Green
+        # ConditionalFormatting - RiskState
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["M:M"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("atRisk",$M1)))' -BackgroundColor Red
         }
     }
-}
-else
-{
-    Write-Host "[Error] PowerShell module 'ImportExcel' NOT found." -ForegroundColor Red
 }
 
 # Count Risky Detections
@@ -401,8 +402,8 @@ if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\Activity.csv")
         $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\Activity.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Activity" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(255,220,0)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor Black
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
         # HorizontalAlignment "Center" of columns A-C
         $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
         }
@@ -422,8 +423,8 @@ if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\DetectionTimingType.csv")
         $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\DetectionTimingType.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "DetectionTimingType" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(255,220,0)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor Black
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
         # HorizontalAlignment "Center" of columns A-C
         $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
         }
@@ -445,8 +446,8 @@ if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\mitreTechniques.csv")
         $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\mitreTechniques.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "MITRE ATT&CK" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(255,220,0)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor Black
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
         # HorizontalAlignment "Center" of columns B-C
         $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
         # ConditionalFormatting
@@ -481,8 +482,8 @@ if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\RiskEventType.csv")
         $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\RiskEventType.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "RiskEventType" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(255,220,0)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor Black
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
         # HorizontalAlignment "Center" of columns A-C
         $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
         # ConditionalFormatting
@@ -507,8 +508,8 @@ if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\RiskLevel.csv")
         $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\RiskLevel.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "RiskLevel" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(255,220,0)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor Black
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
         # HorizontalAlignment "Center" of columns A-C
         $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
         # ConditionalFormatting - RiskLevel
@@ -536,8 +537,8 @@ if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\RiskDetail.csv")
         $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\RiskDetail.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "RiskDetail" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(255,220,0)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor Black
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
         # HorizontalAlignment "Center" of columns A-C
         $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
         }
@@ -557,8 +558,8 @@ if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\RiskReasons.csv")
         $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\RiskReasons.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "RiskReasons" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(255,220,0)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor Black
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
         # HorizontalAlignment "Center" of columns B-C
         $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
 
@@ -579,8 +580,8 @@ if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\RiskState.csv")
         $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\RiskState.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "RiskState" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(255,220,0)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor Black
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
         # HorizontalAlignment "Center" of columns A-C
         $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
 
@@ -601,8 +602,8 @@ if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\Source.csv")
         $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\Source.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Source" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(255,220,0)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor Black
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
         # HorizontalAlignment "Center" of columns A-C
         $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
         }
@@ -622,8 +623,8 @@ if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\UserAgent.csv")
         $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\UserAgent.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "UserAgent" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(255,220,0)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor Black
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
         # HorizontalAlignment "Center" of columns B-C
         $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
         }
@@ -651,8 +652,8 @@ if (Test-Path "$OUTPUT_FOLDER\Stats\CSV\UserPrincipalName.csv")
         $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\Stats\XLSX\UserPrincipalName.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "UserPrincipalName" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(255,220,0)
-        Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor Black
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
         # HorizontalAlignment "Center" of columns B-D
         $WorkSheet.Cells["B:D"].Style.HorizontalAlignment="Center"
         }
@@ -790,8 +791,8 @@ $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
 # SIG # Begin signature block
 # MIIrxQYJKoZIhvcNAQcCoIIrtjCCK7ICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUs+cxa/p5ZKzh13GUtslEW/Gd
-# 8iGggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUDcJcvSC7vlJXMKBR1H0RzMCt
+# hbuggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
 # AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
 # MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
 # MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
@@ -993,33 +994,33 @@ $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
 # YmxpYyBDb2RlIFNpZ25pbmcgQ0EgUjM2AhEAjEGek78rzqyIBig7dhm9PDAJBgUr
 # DgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMx
 # DAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkq
-# hkiG9w0BCQQxFgQUqjfG2/GMMIIx3q1HeGqqPtlc8YowDQYJKoZIhvcNAQEBBQAE
-# ggIAkfLMP6NtBeIfmG4D4f1hl68qqiUQY9RGocJNAs4opXsDi41xbBoe68HnbeAn
-# KD91ybbphqPtJGbxTYPyxV/fiXZi5cDZ+0tdHlhyz0UhSKLq+ln3PWJYCaKsrQid
-# 7oIRq6IzIv4qLDZgrPoVy2lBuJ8lWXCO3vQA7BxsV9W2w1uO+PJI290EVshcKF3+
-# JZ8RXxoVkSKd0wJc3ZZVoUL7h0hbwaHF5Zgb3gplqvomQOB9SkhwH69Yq7TRI5L5
-# dQxTIv2FWa43OPilWCO5J36RW9MDI8mi8hIWsUgENhfbwJwS2LeCTfsAoM9nMPCQ
-# EyaC4mlReZ3hBWlWwClCaDtiQPUTXT3QEeQBWnOLrJsxFEXHbW1SfjWuHNXRIcwZ
-# 7ZBjeLV6pCRsdIKvDn6hZQyDo91KmXfiNcoSF5z8Clw0HnKTWgtHPKnp9zoYhkh5
-# 7zbO/xJrqQ0otO2R7cCPK6TeDSnRdlHdtgq41vifBEnVhb7ums3jJJG0mKNXpc7h
-# UuI3R4P8aRooDSj9zAZd9202OUSYcp9unSUQF//tTZojwmmUrewltgvYCGL/PhHx
-# 7DrTTXZclU3BecX/aN9n3csh8lWwOpltJLENRBN+lzLg2RJ1iCoSXU+8jFKeuaMZ
-# 441ziWt5RBNVps3vcnpUkTFDQfanSJAHZG8/lnPVvknrojqhggMiMIIDHgYJKoZI
+# hkiG9w0BCQQxFgQUcOaBQURcafBF2AHyW+iyDMgbF1kwDQYJKoZIhvcNAQEBBQAE
+# ggIAKX7mqK9Hs87cVUT9EMdmNd5zawsnI6t9462BpQ4/5cvkGz51wt9l2mdqNTCP
+# AEL/AKrX36c3C5rZfRIQfAd8CipYO/Qp3sUUh84fj8VOvd6SlZ7Q42ymLGM3Dvwd
+# qzJAVj5unfh01Hh9q39+iUflQFifyUSOXb+Lc/UZfeLv/Nwxw5GzMFUYHWcyLSyE
+# LxQqC4deEHZg2YFw3fIPwE+IxxAsQBSrVeGNUMEP6S3KHj5nTuKy6BjstH09v7Jc
+# ta8EogSKq+7s12yUaf1QQM0ulLBGUzAgqKkdy6vDWMls+UWYOoNRHrrYvudhm/cE
+# ybyaqhUGyZHjYRdE0hee0aA/ykRHJ3QzHUdqWEU5dx0oGzjg/xawIoioTINo9Fxd
+# Gd+pRfBXsbb25qE8u/XH/AYk8eAGJO/uuJeLJ9i4U5JJ+JWu0ytyvrT423WfIcq4
+# iH+HvqU5SNVZ1TV1bOoOU9ANEK3mShhcxwi355XFDxj/mRw0GKtnlJmsMBNzvkPb
+# Sr7abngMeeZH5o/F/dxQ5ytc9+hp3SWtVIEyjI0SyHUe/sR+uNN5lOhFNPY+FTm1
+# X6m/DXsJ+u5IgbpvrbOIrGWQ5gCjY6fsBBHngl7nUaVUdJ1yNytI1khUL48zS0sX
+# BZMJ9e40/Hjj2iH4UtKcwoun2WsYINC5CNhqi06qiqWMWR+hggMiMIIDHgYJKoZI
 # hvcNAQkGMYIDDzCCAwsCAQEwaTBVMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2Vj
 # dGlnbyBMaW1pdGVkMSwwKgYDVQQDEyNTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1w
 # aW5nIENBIFIzNgIQOlJqLITOVeYdZfzMEtjpiTANBglghkgBZQMEAgIFAKB5MBgG
-# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI0MTIxODA2
-# MTU1MlowPwYJKoZIhvcNAQkEMTIEMMGlGUTctQ63y/XIVf25vHMHG3NccMppAXwD
-# ukOfoDwILil7cpbGyN7Aw+wQK+kwmjANBgkqhkiG9w0BAQEFAASCAgA7m4YKopan
-# eXbSF03d8kw5R2s5ZgK6TneL60DVpG+i4vVWfcQ7q7cp66Wa/Vyi/Lc78WDa4HWc
-# 3uwc1bQllKAbNYvbMBFYk7iDYf8G8PTmMzkFDQis7YYoZ2eKMM046I41s3QDvR9h
-# shg5ikGmAXt7itVGKrfpbPd5EhLzYnZmumHAwD9ia6RfIpAwkI69zzsRlihzAc5c
-# dz1BukG8fCQoGay7DBhYe4qX70YtXK9i4FMLqDVMWp5z18G1wVpYeZAi1FEgN4kb
-# cfZ55xYmD1qzdEELzR6vvZYFMwD7mOybyhGl3Tv7Cro0Yh5jzWrkViXlq1Iqs6QP
-# L4wUte7gSjOq00Ta7IplO9HGTr0MgM6yC2LQjyrCmtXgh6AlcFiOKxbpC2cZsKm3
-# whdZ0u/ESLFayEeLAiaO3SHLok1YCjGxTwEinP5JJY8EOyBVdhKEHeshsQM22QHn
-# k7fg/gL1AoxSP0eTfT+NfsZF5pVIukwXUdpJsDWh27Ubg8qwg+emwgGP+7zspNT+
-# dCoaKbdA1/Zyw0Wi1qt6/7C50PUUUyEtxbp+J6eum8Nxb+zkzoZyldVarN08yRic
-# yLf/iENj1vjH7SENW20dTgZ5uKwpj+Av/TEKtteXnMz41G5NIRXfq7bSuRQ8PHMq
-# M9ujJkHVFbfeIllFMoKiHhMPWoNwEOroPg==
+# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI1MDEyMDA1
+# NDk1MFowPwYJKoZIhvcNAQkEMTIEMKpzHvrnHNv5dU+F4raTc5CQUxOt8HnxLGIC
+# HPdDjKUJve2oJJJ36jm2JiRKfU7qBTANBgkqhkiG9w0BAQEFAASCAgBvtmLFz/4/
+# LloQCPl/s80VVy4xBus6xD+57hPYoLsL//eR2jOVjt87UZXe7OkrABjJzVdrewnK
+# uZ+q5Hy1Bu3of0aGOvJdCUPwGy4SSPxXMwoCCnuDH4/Dt909SUDdjS6k/Eh3S1ln
+# 3sRmJpGF4DAV1H8985GdSM/8FULGLugqRCZPd8qrCKJI7HUZmvurrqgFbrSkV3B1
+# Wa0LJOX3gMwaSY/5xmdWjAxLcMjM76yh+ZIY+Nxr6dbZoeUaM5sPkSKrPccb1kYw
+# TeSbYQNKrsCMNeWepbC/csF8KzIeQDlVoVzjgP8EBBwxpw9zbJU9INF564rIious
+# 8kdM+ozZxAMfMLh5OuM6KlJsJpbFCDc5qJOkKQngGKHcXqXiKHOocaK/NPXT4+6O
+# ghbeWzWPSeChnnCf5Rw1eViJBe/1xjlZJEuW6LudglkI5VcYo+5yhs6kfwtkpODC
+# /SCXXZi3iPjdVA6HjLg4qQt6w1PsSfMcCNs1cgxUpamcxlxj6UalXohP+CS+nqC5
+# YoGJsq03w68jkzhQ5cET880GYOkvVMmVKF3tSaZwtQr5mDJpxnmfdBCaGsJY0c6g
+# b/QPjljIequ6MEZWrKWCLEgMFoZRMcd/cB2WZJgk3pYlOpUdHOafHxcuYXkuc3wQ
+# 13iQ9QjuJilVxjR3PmM3JdVLN/a6m4WquA==
 # SIG # End signature block

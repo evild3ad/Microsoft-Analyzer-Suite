@@ -1,10 +1,10 @@
 ﻿# MTL-Analyzer
 #
 # @author:    Martin Willing
-# @copyright: Copyright (c) 2024 Martin Willing. All rights reserved. Licensed under the MIT license.
+# @copyright: Copyright (c) 2025 Martin Willing. All rights reserved. Licensed under the MIT license.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-12-17
+# @date:      2025-01-20
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -28,8 +28,8 @@
 # https://github.com/BurntSushi/xsv
 #
 #
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5247) and PowerShell 5.1 (5.1.19041.5247)
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5247) and PowerShell 7.4.6
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 5.1 (5.1.19041.5369)
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 7.4.6
 #
 #
 #############################################################################################################################################################################################
@@ -42,7 +42,7 @@
 .DESCRIPTION
   MTL-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of M365 Message Trace Logs extracted via "Microsoft Extractor Suite" by Invictus Incident Response.
 
-  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v2.1.1)
+  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v3.0.0)
 
   https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/MessageTraceLog.html
 
@@ -162,16 +162,24 @@ else
 
 #region Header
 
-# Windows Title
-$DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
-$Host.UI.RawUI.WindowTitle = "MTL-Analyzer - Automated Processing of M365 Message Trace Logs for DFIR"
-
 # Check if the PowerShell script is being run with admin rights
 if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
 {
     Write-Host "[Error] This PowerShell script must be run with admin rights." -ForegroundColor Red
     Exit
 }
+
+# Check if PowerShell module 'ImportExcel' is installed
+if (!(Get-Module -ListAvailable -Name ImportExcel))
+{
+    Write-Host "[Error] Please install 'ImportExcel' PowerShell module." -ForegroundColor Red
+    Write-Host "[Info]  Check out: https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki#setup"
+    Exit
+}
+
+# Windows Title
+$DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
+$Host.UI.RawUI.WindowTitle = "MTL-Analyzer - Automated Processing of M365 Message Trace Logs for DFIR"
 
 # Flush Output Directory
 if (Test-Path "$OUTPUT_FOLDER")
@@ -252,7 +260,7 @@ Write-Output ""
 
 # Header
 Write-Output "MTL-Analyzer - Automated Processing of M365 Message Trace Logs for DFIR"
-Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
+Write-Output "(c) 2025 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
 Write-Output ""
 
 # Analysis date (ISO 8601)
@@ -452,21 +460,18 @@ $SubjectCount = '{0:N0}' -f $Count
 Write-Output "[Info]  Subjects (Inbound): $SubjectCount"
 
 # XLSX (Stats)
-if (Get-Module -ListAvailable -Name ImportExcel)
+if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Subject.csv")
 {
-    if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Subject.csv")
+    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Subject.csv") -gt 0)
     {
-        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Subject.csv") -gt 0)
-        {
-            $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Subject.csv" -Delimiter ","
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\Inbound\Subject.xlsx" -NoHyperLinkConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Subject (Inbound)" -CellStyleSB {
-            param($WorkSheet)
-            # BackgroundColor and FontColor for specific cells of TopRow
-            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns B-C
-            $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
-            }
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Subject.csv" -Delimiter ","
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\Inbound\Subject.xlsx" -NoHyperLinkConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Subject (Inbound)" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of columns B-C
+        $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
         }
     }
 }
@@ -478,21 +483,18 @@ $Total = (Import-Csv -Path "$LogFile" -Delimiter "," | Where-Object {$_.Recipien
 Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object {$_.RecipientAddress -eq "$UserId" } | Group-Object Subject,Status | Select-Object @{Name='Subject'; Expression={ $_.Values[0] }},@{Name='Status'; Expression={ $_.Values[1] }},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Subject-Status.csv" -NoTypeInformation -Encoding UTF8
 
 # XLSX (Stats)
-if (Get-Module -ListAvailable -Name ImportExcel)
+if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Subject-Status.csv")
 {
-    if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Subject-Status.csv")
+    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Subject-Status.csv") -gt 0)
     {
-        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Subject-Status.csv") -gt 0)
-        {
-            $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Subject-Status.csv" -Delimiter ","
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\Inbound\Subject-Status.xlsx" -NoHyperLinkConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Subject (Inbound)" -CellStyleSB {
-            param($WorkSheet)
-            # BackgroundColor and FontColor for specific cells of TopRow
-            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns B-D
-            $WorkSheet.Cells["B:D"].Style.HorizontalAlignment="Center"
-            }
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Subject-Status.csv" -Delimiter ","
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\Inbound\Subject-Status.xlsx" -NoHyperLinkConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Subject (Inbound)" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of columns B-D
+        $WorkSheet.Cells["B:D"].Style.HorizontalAlignment="Center"
         }
     }
 }
@@ -507,24 +509,21 @@ $SubjectCount = (Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Whe
 Write-Output "[Info]  Subjects (Outbound): $SubjectCount"
 
 # XLSX (Stats)
-if (Get-Module -ListAvailable -Name ImportExcel)
+if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Subject.csv")
 {
-    if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Subject.csv")
+    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Subject.csv") -gt 0)
     {
-        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Subject.csv") -gt 0)
-        {
-            $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Subject.csv" -Delimiter ","
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\Outbound\Subject.xlsx" -NoHyperLinkConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Subject (Outbound)" -CellStyleSB {
-            param($WorkSheet)
-            # BackgroundColor and FontColor for specific cells of TopRow
-            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns B-C
-            $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
-            # ConditionalFormatting - Count
-            $LastRow = $WorkSheet.Dimension.End.Row
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["A2:C$LastRow"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '=$B2>=75' -BackgroundColor "Red" # 75x outgoing messages with the same 'Subject'
-            }
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Subject.csv" -Delimiter ","
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\Outbound\Subject.xlsx" -NoHyperLinkConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Subject (Outbound)" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of columns B-C
+        $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
+        # ConditionalFormatting - Count
+        $LastRow = $WorkSheet.Dimension.End.Row
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["A2:C$LastRow"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '=$B2>=75' -BackgroundColor "Red" # 75x outgoing messages with the same 'Subject'
         }
     }
 }
@@ -536,24 +535,21 @@ $Total = (Import-Csv -Path "$LogFile" -Delimiter "," | Where-Object {$_.SenderAd
 Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object {$_.SenderAddress -eq "$UserId" } | Group-Object Subject,Status | Select-Object @{Name='Subject'; Expression={ $_.Values[0] }},@{Name='Status'; Expression={ $_.Values[1] }},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Subject-Status.csv" -NoTypeInformation -Encoding UTF8
 
 # XLSX (Stats)
-if (Get-Module -ListAvailable -Name ImportExcel)
+if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Subject-Status.csv")
 {
-    if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Subject-Status.csv")
+    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Subject-Status.csv") -gt 0)
     {
-        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Subject-Status.csv") -gt 0)
-        {
-            $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Subject-Status.csv" -Delimiter ","
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\Outbound\Subject-Status.xlsx" -NoHyperLinkConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Subject (Outbound)" -CellStyleSB {
-            param($WorkSheet)
-            # BackgroundColor and FontColor for specific cells of TopRow
-            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns B-D
-            $WorkSheet.Cells["B:D"].Style.HorizontalAlignment="Center"
-            # ConditionalFormatting - Count
-            $LastRow = $WorkSheet.Dimension.End.Row
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["A2:D$LastRow"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '=$C2>=75' -BackgroundColor "Red" # 75x outgoing messages with the same 'Subject'
-            }
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Subject-Status.csv" -Delimiter ","
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\Outbound\Subject-Status.xlsx" -NoHyperLinkConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Subject (Outbound)" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of columns B-D
+        $WorkSheet.Cells["B:D"].Style.HorizontalAlignment="Center"
+        # ConditionalFormatting - Count
+        $LastRow = $WorkSheet.Dimension.End.Row
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["A2:D$LastRow"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '=$C2>=75' -BackgroundColor "Red" # 75x outgoing messages with the same 'Subject'
         }
     }
 }
@@ -566,21 +562,18 @@ $MessageIdCount = (Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | W
 Write-Output "[Info]  MessageIds (Inbound): $MessageIdCount"
 
 # XLSX (Stats)
-if (Get-Module -ListAvailable -Name ImportExcel)
+if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\MessageIds.csv")
 {
-    if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\MessageIds.csv")
+    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\MessageIds.csv") -gt 0)
     {
-        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\MessageIds.csv") -gt 0)
-        {
-            $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\MessageIds.csv" -Delimiter ","
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\Inbound\MessageIds.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "MessageId (Outbound)" -CellStyleSB {
-            param($WorkSheet)
-            # BackgroundColor and FontColor for specific cells of TopRow
-            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-C
-            $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
-            }
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\MessageIds.csv" -Delimiter ","
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\Inbound\MessageIds.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "MessageId (Outbound)" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of columns A-C
+        $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
         }
     }
 }
@@ -593,21 +586,18 @@ $MessageIdCount = (Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | W
 Write-Output "[Info]  MessageIds (Outbound): $MessageIdCount"
 
 # XLSX (Stats)
-if (Get-Module -ListAvailable -Name ImportExcel)
+if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\MessageIds.csv")
 {
-    if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\MessageIds.csv")
+    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\MessageIds.csv") -gt 0)
     {
-        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\MessageIds.csv") -gt 0)
-        {
-            $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\MessageIds.csv" -Delimiter ","
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\Outbound\MessageIds.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "MessageId (Outbound)" -CellStyleSB {
-            param($WorkSheet)
-            # BackgroundColor and FontColor for specific cells of TopRow
-            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-C
-            $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
-            }
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\MessageIds.csv" -Delimiter ","
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\Outbound\MessageIds.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "MessageId (Outbound)" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of columns A-C
+        $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
         }
     }
 }
@@ -622,21 +612,18 @@ $MessageTraceIdCount = (Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF
 Write-Output "[Info]  MessageTraceIds (Inbound): $MessageTraceIdCount"
 
 # XLSX (Stats)
-if (Get-Module -ListAvailable -Name ImportExcel)
+if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\MessageTraceIds.csv")
 {
-    if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\MessageTraceIds.csv")
+    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\MessageTraceIds.csv") -gt 0)
     {
-        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\MessageTraceIds.csv") -gt 0)
-        {
-            $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\MessageTraceIds.csv" -Delimiter ","
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\Inbound\MessageTraceIds.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "MessageTraceId (Inbound)" -CellStyleSB {
-            param($WorkSheet)
-            # BackgroundColor and FontColor for specific cells of TopRow
-            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-C
-            $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
-            }
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\MessageTraceIds.csv" -Delimiter ","
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\Inbound\MessageTraceIds.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "MessageTraceId (Inbound)" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of columns A-C
+        $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
         }
     }
 }
@@ -651,21 +638,18 @@ $MessageTraceIdCount = (Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF
 Write-Output "[Info]  MessageTraceIds (Outbound): $MessageTraceIdCount"
 
 # XLSX (Stats)
-if (Get-Module -ListAvailable -Name ImportExcel)
+if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\MessageTraceIds.csv")
 {
-    if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\MessageTraceIds.csv")
+    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\MessageTraceIds.csv") -gt 0)
     {
-        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\MessageTraceIds.csv") -gt 0)
-        {
-            $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\MessageTraceIds.csv" -Delimiter ","
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\Outbound\MessageTraceIds.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "MessageTraceId (Outbound)" -CellStyleSB {
-            param($WorkSheet)
-            # BackgroundColor and FontColor for specific cells of TopRow
-            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-C
-            $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
-            }
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\MessageTraceIds.csv" -Delimiter ","
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\Outbound\MessageTraceIds.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "MessageTraceId (Outbound)" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of columns A-C
+        $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
         }
     }
 }
@@ -690,21 +674,18 @@ Write-Output "[Info]  FilteredAsSpam (Inbound): $FilteredAsSpamCount"
 Write-Output "[Info]  Quarantined (Inbound): $QuarantinedCount"
 
 # XLSX (Stats)
-if (Get-Module -ListAvailable -Name ImportExcel)
+if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Status.csv")
 {
-    if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Status.csv")
+    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Status.csv") -gt 0)
     {
-        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Status.csv") -gt 0)
-        {
-            $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Status.csv" -Delimiter ","
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\Inbound\Status.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Status (Inbound)" -CellStyleSB {
-            param($WorkSheet)
-            # BackgroundColor and FontColor for specific cells of TopRow
-            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-C
-            $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
-            }
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Inbound\Status.csv" -Delimiter ","
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\Inbound\Status.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Status (Inbound)" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of columns A-C
+        $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
         }
     }
 }
@@ -733,21 +714,18 @@ Write-Output "[Info]  FilteredAsSpam (Outbound): $FilteredAsSpamCount"
 Write-Output "[Info]  Quarantined (Outbound): $QuarantinedCount"
 
 # XLSX (Stats)
-if (Get-Module -ListAvailable -Name ImportExcel)
+if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Status.csv")
 {
-    if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Status.csv")
+    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Status.csv") -gt 0)
     {
-        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Status.csv") -gt 0)
-        {
-            $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Status.csv" -Delimiter ","
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\Outbound\Status.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Status (Outbound)" -CellStyleSB {
-            param($WorkSheet)
-            # BackgroundColor and FontColor for specific cells of TopRow
-            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-C
-            $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
-            }
+        $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Outbound\Status.csv" -Delimiter ","
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\Outbound\Status.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Status (Outbound)" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of columns A-C
+        $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
         }
     }
 }
@@ -995,21 +973,18 @@ if (Test-Path "$($IPinfo)")
                         }
 
                         # Custom XLSX (Free)
-                        if (Get-Module -ListAvailable -Name ImportExcel)
+                        if (Test-Path "$OUTPUT_FOLDER\FromIP\IPinfo\IPinfo-Custom.csv")
                         {
-                            if (Test-Path "$OUTPUT_FOLDER\FromIP\IPinfo\IPinfo-Custom.csv")
+                            if([int](& $xsv count "$OUTPUT_FOLDER\FromIP\IPinfo\IPinfo-Custom.csv") -gt 0)
                             {
-                                if([int](& $xsv count "$OUTPUT_FOLDER\FromIP\IPinfo\IPinfo-Custom.csv") -gt 0)
-                                {
-                                    $IMPORT = Import-Csv "$OUTPUT_FOLDER\FromIP\IPinfo\IPinfo-Custom.csv" -Delimiter "," | Sort-Object {$_.ip -as [Version]}
-                                    $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\FromIP\IPinfo\IPinfo-Custom.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -IncludePivotTable -PivotTableName "PivotTable" -PivotRows "Country Name" -PivotData @{"IP"="Count"} -WorkSheetname "IPinfo (Free)" -CellStyleSB {
-                                    param($WorkSheet)
-                                    # BackgroundColor and FontColor for specific cells of TopRow
-                                    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                                    Set-Format -Address $WorkSheet.Cells["A1:K1"] -BackgroundColor $BackgroundColor -FontColor White
-                                    # HorizontalAlignment "Center" of columns A-K
-                                    $WorkSheet.Cells["A:K"].Style.HorizontalAlignment="Center"
-                                    }
+                                $IMPORT = Import-Csv "$OUTPUT_FOLDER\FromIP\IPinfo\IPinfo-Custom.csv" -Delimiter "," | Sort-Object {$_.ip -as [Version]}
+                                $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\FromIP\IPinfo\IPinfo-Custom.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -IncludePivotTable -PivotTableName "PivotTable" -PivotRows "Country Name" -PivotData @{"IP"="Count"} -WorkSheetname "IPinfo (Free)" -CellStyleSB {
+                                param($WorkSheet)
+                                # BackgroundColor and FontColor for specific cells of TopRow
+                                $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+                                Set-Format -Address $WorkSheet.Cells["A1:K1"] -BackgroundColor $BackgroundColor -FontColor White
+                                # HorizontalAlignment "Center" of columns A-K
+                                $WorkSheet.Cells["A:K"].Style.HorizontalAlignment="Center"
                                 }
                             }
                         }
@@ -1061,21 +1036,18 @@ if (Test-Path "$($IPinfo)")
                         }
 
                         # XLSX (Free)
-                        if (Get-Module -ListAvailable -Name ImportExcel)
+                        if (Test-Path "$OUTPUT_FOLDER\FromIP\IPinfo\IPinfo.csv")
                         {
-                            if (Test-Path "$OUTPUT_FOLDER\FromIP\IPinfo\IPinfo.csv")
+                            if([int](& $xsv count "$OUTPUT_FOLDER\FromIP\IPinfo\IPinfo.csv") -gt 0)
                             {
-                                if([int](& $xsv count "$OUTPUT_FOLDER\FromIP\IPinfo\IPinfo.csv") -gt 0)
-                                {
-                                    $IMPORT = Import-Csv "$OUTPUT_FOLDER\FromIP\IPinfo\IPinfo.csv" -Delimiter "," | Select-Object ip,city,region,country,country_name,isEU,loc,org,postal,timezone | Sort-Object {$_.ip -as [Version]}
-                                    $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\FromIP\IPinfo\IPinfo.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "IPinfo (Free)" -CellStyleSB {
-                                    param($WorkSheet)
-                                    # BackgroundColor and FontColor for specific cells of TopRow
-                                    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                                    Set-Format -Address $WorkSheet.Cells["A1:J1"] -BackgroundColor $BackgroundColor -FontColor White
-                                    # HorizontalAlignment "Center" of columns A-J
-                                    $WorkSheet.Cells["A:J"].Style.HorizontalAlignment="Center"
-                                    }
+                                $IMPORT = Import-Csv "$OUTPUT_FOLDER\FromIP\IPinfo\IPinfo.csv" -Delimiter "," | Select-Object ip,city,region,country,country_name,isEU,loc,org,postal,timezone | Sort-Object {$_.ip -as [Version]}
+                                $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\FromIP\IPinfo\IPinfo.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "IPinfo (Free)" -CellStyleSB {
+                                param($WorkSheet)
+                                # BackgroundColor and FontColor for specific cells of TopRow
+                                $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+                                Set-Format -Address $WorkSheet.Cells["A1:J1"] -BackgroundColor $BackgroundColor -FontColor White
+                                # HorizontalAlignment "Center" of columns A-J
+                                $WorkSheet.Cells["A:J"].Style.HorizontalAlignment="Center"
                                 }
                             }
                         }
@@ -1158,46 +1130,43 @@ if (Test-Path "$($IPinfo)")
                         $Results | Export-Csv -Path "$OUTPUT_FOLDER\MessageTraceLogs\CSV\Hunt.csv" -NoTypeInformation -Encoding UTF8
 
                         # XLSX
-                        if (Get-Module -ListAvailable -Name ImportExcel)
+                        if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\CSV\Hunt.csv")
                         {
-                            if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\CSV\Hunt.csv")
+                            if([int](& $xsv count "$OUTPUT_FOLDER\MessageTraceLogs\CSV\Hunt.csv") -gt 0)
                             {
-                                if([int](& $xsv count "$OUTPUT_FOLDER\MessageTraceLogs\CSV\Hunt.csv") -gt 0)
+                                $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\CSV\Hunt.csv" -Delimiter ","
+                                $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\XLSX\Hunt.xlsx" -NoHyperLinkConversion * -NoNumberConversion * -FreezePane 2,7 -BoldTopRow -AutoSize -AutoFilter -IncludePivotTable -PivotTableName "PivotTable" -WorkSheetname "Hunt" -CellStyleSB {
+                                param($WorkSheet)
+                                # BackgroundColor and FontColor for specific cells of TopRow
+                                $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+                                Set-Format -Address $WorkSheet.Cells["A1:P1"] -BackgroundColor $BackgroundColor -FontColor White
+                                # HorizontalAlignment "Center" of columns A-P
+                                $WorkSheet.Cells["A:P"].Style.HorizontalAlignment="Center"
+
+                                # Iterating over the ASN-Whitelist HashTable
+                                foreach ($ASN in $AsnWhitelist_HashTable.Keys) 
                                 {
-                                    $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\CSV\Hunt.csv" -Delimiter ","
-                                    $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\XLSX\Hunt.xlsx" -NoHyperLinkConversion * -NoNumberConversion * -FreezePane 2,7 -BoldTopRow -AutoSize -AutoFilter -IncludePivotTable -PivotTableName "PivotTable" -WorkSheetname "Hunt" -CellStyleSB {
-                                    param($WorkSheet)
-                                    # BackgroundColor and FontColor for specific cells of TopRow
-                                    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                                    Set-Format -Address $WorkSheet.Cells["A1:P1"] -BackgroundColor $BackgroundColor -FontColor White
-                                    # HorizontalAlignment "Center" of columns A-P
-                                    $WorkSheet.Cells["A:P"].Style.HorizontalAlignment="Center"
-
-                                    # Iterating over the ASN-Whitelist HashTable
-                                    foreach ($ASN in $AsnWhitelist_HashTable.Keys) 
-                                    {
-                                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$O1)))' -f $ASN
-                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["O:O"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Green
-                                    }
+                                    $ConditionValue = 'NOT(ISERROR(FIND("{0}",$O1)))' -f $ASN
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["O:O"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Green
+                                }
                                     
-                                    # Iterating over the ASN-Blacklist HashTable
-                                    foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
-                                    {
-                                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$O1)))' -f $ASN
-                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["O:O"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
-                                    }
+                                # Iterating over the ASN-Blacklist HashTable
+                                foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
+                                {
+                                    $ConditionValue = 'NOT(ISERROR(FIND("{0}",$O1)))' -f $ASN
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["O:O"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                }
 
-                                    # Iterating over the Country-Blacklist HashTable
-                                    foreach ($Country in $CountryBlacklist_HashTable.Keys) 
-                                    {
-                                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$N1)))' -f $Country
-                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["N:N"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
-                                    }
+                                # Iterating over the Country-Blacklist HashTable
+                                foreach ($Country in $CountryBlacklist_HashTable.Keys) 
+                                {
+                                    $ConditionValue = 'NOT(ISERROR(FIND("{0}",$N1)))' -f $Country
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["N:N"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                }
 
-                                    # ConditionalFormatting - Status
-                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["F:F"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Quarantined",$F1)))' -BackgroundColor Red
+                                # ConditionalFormatting - Status
+                                Add-ConditionalFormatting -Address $WorkSheet.Cells["F:F"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Quarantined",$F1)))' -BackgroundColor Red
                                                         
-                                    }
                                 }
                             }
                         }
@@ -1215,36 +1184,33 @@ if (Test-Path "$($IPinfo)")
                         }
 
                         # XLSX (Stats)
-                        if (Get-Module -ListAvailable -Name ImportExcel)
+                        if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\ASN.csv")
                         {
-                            if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\ASN.csv")
+                            if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\ASN.csv") -gt 0)
                             {
-                                if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\ASN.csv") -gt 0)
+                                $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\ASN.csv" -Delimiter ","
+                                $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\ASN.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "ASN" -CellStyleSB {
+                                param($WorkSheet)
+                                # BackgroundColor and FontColor for specific cells of TopRow
+                                $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+                                Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
+                                # HorizontalAlignment "Center" of columns A-D
+                                $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
+
+                                # Iterating over the ASN-Whitelist HashTable
+                                foreach ($ASN in $AsnWhitelist_HashTable.Keys) 
                                 {
-                                    $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\ASN.csv" -Delimiter ","
-                                    $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\ASN.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "ASN" -CellStyleSB {
-                                    param($WorkSheet)
-                                    # BackgroundColor and FontColor for specific cells of TopRow
-                                    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                                    Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
-                                    # HorizontalAlignment "Center" of columns A-D
-                                    $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
+                                    $ConditionValue = 'NOT(ISERROR(FIND("{0}",$B1)))' -f $ASN
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["A:D"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Green
+                                }
 
-                                    # Iterating over the ASN-Whitelist HashTable
-                                    foreach ($ASN in $AsnWhitelist_HashTable.Keys) 
-                                    {
-                                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$B1)))' -f $ASN
-                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:D"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Green
-                                    }
-
-                                    # Iterating over the ASN-Blacklist HashTable
-                                    foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
-                                    {
-                                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$B1)))' -f $ASN
-                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:D"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
-                                    }
+                                # Iterating over the ASN-Blacklist HashTable
+                                foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
+                                {
+                                    $ConditionValue = 'NOT(ISERROR(FIND("{0}",$B1)))' -f $ASN
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["A:D"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                }
                                     
-                                    }
                                 }
                             }
                         }
@@ -1270,29 +1236,26 @@ if (Test-Path "$($IPinfo)")
                         }
 
                         # XLSX (Stats)
-                        if (Get-Module -ListAvailable -Name ImportExcel)
+                        if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Country.csv")
                         {
-                            if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Country.csv")
+                            if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Country.csv") -gt 0)
                             {
-                                if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Country.csv") -gt 0)
-                                {
-                                    $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Country.csv" -Delimiter ","
-                                    $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\Country.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Countries" -CellStyleSB {
-                                    param($WorkSheet)
-                                    # BackgroundColor and FontColor for specific cells of TopRow
-                                    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                                    Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
-                                    # HorizontalAlignment "Center" of columns A-D
-                                    $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
+                                $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\Country.csv" -Delimiter ","
+                                $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\Country.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Countries" -CellStyleSB {
+                                param($WorkSheet)
+                                # BackgroundColor and FontColor for specific cells of TopRow
+                                $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+                                Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
+                                # HorizontalAlignment "Center" of columns A-D
+                                $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
 
-                                    # Iterating over the Country-Blacklist HashTable
-                                    foreach ($Country in $CountryBlacklist_HashTable.Keys) 
-                                    {
-                                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$C1)))' -f $Country
-                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:D"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
-                                    }
+                                # Iterating over the Country-Blacklist HashTable
+                                foreach ($Country in $CountryBlacklist_HashTable.Keys) 
+                                {
+                                    $ConditionValue = 'NOT(ISERROR(FIND("{0}",$C1)))' -f $Country
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["A:D"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                }
                                     
-                                    }
                                 }
                             }
                         }
@@ -1310,43 +1273,40 @@ if (Test-Path "$($IPinfo)")
                         }
 
                         # XLSX (Stats)
-                        if (Get-Module -ListAvailable -Name ImportExcel)
+                        if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\FromIP.csv")
                         {
-                            if (Test-Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\FromIP.csv")
+                            if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\FromIP.csv") -gt 0)
                             {
-                                if([int](& $xsv count -d "," "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\FromIP.csv") -gt 0)
+                                $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\FromIP.csv" -Delimiter ","
+                                $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\FromIP.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "FromIP" -CellStyleSB {
+                                param($WorkSheet)
+                                # BackgroundColor and FontColor for specific cells of TopRow
+                                $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+                                Set-Format -Address $WorkSheet.Cells["A1:G1"] -BackgroundColor $BackgroundColor -FontColor White
+                                # HorizontalAlignment "Center" of columns A-G
+                                $WorkSheet.Cells["A:G"].Style.HorizontalAlignment="Center"
+
+                                # Iterating over the ASN-Whitelist HashTable
+                                foreach ($ASN in $AsnWhitelist_HashTable.Keys) 
                                 {
-                                    $IMPORT = Import-Csv "$OUTPUT_FOLDER\MessageTraceLogs\Stats\CSV\FromIP.csv" -Delimiter ","
-                                    $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\Stats\XLSX\FromIP.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "FromIP" -CellStyleSB {
-                                    param($WorkSheet)
-                                    # BackgroundColor and FontColor for specific cells of TopRow
-                                    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                                    Set-Format -Address $WorkSheet.Cells["A1:G1"] -BackgroundColor $BackgroundColor -FontColor White
-                                    # HorizontalAlignment "Center" of columns A-G
-                                    $WorkSheet.Cells["A:G"].Style.HorizontalAlignment="Center"
+                                    $ConditionValue = 'NOT(ISERROR(FIND("{0}",$E1)))' -f $ASN
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["E:F"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Green
+                                }
 
-                                    # Iterating over the ASN-Whitelist HashTable
-                                    foreach ($ASN in $AsnWhitelist_HashTable.Keys) 
-                                    {
-                                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$E1)))' -f $ASN
-                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["E:F"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Green
-                                    }
+                                # Iterating over the ASN-Blacklist HashTable
+                                foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
+                                {
+                                    $ConditionValue = 'NOT(ISERROR(FIND("{0}",$E1)))' -f $ASN
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["E:F"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                }
 
-                                    # Iterating over the ASN-Blacklist HashTable
-                                    foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
-                                    {
-                                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$E1)))' -f $ASN
-                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["E:F"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
-                                    }
+                                # Iterating over the Country-Blacklist HashTable
+                                foreach ($Country in $CountryBlacklist_HashTable.Keys) 
+                                {
+                                    $ConditionValue = 'NOT(ISERROR(FIND("{0}",$D1)))' -f $Country
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["C:D"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                }
 
-                                    # Iterating over the Country-Blacklist HashTable
-                                    foreach ($Country in $CountryBlacklist_HashTable.Keys) 
-                                    {
-                                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$D1)))' -f $Country
-                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["C:D"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
-                                    }
-
-                                    }
                                 }
                             }
                         }
@@ -1405,19 +1365,16 @@ if ($Count -gt 0)
     Write-Host "[Alert] $Count Shared File Email Notification(s) from OneDrive/SharePoint found (ODSP Notify) (Inbound: $Inbound, Outbound: $Outbound)" -ForegroundColor Yellow
 
     # XLSX
-    if (Get-Module -ListAvailable -Name ImportExcel)
-    {
-        $Import = $Data | Where-Object {$_.MessageId -like "<Share-*" }
-        New-Item "$OUTPUT_FOLDER\MessageTraceLogs\XLSX\ODSP-Notify" -ItemType Directory -Force | Out-Null
-        $Import | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\XLSX\ODSP-Notify\Share.xlsx" -NoHyperLinkConversion * -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "SharePoint Sharing Operation" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:P1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns A-C and E-P
-        $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
-        $WorkSheet.Cells["E:P"].Style.HorizontalAlignment="Center"
-        }
+    $Import = $Data | Where-Object {$_.MessageId -like "<Share-*" }
+    New-Item "$OUTPUT_FOLDER\MessageTraceLogs\XLSX\ODSP-Notify" -ItemType Directory -Force | Out-Null
+    $Import | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\XLSX\ODSP-Notify\Share.xlsx" -NoHyperLinkConversion * -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "SharePoint Sharing Operation" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:P1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns A-C and E-P
+    $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
+    $WorkSheet.Cells["E:P"].Style.HorizontalAlignment="Center"
     }
 }
 
@@ -1430,19 +1387,16 @@ if ($Count -gt 0)
     Write-Host "[Alert] $OTP OneTimePasscode Email Notification(s) from OneDrive/SharePoint found (ODSP Notify) (Inbound: $Inbound, Outbound: $Outbound)" -ForegroundColor Yellow
 
     # XLSX
-    if (Get-Module -ListAvailable -Name ImportExcel)
-    {
-        $Import = $Data | Where-Object {$_.MessageId -like "<OneTimePasscode-*" }
-        New-Item "$OUTPUT_FOLDER\MessageTraceLogs\XLSX\ODSP-Notify" -ItemType Directory -Force | Out-Null
-        $Import | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\XLSX\ODSP-Notify\OneTimePasscode.xlsx" -NoHyperLinkConversion * -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "OneTimePasscode received" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:P1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns A-C and E-P
-        $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
-        $WorkSheet.Cells["E:P"].Style.HorizontalAlignment="Center"
-        }
+    $Import = $Data | Where-Object {$_.MessageId -like "<OneTimePasscode-*" }
+    New-Item "$OUTPUT_FOLDER\MessageTraceLogs\XLSX\ODSP-Notify" -ItemType Directory -Force | Out-Null
+    $Import | Export-Excel -Path "$OUTPUT_FOLDER\MessageTraceLogs\XLSX\ODSP-Notify\OneTimePasscode.xlsx" -NoHyperLinkConversion * -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "OneTimePasscode received" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:P1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns A-C and E-P
+    $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
+    $WorkSheet.Cells["E:P"].Style.HorizontalAlignment="Center"
     }
 }
 
@@ -1511,8 +1465,8 @@ if ($Result -eq "OK" )
 # SIG # Begin signature block
 # MIIrxQYJKoZIhvcNAQcCoIIrtjCCK7ICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQU88+6KlmI3NlDEvRg/be2Ucmh
-# fd+ggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUjGNuwXx04aFOcDsxUizQNtnr
+# CguggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
 # AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
 # MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
 # MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
@@ -1714,33 +1668,33 @@ if ($Result -eq "OK" )
 # YmxpYyBDb2RlIFNpZ25pbmcgQ0EgUjM2AhEAjEGek78rzqyIBig7dhm9PDAJBgUr
 # DgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMx
 # DAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkq
-# hkiG9w0BCQQxFgQUdwWGGaR6lDUT+ysP3gvt+P0a4LYwDQYJKoZIhvcNAQEBBQAE
-# ggIATpNONZTnF05127dMTdkh16l+oZqHlshjyRMOUe+0MVYVx++SKvVHekr3DkZg
-# 7S0ufvcnmH9saYZ83McSipgUx3ecGijTuO/KQSSiD4xsF0gecpFV0swtWk0DorNt
-# Qzc2YLuVC8NdqI0j3L3xsuJBII6JcACsxPMq34/x6/jQ8fZIpUgcZO3wonN0e5QM
-# XXkwRMrDSgdftTcziv8ttM3gwkktpWJY7p5FaAXo5AiaSsc3G25+9diVf27/TrZz
-# 3z5Ka/STbxqr7EmAeSvrWhHCMh37xA2i2i4AUD4mjAWjShki8NDxrrXquZsUzXRJ
-# ElFNu87FUxzPB+3nu7r6dlw8GSSCmf7rZIgXNghAFy2BpZQBhxaTmI742idbXDKL
-# qOWWOTMAdq0ggioLWMg1IZu8t6fSH3HI/7iCIGySey4AXtZBLdJkiL2pgw6GGVXd
-# WbdqmkYwc324+mMp6R7kAHgdJrf5jvHQYkiOKCve3fdjwLQfyQ8l+/RTQ1+uzcDO
-# agqsE39NBYN/riAbr6A/K5shsOlimxDBrdBP28U5A8c5eW+rWUs14AaMmpt7qUCY
-# M/FnrVJ083EklSepHmLRocw1IjsTmjBQFwHsaiKPYwwSljfaAROxxBtajrWww+Gm
-# U7mflHUnIDYqI1dj0N3zzDy6nIvVxMwCOuQRPOVXNVJHPp+hggMiMIIDHgYJKoZI
+# hkiG9w0BCQQxFgQUc+wWTpEP5uEzxtEwSWutQXsZWtcwDQYJKoZIhvcNAQEBBQAE
+# ggIAbszNl27mripbFI/GC90F2UgWsMZ+Boc9/kpDQ8C4ux+64rdyJs2Z9KW4PsrQ
+# sUJXio9zrK4XVsqXYJGtO1eff1LgqLylxIxlWXCS/7+GwUVbPiUQHSf9PR2lTs2T
+# M1g0pPS5UBZqhEx6tPrWlbCuxdaXEjUmHFwJy6RdJnhUno1wXxB29fUoSe5RNqTw
+# m8S1gefOJ01QUZNDb6Jo0yJPQvYOo4EpLvPQ2oTox/bocK9PhrPqq9YslIIKykhS
+# gdnsOS4cCcuMSnVEgszMRtFiyQV0WageF4Po0oBO5XEAoCzroCez0pkXjVwyfTdE
+# WDQVNtlBBlYcMDKoR83LVxn4ZJvWUUrsYfX+fBXZzvCgYbZpFrVMruF0nDjF/bAV
+# 1NdR/s7HR1fkQSejb4h9yvcrxWf4YygC3R5sYMeVnL+EQOUraP95bxll6cz0Loht
+# sIALM2xLlI0dX3lnDfDS1oeX4+mVsmyIW1lPkzsd33MnPfj7V+0Ox1RxoON9yXTB
+# EWfSmzktWoy6QSuk/IXftptVxSo8wnFSA9CxqfFcD+bLZpN4rIojD2wh4lqPLCZZ
+# zAnqj6idZub8IOm8nwbq6K9E8HFaHh1dpr/SwhxO6Ep/R0DuSlJGWec3yYIcQ20e
+# aJBcgyQI6M4DPkegwK9uVl7mVBtkZvuSNocL7lSvIeLIdBWhggMiMIIDHgYJKoZI
 # hvcNAQkGMYIDDzCCAwsCAQEwaTBVMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2Vj
 # dGlnbyBMaW1pdGVkMSwwKgYDVQQDEyNTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1w
 # aW5nIENBIFIzNgIQOlJqLITOVeYdZfzMEtjpiTANBglghkgBZQMEAgIFAKB5MBgG
-# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI0MTIxODA2
-# MTU0NlowPwYJKoZIhvcNAQkEMTIEMCkglHsmmsr0Zdzd3EA0zDZ/8tijnjoBN3bD
-# 6RiW1XRf7mE08ZFcYUFLBZa0AudLhzANBgkqhkiG9w0BAQEFAASCAgA4zPctlBNb
-# 9wYEHowe83filrYFvPJ59yWnJO2FX7tgBMBvHLpFH/2TTKauYA63cCNYOSUK7uZD
-# fAq8NPTJavnTijowJiVZlU0W8uv+czt9zcgrQbbVyioA1wL1V1hqRo6tEl6HKKVW
-# 7T62xqiboc2QGhZ6vn7WsJLENNU91t+OW4IH6/iD+rJeKru1lB8sBUb7Z9xWxRnF
-# w8cexiKwGjwswSFbKgS1uVuTBoveiDUdamV4FVFnWg8JomQeGdGnfD/F1L9UkAFR
-# NIcBeM3omOpHtRtB3EXH1EmI/vkVHbQKKUSHEGEhMx1l/ljel3juMH9rwlrT0e21
-# FxkyQudiGvkIzmt848RK8v7NFrVoFG8b+mOIgT3QbxWYy4SdWsTkrZVxysRU8Ptw
-# z21ZuoFlKmoNQiaA/Mk7N0qDGNFzpF36EU7CwB5lwF56DmcoL5BVLEaTCJz/8ceW
-# k4xwNV9SCkYu8x25ms+GRxwbXda2n/8o9xDle8vFtjhqyBNl+J7oBlRB5EiZz2Xz
-# tviaUajyMKuFtdVifb2hf8357TyH1xxTpHJWQ0As5+hLsoBBMT+NEI7rNFgJo3Of
-# 315mlfgQxYyl3AGM3Q5ie+f3y94oxp0bIXkGX77OF6Xetrs22YFcnzileHYPbwXu
-# JeVJ5/LkZ+atMTQb0j9umPSproUfiuRZeA==
+# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI1MDEyMDA1
+# NDk0M1owPwYJKoZIhvcNAQkEMTIEMOgxoRnBpIhHzHtEFHzNyLzvPM8qnL8EkHh6
+# MmzjX64y0IAFPZRftFFjsj0mt4yiYDANBgkqhkiG9w0BAQEFAASCAgB5DLnbQTL2
+# RqL8e6R1FkG3NFfjuxQHWMYKEOO1L1ElmCstDCK1aGLYwZ6kxkmuNLoRbJmV/l0F
+# nSAWqGXDvvlAppyRGiP/tH8lUaFkXBGDMGTU1eOK8da28OJd7pJatoOJI42DfBuM
+# eZbSbCpO2W8B9pkgxLjPOt25Rc7lBrOtpDSE/tTLxyX3Y76EXloLfdIAjlqqZ4bW
+# X0HRUAYKrI6KafOh6ai8M8lh0lEpiTkkGvsQIfaPoZpdVghxfKiFMn/LMIMB/O4b
+# K8nv2L860q9vQjmStrtv8lE8R3icbRpAqmGr3YbIUaGdpE3Xy+pgPqcMHL4RxlmE
+# 71UOb228E2i/45/N+5TcRiz+fv52vi0Khtl9fJuqPmUjUV/JVKoI1MknMSg/YZ1X
+# NGaq/ArR6lSzo75Qvehp6+qO8aaUFaCAl5l5jKciGQlfuZknG/zfzAbKI++ctC4M
+# duhs/kEJAJkG/CgG6lMaU4BTxfD//kQOselNDYavpuTrn0JnZv/dTDUJiOESxbPK
+# Xy0eBFYwSvCezBIyflKBUuA9dVGpVkyTEsdr/Ggd10oKzD6EmfOPJE74OiOEiUrg
+# fsW3FUUqF6t2qBW2O5Lj6fgEMShF2gAfwaTYMn3PpHKtaa71z8uGFNbn2GaVu95I
+# IrnYfiVsqRtSg9slZfrPScuv2F4hui/GwQ==
 # SIG # End signature block

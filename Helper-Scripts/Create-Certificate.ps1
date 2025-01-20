@@ -142,11 +142,11 @@ Start-Sleep 1
 
 #############################################################################################################################################################################################
 
-# List Certificate(s) for 'Invictus_IR-App'
-# Get-ChildItem -Path "Cert:\CurrentUser\My" | Where-Object {$_.Subject -match "CN=Invictus_IR-App"} | Select-Object Thumbprint,Subject,NotBefore,NotAfter,FriendlyName | Sort-Object NotBefore
+# List Certificate(s) for 'LethalForensics_IR-App'
+# Get-ChildItem -Path "Cert:\CurrentUser\My" | Where-Object {$_.Subject -match "CN=LethalForensics_IR-App"} | Select-Object Thumbprint,Subject,NotBefore,NotAfter,FriendlyName | Sort-Object NotBefore
 
 # Delete Self-Signed Certificate from Current User Certificate Store (or use Certificate Manager-Tool (GUI) --> certmgr.msc)
-# Get-ChildItem -Path "Cert:\CurrentUser\My" | Where-Object {$_.Subject -match "CN=Invictus_IR-App"} | Where-Object {$_.Thumbprint -match "<Thumbprint>"} | Remove-Item
+# Get-ChildItem -Path "Cert:\CurrentUser\My" | Where-Object {$_.Subject -match "CN=LethalForensics_IR-App"} | Where-Object {$_.Thumbprint -match "<Thumbprint>"} | Remove-Item
 
 # Authenticate w/ Certificate
 # Connect-MgGraph -TenantId "<TenantId>" -AppId "<AppId>" -CertificateThumbprint "<CertificateThumbprint>"
@@ -154,8 +154,8 @@ Start-Sleep 1
 
 # Export the generated certificate with a private key to a password protected PFX file
 # $CertPassword = ConvertTo-SecureString -String "<CertPassword>" -Force -AsPlainText
-# Export-PfxCertificate -Cert "Cert:\CurrentUser\My\<CertificateThumbprint>" -FilePath "$env:USERPROFILE\Desktop\Invictus_IR-App.pfx" -Password $CertPassword | Out-Null
+# Export-PfxCertificate -Cert "Cert:\CurrentUser\My\<CertificateThumbprint>" -FilePath "$env:USERPROFILE\Desktop\LethalForensics_IR-App.pfx" -Password $CertPassword | Out-Null
 
 # Add PFX file to the Certificate Store on a different computer
 # $CertPassword = ConvertTo-SecureString -String "<CertPassword>" -Force -AsPlainText
-# Import-PfxCertificate -FilePath "$env:USERPROFILE\Desktop\Invictus_IR-App.pfx" -CertStoreLocation Cert:\CurrentUser\My -Password $CertPassword
+# Import-PfxCertificate -FilePath "$env:USERPROFILE\Desktop\LethalForensics_IR-App.pfx" -CertStoreLocation Cert:\CurrentUser\My -Password $CertPassword

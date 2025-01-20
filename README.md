@@ -8,9 +8,9 @@ Automated Processing of Microsoft 365 Logs and Microsoft Entra ID Logs extracted
 
 ## The following Microsoft data sources are supported yet:
 
-> Output Files of Microsoft-Extractor-Suite v2.1.1 by Invictus-IR
-  * [Get-ADAuditLogsGraph](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/AzureAuditLogsGraph.html) &#8594; [ADAuditLogsGraph-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/ADAuditLogsGraph%E2%80%90Analyzer)    
-  * [Get-ADSignInLogsGraph](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/AzureSignInLogsGraph.html) &#8594; [ADSignInLogsGraph-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/ADSignInLogsGraph%E2%80%90Analyzer)  
+> Output Files of Microsoft-Extractor-Suite v3.0.0 by Invictus-IR
+  * [Get-ADAuditLogsGraph](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/AzureAuditLogsGraph.html) &#8594; [EntraAuditLogs-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/ADAuditLogsGraph%E2%80%90Analyzer)    
+  * [Get-ADSignInLogsGraph](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/AzureSignInLogsGraph.html) &#8594; [EntraSignInLogs-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/ADSignInLogsGraph%E2%80%90Analyzer)  
   * [Get-MessageTraceLog](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/MessageTraceLog.html) &#8594; [MTL-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/MTL%E2%80%90Analyzer)  
   * [Get-MFA](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/GetUserInfo.html#retrieves-mfa-status) &#8594; [MFA-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/MFA%E2%80%90Analyzer)
   * [Get-OAuthPermissions](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/OAuthPermissions.html) &#8594; [OAuthPermissions-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/OAuthPermissions%E2%80%90Analyzer)  
@@ -61,8 +61,8 @@ Automated Processing of Microsoft 365 Logs and Microsoft Entra ID Logs extracted
 **Fig 11:** You can specify a file path or launch the File Browser Dialog to select your log file  
 
 ## Contributing
-Contributions are welcome! Please feel free to submit a Pull Request.  
-Note: If your change is larger, or adds a feature, please contact me beforehand so that we can discuss the change.  
+Contributions and suggestions are welcome! Please feel free to submit a Pull Request.  
+Note: If your change is larger, or adds a feature, please contact us beforehand so that we can discuss the change.  
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.  

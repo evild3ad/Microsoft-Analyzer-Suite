@@ -1,10 +1,10 @@
 ﻿# TransportRules-Analyzer
 #
 # @author:    Martin Willing
-# @copyright: Copyright (c) 2024 Martin Willing. All rights reserved. Licensed under the MIT license.
+# @copyright: Copyright (c) 2025 Martin Willing. All rights reserved. Licensed under the MIT license.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2024-12-17
+# @date:      2025-01-20
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -24,8 +24,8 @@
 # https://github.com/BurntSushi/xsv
 #
 #
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5247) and PowerShell 5.1 (5.1.19041.5247)
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5247) and PowerShell 7.4.6
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 5.1 (5.1.19041.5369)
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 7.4.6
 #
 #
 #############################################################################################################################################################################################
@@ -38,7 +38,7 @@
 .DESCRIPTION
   TransportRules-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of Transport Rules (Exchange Online) extracted via "Microsoft Extractor Suite" by Invictus Incident Response.
 
-  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v2.1.1)
+  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v3.0.0)
 
   https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/TransportRules.html
 
@@ -127,16 +127,24 @@ $script:xsv = "$SCRIPT_DIR\Tools\xsv\xsv.exe"
 
 #region Header
 
-# Windows Title
-$DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
-$Host.UI.RawUI.WindowTitle = "TransportRules-Analyzer - Automated Processing of M365 Transport Rules for DFIR"
-
 # Check if the PowerShell script is being run with admin rights
 if (!([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
 {
     Write-Host "[Error] This PowerShell script must be run with admin rights." -ForegroundColor Red
     Exit
 }
+
+# Check if PowerShell module 'ImportExcel' is installed
+if (!(Get-Module -ListAvailable -Name ImportExcel))
+{
+    Write-Host "[Error] Please install 'ImportExcel' PowerShell module." -ForegroundColor Red
+    Write-Host "[Info]  Check out: https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki#setup"
+    Exit
+}
+
+# Windows Title
+$DefaultWindowsTitle = $Host.UI.RawUI.WindowTitle
+$Host.UI.RawUI.WindowTitle = "TransportRules-Analyzer - Automated Processing of M365 Transport Rules for DFIR"
 
 # Flush Output Directory
 if (Test-Path "$OUTPUT_FOLDER")
@@ -214,7 +222,7 @@ Write-Output ""
 
 # Header
 Write-Output "TransportRules-Analyzer - Automated Processing of M365 Transport Rules for DFIR"
-Write-Output "(c) 2024 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
+Write-Output "(c) 2025 Martin Willing at Lethal-Forensics (https://lethal-forensics.com/)"
 Write-Output ""
 
 # Analysis date (ISO 8601)
@@ -281,21 +289,18 @@ if ($Timestamp -match "\d{1,2}/\d{1,2}/\d{4} \d{1,2}:\d{2}:\d{2} (AM|PM)")
 }
 
 # XLSX
-if (Get-Module -ListAvailable -Name ImportExcel)
+if (Test-Path "$LogFile")
 {
-    if (Test-Path "$LogFile")
+    if([int](& $xsv count -d "," "$LogFile") -gt 0)
     {
-        if([int](& $xsv count -d "," "$LogFile") -gt 0)
-        {
-            $IMPORT = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Select-Object Name,@{Name="Rule";Expression={$_.Description}},CreatedBy,@{Name="WhenChanged";Expression={([DateTime]::ParseExact($_.WhenChanged, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}},State | Sort-Object { $_.WhenChanged -as [datetime] } -Descending
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\TransportRules\XLSX\TransportRules.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Transport Rules" -CellStyleSB {
-            param($WorkSheet)
-            # BackgroundColor and FontColor for specific cells of TopRow
-            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:E1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-E
-            $WorkSheet.Cells["A:E"].Style.HorizontalAlignment="Center"
-            }
+        $IMPORT = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Select-Object Name,@{Name="Rule";Expression={$_.Description}},CreatedBy,@{Name="WhenChanged";Expression={([DateTime]::ParseExact($_.WhenChanged, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}},State | Sort-Object { $_.WhenChanged -as [datetime] } -Descending
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\TransportRules\XLSX\TransportRules.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Transport Rules" -CellStyleSB {
+        param($WorkSheet)
+        # BackgroundColor and FontColor for specific cells of TopRow
+        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+        Set-Format -Address $WorkSheet.Cells["A1:E1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of columns A-E
+        $WorkSheet.Cells["A:E"].Style.HorizontalAlignment="Center"
         }
     }
 }
@@ -400,8 +405,8 @@ $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
 # SIG # Begin signature block
 # MIIrxQYJKoZIhvcNAQcCoIIrtjCCK7ICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUfh3WayKnkb0Tv6rERWTOMjMI
-# 9e2ggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQU/kqaE7+lgh7dfz9EsSIX0X6B
+# VNqggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
 # AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
 # MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
 # MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
@@ -603,33 +608,33 @@ $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
 # YmxpYyBDb2RlIFNpZ25pbmcgQ0EgUjM2AhEAjEGek78rzqyIBig7dhm9PDAJBgUr
 # DgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMx
 # DAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkq
-# hkiG9w0BCQQxFgQU6lFlVGPvp3S8jV3My1w+8X+FfZowDQYJKoZIhvcNAQEBBQAE
-# ggIAq8aHv7rkx5zIMQeWSF6u4C0UrwBgxpShHgcv0jhCAeTmBOvYt85aFun7Pj/w
-# hnU8iNHhuQs1JTWoH3S/QhQuij9xaEtQcY8RCbZrtcJGeCoY+cTbtpV5V69pbT8/
-# QFUU1ydAVPxgpQqw3zpk6IqsXKu8rq6MZocOoKdw3BzSMzFbLnGs/b7fLZXThn/r
-# /1MnrVXyXavy+0qMFeobOHqXG9HgrJ5rl1CcnybxQtXw5bNrl2x6TQekyVLF92fr
-# 8dPODy6lD5VlXYTZtOhrATj/3NUoORhlVPnYbUfs9hMh8BhWXJ9YB21g03CbpNiR
-# Xcy9nMLv+1kgTHZQu9fOrO+srLqqLywkNGeADEuX0W292gWd2Ubibw5xL+XhO1Ft
-# e5zNLjvh7TSYIvM0udJExPs0SOYjpQSxjlDN21L1e9jLqPEFyfXlc+qtPx1nVyQn
-# MenNQ28W7bfgyIIwD8urDEsijpbmq1nLtKq3pfbMXtwLxoFJSRoKruE5mPSFTlhZ
-# eHSd9E3HtxHCR29MCFYID4KSQ+/va55RLesqG1eEGyneGGPbL5l+iMkh1Qb0IO/5
-# 7mrvOxnBulI/Uh6VaWtd3w896tB/KCepQWpz9HOIXtMVqdnoVAel8YZJ3Ua84rkh
-# xXjEGx8wIBosMdOEUBEsYjNiR9eAyn8Jw8u79cKf7Nifhu+hggMiMIIDHgYJKoZI
+# hkiG9w0BCQQxFgQUkRIBC5KiFl5yDMRulDGRLJt77nEwDQYJKoZIhvcNAQEBBQAE
+# ggIABU30kBBXoaIpFEHSjwrecONTSkNR/GQ7ul5NkPgJSKu2CqhGgDpFo9By9YWg
+# CgPwTHKEx6xoi7PxwDjWbahUL+mY3No9unSvK+1GpnPp+WJRbxOCbY9/Y5cXMA0D
+# njfyr9sF6coTejyQ/ssFiR+LUPSQqA3sQxrqg8lOAtFiwezI7kMvii+BqIoaoifZ
+# 9cfpScUPyzY8Pl8z3WSjKe9FhU5d2x245RR/Hql1+qhL2rNmsoAAUCtEB21jULU7
+# Vp83ao0I5PCHljUFLmpjO8miy+uQkXmOQI8bUPIsFKErzcmtvdyMVoZVhT57Ps7x
+# zJrbcJmDFs+GMu104kML6iCRQ0xBZXQng7ZABZwndA6NuCDXKRqoWdFUY5etOXaH
+# 7poha7UZj+JVcKoqGxxrDieZygkQFYLis8ZcmKm733wbfsHuh9PIZDfUobAhMSXq
+# hXBpbcFQOtdnor0gILnbNqhtn3a7OaR2Or+klE6UuY8Tzxv8Z80J6xER2FOhdy3H
+# Qyidoe4F4L0RFftYeuaa66MvB4uxnVemY7f9FCyd2ZftGOouEnCQXPcMxfJrqPMq
+# CIJ+24ZexSTc81JTDEWaKijm4o3PoA/4QmpAE7iu2RkkYOnsNX5PM+Sd/w2ualBe
+# 9FFqIusrRoeDlEhuxHhBz+0lpaZAaY5kw2UVsMcnopGN6p2hggMiMIIDHgYJKoZI
 # hvcNAQkGMYIDDzCCAwsCAQEwaTBVMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2Vj
 # dGlnbyBMaW1pdGVkMSwwKgYDVQQDEyNTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1w
 # aW5nIENBIFIzNgIQOlJqLITOVeYdZfzMEtjpiTANBglghkgBZQMEAgIFAKB5MBgG
-# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI0MTIxODA2
-# MTU1OVowPwYJKoZIhvcNAQkEMTIEMMXag6zOCm0OKwvID7WXR/wuZigBrkaC2ISk
-# 5HOApnYWkdTCFBKb1hbn3EGbCPSvmTANBgkqhkiG9w0BAQEFAASCAgByseNSj1s4
-# UMgx0oyPGUlzDn1LTW1RiguDFrLDLqnCRH1lFA3pxaoFpbi3VbQnt2iXXQ+mWJKh
-# t62Uq7dZL082++HfauAtettSv+SyESzgAbe/RKyyfStxFaws0qXwIjHb8W4kY/3+
-# hhaTizqlmXVMvKqdTZ5aSAvJ1f2JnGsS47/eKXgt8U980gaMeDtrWF8aROd0A1PE
-# K/9i1QZtUrH9BFl2tK0FvkuCUjL5LdeL2pFxfZgBdRmDdn1RtrXKNCFwPAuMEEJP
-# 7GZ9Yoh9ukQBdh2I//lUGoCAJrVYOaURq4ZiLY/hS5J9YAtO9riMzVvsOMAyzG6E
-# mEenp0yJFW1uaJFRGzhJSBUqhkK73GUKj/L9mf1g1nmL9P1Ukt9uYam1Fcd7mjqH
-# D0xZtTfz1VbuiMacBZ9LnKY91X65Wnu+Xf8LLYXuLaJdzjiJ6Urea1ulIeYeQ45X
-# ueF7hi6LuPD1bDwS0a7ACi6XvRHZeFG9Hl42BoLwmnKoGtFwKA+TRELBSygiW0bI
-# Rqzt2YalvhDe+asRscfnBHsTqyilAXlFpu/Q6DU0CkeMgirjAdFUPbhcV5HAAEKR
-# LkvthkK1ODzST+qw1cPC7Bc+nH0VeHznRA30pDGKVdMisBOPOUAd04v+PrKXXp6/
-# Ts2NEWeR8AW8GaaYUnBT60/k0dphA5sC1g==
+# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI1MDEyMDA1
+# NDk1NlowPwYJKoZIhvcNAQkEMTIEMBmcJ8DU0y8F3/l1xETY0N7qI2GVNd6O2eVp
+# QkVI9wVM7VXXxaBZqz/bJoWrYTR7GzANBgkqhkiG9w0BAQEFAASCAgBW+rnS0doW
+# c6ATujC4JrSUjctXYrat+d21B5SbyHOCk/fDfZfi78BiRI8vX+3zRXLc7yn+oov/
+# 2IZJ8BA7KQgTH0yVGPP7HrYtBvekR9y3crOVfcwR9V5P/EfQ4/00WS4XcrVIJBdZ
+# G43lUTEtRTFBQsMHAtwdUTCL8SHqd7gByF8TiCazOMydK97NmrsaArCQxbfKBVXc
+# Y8XzIgEXxfOfY20XY/xSE6EUNTOK9KSE03hrDvp3Y+PTAOda0iDcNRzoXm7al9Bi
+# 6MOsZUvhDXComgq8ZLO8S4ItflD8GONWmSShXMRBnuQ1k7UeX8kY5DNoo/rj/98V
+# 4R5joBO3iA2vNPEd5d9GCtDa0Ag8nVJ92yOt0MK8I5vNx2WR05bWtp0bVvN2qqzE
+# 1nyguFYTecGvMedruJBIJ/Pu0OZhHMbk8QrSLei2V7XZBJStF5zTiTsRpZBkXue/
+# zWMtm5WrL0Bn/Sls3q/JVvUopJfsQLEIQfcHXIIw8t49lDmSX/YixEipXKX2pd3O
+# bvUnj+F+d9ZTlrtWZXeHakH0nwICny0YFiYrXZ9RUUy21t56AM5utMclJ0/kzZDR
+# +oaRk4M94N71u7R5K42I3BaLjxOsDux1/W7zBTq3EUhFzsOURyTu16IWgtq/zStG
+# GBGjgZcEGdfdSFfUK2j1SxXktaMqeWN3WQ==
 # SIG # End signature block
