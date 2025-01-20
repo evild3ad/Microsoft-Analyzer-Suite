@@ -9,8 +9,8 @@ Automated Processing of Microsoft 365 Logs and Microsoft Entra ID Logs extracted
 ## The following Microsoft data sources are supported yet:
 
 > Output Files of Microsoft-Extractor-Suite v3.0.0 by Invictus-IR
-  * [Get-ADAuditLogsGraph](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/AzureAuditLogsGraph.html) &#8594; [EntraAuditLogs-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/ADAuditLogsGraph%E2%80%90Analyzer)    
-  * [Get-ADSignInLogsGraph](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/AzureSignInLogsGraph.html) &#8594; [EntraSignInLogs-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/ADSignInLogsGraph%E2%80%90Analyzer)  
+  * [Get-ADAuditLogsGraph](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/AzureAuditLogsGraph.html) &#8594; [EntraAuditLogs-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/EntraAuditLogs%E2%80%90Analyzer)    
+  * [Get-ADSignInLogsGraph](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/AzureSignInLogsGraph.html) &#8594; [EntraSignInLogs-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/EntraSignInLogs%E2%80%90Analyzer)  
   * [Get-MessageTraceLog](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/MessageTraceLog.html) &#8594; [MTL-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/MTL%E2%80%90Analyzer)  
   * [Get-MFA](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/GetUserInfo.html#retrieves-mfa-status) &#8594; [MFA-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/MFA%E2%80%90Analyzer)
   * [Get-OAuthPermissions](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/OAuthPermissions.html) &#8594; [OAuthPermissions-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/OAuthPermissions%E2%80%90Analyzer)  
