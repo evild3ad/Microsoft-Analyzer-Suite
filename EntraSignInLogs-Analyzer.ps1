@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2025 Martin Willing. All rights reserved. Licensed under the MIT license.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2025-01-20
+# @date:      2025-01-22
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -615,7 +615,7 @@ if (Test-Path "$($IPinfo)")
     $Quota = & $IPinfo quota
     if ($Quota -eq "err: please login first to check quota")
     {
-        # Login
+        # IPinfo Login
         & $IPinfo init "$Token" > $null
         $Quota = & $IPinfo quota
     }
@@ -625,15 +625,16 @@ if (Test-Path "$($IPinfo)")
     [int]$RemainingRequests = $Quota | Select-String -Pattern "Remaining Requests" | ForEach-Object{($_ -split "\s+")[-1]}
     $TotalMonth = '{0:N0}' -f $TotalRequests | ForEach-Object {$_ -replace ' ','.'}
     $RemainingMonth = '{0:N0}' -f $RemainingRequests | ForEach-Object {$_ -replace ' ','.'}
-    $script:PrivacyDetection = & $IPinfo myip --token "$Token" -f privacy.vpn | Select-String -Pattern "false|true" -Quiet
 
-    if ($PrivacyDetection -eq "True")
+    if (& $IPinfo myip --token "$Token" | Select-String -Pattern "Privacy" -Quiet)
     {
+        $script:PrivacyDetection = "True"
         Write-output "[Info]  IPinfo Subscription Plan w/ Privacy Detection found"
         Write-Output "[Info]  $RemainingMonth Requests left this month"
     }
     else
     {
+        $script:PrivacyDetection = "False"
         Write-output "[Info]  IPinfo Subscription: Free ($TotalMonth Requests/Month)"
         Write-Output "[Info]  $RemainingMonth Requests left this month"
     }
@@ -681,16 +682,15 @@ if (Test-Path "$($IPinfo)")
                         Get-Content "$OUTPUT_FOLDER\IpAddress\IP.txt" | & $IPinfo --csv --token "$Token" | Out-File "$OUTPUT_FOLDER\IpAddress\IPinfo\IPinfo.csv" -Encoding UTF8
 
                         # Custom CSV (Free)
-                        if ($PrivacyDetection -eq $false)
+                        if ($PrivacyDetection -eq "False")
                         {
                             if (Test-Path "$OUTPUT_FOLDER\IpAddress\IPinfo\IPinfo.csv")
                             {
                                 if([int](& $xsv count "$OUTPUT_FOLDER\IpAddress\IPinfo\IPinfo.csv") -gt 0)
                                 {
                                     $IPinfoRecords = Import-Csv "$OUTPUT_FOLDER\IpAddress\IPinfo\IPinfo.csv" -Delimiter "," -Encoding UTF8
-                                
-                                    $CustomCsv = @()
 
+                                    $Results = [Collections.Generic.List[PSObject]]::new()
                                     ForEach($IPinfoRecord in $IPinfoRecords)
                                     {
                                         $Line = [PSCustomObject]@{
@@ -707,10 +707,10 @@ if (Test-Path "$($IPinfo)")
                                             "Timezone"     = $IPinfoRecord.timezone
                                         }
 
-                                        $CustomCsv += $Line
+                                        $Results.Add($Line)
                                     }
 
-                                    $CustomCsv | Sort-Object {$_.IP -as [Version]} | Export-Csv -Path "$OUTPUT_FOLDER\IpAddress\IPinfo\IPinfo-Custom.csv" -NoTypeInformation -Encoding UTF8
+                                    $Results | Sort-Object {$_.IP -as [Version]} | Export-Csv -Path "$OUTPUT_FOLDER\IpAddress\IPinfo\IPinfo-Custom.csv" -NoTypeInformation -Encoding UTF8
                                 }
                             }
 
@@ -733,16 +733,15 @@ if (Test-Path "$($IPinfo)")
                         }
 
                         # Custom CSV (Privacy Detection)
-                        if ($PrivacyDetection -eq $true)
+                        if ($PrivacyDetection -eq "True")
                         {
                             if (Test-Path "$OUTPUT_FOLDER\IpAddress\IPinfo\IPinfo.csv")
                             {
                                 if([int](& $xsv count "$OUTPUT_FOLDER\IpAddress\IPinfo\IPinfo.csv") -gt 0)
                                 {
                                     $IPinfoRecords = Import-Csv "$OUTPUT_FOLDER\IpAddress\IPinfo\IPinfo.csv" -Delimiter "," -Encoding UTF8
-                                
-                                    $CustomCsv = @()
 
+                                    $Results = [Collections.Generic.List[PSObject]]::new()
                                     ForEach($IPinfoRecord in $IPinfoRecords)
                                     {
                                         $Line = [PSCustomObject]@{
@@ -764,10 +763,10 @@ if (Test-Path "$($IPinfo)")
                                             "Service"      = $IPinfoRecord.privacy_service
                                         }
 
-                                        $CustomCsv += $Line
+                                        $Results.Add($Line)
                                     }
 
-                                    $CustomCsv | Sort-Object {$_.IP -as [Version]} | Export-Csv -Path "$OUTPUT_FOLDER\IpAddress\IPinfo\IPinfo-Custom.csv" -NoTypeInformation -Encoding UTF8
+                                    $Results | Sort-Object {$_.IP -as [Version]} | Export-Csv -Path "$OUTPUT_FOLDER\IpAddress\IPinfo\IPinfo-Custom.csv" -NoTypeInformation -Encoding UTF8
                                 }
                             }
 
@@ -822,13 +821,13 @@ if (Test-Path "$($IPinfo)")
                             if([int](& $xsv count "$OUTPUT_FOLDER\IpAddress\IPinfo\IPinfo-Custom.csv") -gt 0)
                             {
                                 # Free
-                                if ($PrivacyDetection -eq $false)
+                                if ($PrivacyDetection -eq "False")
                                 {
                                     Import-Csv -Path "$OUTPUT_FOLDER\IpAddress\IPinfo\IPinfo-Custom.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $IPinfo_HashTable[$_.IP] = $_.City,$_.Region,$_.Country,$_."Country Name",$_.Location,$_.ASN,$_.OrgName,$_."Postal Code",$_.Timezone }
                                 }
 
                                 # Privacy Detection
-                                if ($PrivacyDetection -eq $true)
+                                if ($PrivacyDetection -eq "True")
                                 {
                                     Import-Csv -Path "$OUTPUT_FOLDER\IpAddress\IPinfo\IPinfo-Custom.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $IPinfo_HashTable[$_.IP] = $_.City,$_.Region,$_.Country,$_."Country Name",$_.Location,$_.ASN,$_.OrgName,$_."Postal Code",$_.Timezone,$_.VPN,$_.Proxy,$_.Tor,$_.Relay,$_.Hosting,$_.Service }
                                 }
@@ -856,7 +855,7 @@ if (Test-Path "$($IPinfo)")
                         # Hunt
 
                         # IPinfo Subscription: Free
-                        if ($PrivacyDetection -eq $false)
+                        if ($PrivacyDetection -eq "False")
                         {
                             if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv")
                             {
@@ -1036,7 +1035,7 @@ if (Test-Path "$($IPinfo)")
                         }
 
                         # IPinfo Subscription Plan w/ Privacy Detection
-                        if ($PrivacyDetection -eq $true)
+                        if ($PrivacyDetection -eq "True")
                         {
                             if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv")
                             {
@@ -1844,7 +1843,7 @@ if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\UserAgent.csv")
 }
 
 # VPN Services (Stats)
-if ($PrivacyDetection -eq $true)
+if ($PrivacyDetection -eq "True")
 {
     if (Test-Path "$OUTPUT_FOLDER\IpAddress\IPinfo\IPinfo-Custom.csv")
     {
@@ -2768,6 +2767,9 @@ $Result = [System.Windows.Forms.MessageBox]::Show($MessageBody, $MessageTitle, $
 
 if ($Result -eq "OK" ) 
 {
+    # IPinfo Logout
+    & $IPinfo logout > $null
+    
     # Reset Progress Preference
     $Global:ProgressPreference = $OriginalProgressPreference
 
@@ -2784,8 +2786,8 @@ if ($Result -eq "OK" )
 # SIG # Begin signature block
 # MIIrxQYJKoZIhvcNAQcCoIIrtjCCK7ICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUGOLQ5OSphKDWIE0zI7jc+/k8
-# YJWggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUgLRANHlC/Fmu4po+w//N55/F
+# xc6ggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
 # AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
 # MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
 # MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
@@ -2987,33 +2989,33 @@ if ($Result -eq "OK" )
 # YmxpYyBDb2RlIFNpZ25pbmcgQ0EgUjM2AhEAjEGek78rzqyIBig7dhm9PDAJBgUr
 # DgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMx
 # DAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkq
-# hkiG9w0BCQQxFgQUgkhi46zSsLIey1OAyZOnCOmNQecwDQYJKoZIhvcNAQEBBQAE
-# ggIAPnco37xqQcHx3HNex7LNSKspCXUw3B0E2CfeTMwIbbxy926ODOgQIdGxYNOS
-# 2e2Qb07xUpswXi2GRmNCohQ7m6jWUZKx1rx8tSQmPkzKn1TJia7jb2VXgP3BzQNb
-# /J5k8/eCIWt40mp4BewnirEBBeyIgdu3+Ci+zj59AZJOYwxBFHOQdjZYX9raqaaQ
-# zB/mXMD5dzNhOBfux4x1xuh6Fg3068tIHPv98Xz4LjcD/oJwCXWwWXsHcNtHtg1A
-# 6CMjelvslT5J1yw0SrEqPV+9SGm4BP1iKLUgMMUGajrh+Tom52af3iQB67YzXHIu
-# G8nYyeMxvJ30sGEzRARqk6GgY9SR30lXJyHWhEv/jiQKeSt3NKLQvI6PIVcKstf5
-# ZQ3Zb4B7c1ncWsDYxtVD4Jp1w9djhRL079tYj+B51koN5gVwnfXC8Sd2hQ+zR7za
-# N5kvjOKFiNYbczYj6OXQhKROzGGqYKGH1QL3WzZm0wZ7PkYDPE34amJq96tTR3WG
-# P89r6boU0HsMk+qdmqK2sZ4D5ljAaGRsjUgEk4k7q/JhrG1wGNyPbBWHtX2yF0cD
-# Ok+eHEcIYxEegtFuZ3H5MbOba1a0QyGq/Viu20ODXsho/YA3Pz7z7YYRMDXXZpA6
-# merzHSeEZFzp/yonFRZ9Nlyy9XcFanbtrDxe9XhI1IWwuIqhggMiMIIDHgYJKoZI
+# hkiG9w0BCQQxFgQUh96u2NbRGfZYfx5p+Daj1EYrn5IwDQYJKoZIhvcNAQEBBQAE
+# ggIAzI/rYNGlPNlq3atwhaVnaigcb9Vfhwd+ea+/9XH2LXtjJstS3LD/FQdGOdpn
+# 4G1Xm/Yb+nyqaOazwa+MBUR1ACKQB2ioznLXf+RCgQMZmpOrycG/c0TBFrVikzaS
+# pjP5qLPXu2Tqp+jtbJcneTay47tCMjJw3LPyUCvdRm1rwHBsss4XzKIt85NGHMFr
+# eBn0Nx186NjuaMLxoZhp8cl2InERpkldNUBX6kf82qMBK/2vAn55BYMhGxfjstMd
+# JC3pedjhaFYsCsEpDkNKpssUsPdO4uD58UFD/ONbGbfWQ51920JcTZzvcY7Ips+l
+# OGLcBgqNBXvE1jX7rmJxXwBoQA/Dz6c6avv2MdfxG9KxcQjPVObWhL1Z+76IJ4Ey
+# g07VoXEtQ9IYY7DbnmKkA7XmgfJhTGkIE31aM6PZWFcNIpuRpvKfT3VvgSxZd1po
+# QN2lVA8gW8dBCd+2owsspBafUPKuO5CEIgehfT8YnpMQD98RCTekWBQhKGpPn0pg
+# a8WiUggjVQsrVMyIsdEjX9vxgreCbanBNAb6iRUfoJVtftPFibvK+ZNfwyOLuaFt
+# oNpz3PJr5FMB7B0fCEmrwWUdFEHKTYD2WZfMnBmUpthRzP275RCaZt9LbP1Hj7gJ
+# wjLCc9RG47m5WX2XxMFwEdtwlb22Snn12BdSVdgzl3pJwuGhggMiMIIDHgYJKoZI
 # hvcNAQkGMYIDDzCCAwsCAQEwaTBVMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2Vj
 # dGlnbyBMaW1pdGVkMSwwKgYDVQQDEyNTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1w
 # aW5nIENBIFIzNgIQOlJqLITOVeYdZfzMEtjpiTANBglghkgBZQMEAgIFAKB5MBgG
-# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI1MDEyMDA1
-# NDkzMFowPwYJKoZIhvcNAQkEMTIEMF93sxC0q1TtoDg3ajUjG/+AC7MpWrNn2/rJ
-# bgLY4OLBQ3ckrp2XhDYQ74Rp0aozKDANBgkqhkiG9w0BAQEFAASCAgBtggILvK6o
-# rA5+gS0XC3JB/tUg07D7RzmCJjTPXI4d5Q2rBH3TwneOTYYRrOJPxFqNEZO23IzW
-# EBnRwKAlgLp6TNS+15oSZntmjgg5I1kaHfpJDqhSYHXwWiBUlo7QMGaqDS0pGhtw
-# hudUDyYQO3pg+UKTdVxXG5OaEABbJid66fuRH37WCWtbQnRGNJqxhdqzZxeHbKux
-# L7fzr6jy6dC1HBgzTzYg7mJc//7yP0aQVHKqQwnMxmDKr1YmryeRpNt/YVZBdLN5
-# /E0barlRkfRlGGRpmGNy1ogTHg0xqN/Rfc79SOEXheDkaGSjF8CoHTwh1yWzXPgr
-# Gh+7ASyJg1+Shw45AZSoCYLn0BIgF2ZN9LRHZ+xvugE4K//P2lozTqqTbxZ/UWr5
-# b1vgCSyWu+qij+K95ujppLBkw/V6Y/dElYIYEe7sTMYJA/nyi99bPJpB8ZXnoQ3z
-# fSHvJbO/yiII3VHVa9UCJC2Qb0jbHSQWSpM+oKJjwq/aiuQXvVklkYkmaisd5lKp
-# 10D2DSTpZLpVyU6t1OarLoBojl2qd/dJPIaWnGw0GU9/dPWLq7T9mMA+nI4lHnH0
-# YBsqMcCXi/nS0C+8yLVNr3CqF9QCvlxbrOsfptROVuH54xrkVUekxWjQeFpOk/Gb
-# MtLhbZ89wyWFGu/Gg06qrvb2HB+2Xt2GuA==
+# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI1MDEyMjE1
+# MDMzNlowPwYJKoZIhvcNAQkEMTIEMCHePCp7xHZY2QlgFw/582cvqAKXqKwa2L1E
+# rwLDck8T1GxhAT0MfE7hZUITIdl5tzANBgkqhkiG9w0BAQEFAASCAgA1Afid0wqC
+# Kfooct5UwY4gcruz/2PZICMxDiHvR7pek5FEz296N2ijX/+sDXz96/Oxov1cED0P
+# NLmql/imlxwPwPg+yqXFYY/lCsfrYOESSRtSSjia+S/08GgJ+vDxzE88KUxgvjMf
+# WND8vYFD0rYdYwll2aSHEvSXUFrn65ICCMT9LXEE6p4mm4HxGLHbqg6d07nnKDLG
+# eq7BxWRXcoJCLbx6+MpDYQcrMnLv2kazNKxEAe+oDka3e1IDC4ZO1jQPgyuuMre4
+# VL9EMC8Km0p8qSxWrT7cZatAOng+WLrlHPWzk7zYVmpxKq3LsieCY1ySdMoZtPFg
+# 73elgeR7St0d1ZyHkD55cuoWuSWA4dlkULw3YJolQxjEVEDD1M5QxNitN3Z+wlBT
+# sqoyAbc2DBiwX6qPa44y+Msku8M3V/8TkyrkSyV4nH+0j/4mYPD8Ya8CwXCsyhqt
+# a2cEBOGiSyTqUgYCyBxWgHplC2zLwjCIMnYebWhbJMf44EhaqPVSlkC1Kn/LlRla
+# R9KcS9imdP1BSCnNcPjxq7jiAZsIzAoZExR6llk7r7zqGGL1JT8luXR5PcSpG/iI
+# JyDE8XFA8gisZ+E4SMHIuDECg1of0tbdkFYAZRZdOBDsmJn+6F9JuLqSixAGEGku
+# AX5AIwyZdx5/8ukERqYfcIwmE4SLfnOr2A==
 # SIG # End signature block
