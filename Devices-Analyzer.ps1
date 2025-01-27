@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2025 Martin Willing. All rights reserved. Licensed under the MIT license.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2025-01-20
+# @date:      2025-01-27
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -22,7 +22,7 @@
 #
 #
 # Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 5.1 (5.1.19041.5369)
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 7.4.6
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 7.5.0
 #
 #
 #############################################################################################################################################################################################
@@ -35,7 +35,7 @@
 .DESCRIPTION
   Devices-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of Microsoft Entra ID Device Information extracted via "Microsoft-Extractor-Suite" by Invictus Incident Response.
 
-  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v3.0.0)
+  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v3.0.1)
 
   https://microsoft-365-extractor-suite.readthedocs.io/en/latest/
 
@@ -278,31 +278,6 @@ if (Test-Path "$OUTPUT_FOLDER\Devices.xlsx")
     Write-Output "[Info]  File Size (XLSX): $Size"
 }
 
-# CreatedDateTime - xxx
-# DeviceId - Unique identifier set by Azure Device Registration Service at the time of registration. This alternate key can be used to reference the device object.
-# ObjectId --> Id - The unique identifier for the device. Inherited from directoryObject. Key, Not nullable. Read-only.
-# AccountEnabled - 'true' if the account is enabled; otherwise, 'false'. Required. Default is true.
-# DeviceOwnership - Ownership of the device. Intune sets this property. Possible values are: unknown, company, personal.
-# DisplayName - The display name for the device. Maximum length is 256 characters. Required.
-# EnrollmentType - Enrollment type of the device. Intune sets this property.
-# IsCompliant - 'true' if the device complies with Mobile Device Management (MDM) policies; otherwise, 'false'. Read-only. This can only be updated by Intune for any device OS type or by an approved MDM app for Windows OS devices.
-# IsManaged - 'true' if the device is managed by a Mobile Device Management (MDM) app; otherwise, 'false'. This can only be updated by Intune for any device OS type or by an approved MDM app for Windows OS devices.
-# IsRooted - 'true' if the device is rooted or jail-broken. This property can only be updated by Intune.
-# ManagementType - The management channel of the device. This property is set by Intune.
-# DeviceCategory - User-defined property set by Intune to automatically add devices to groups and simplify managing devices.
-# OperatingSystem - The type of operating system on the device. Required.
-# OperatingSystemVersion - The version of the operating system on the device. Required.
-# Manufacturer - Manufacturer of the device. Read-only.
-# Model - Model of the device. Read-only.
-# LastSignInDateTime --> ApproximateLastSignInDateTime - The timestamp type represents date and time information using ISO 8601 format and is always in UTC time.
-# TrustType - Type of trust for the joined device. Read-only.
-# RegisteredOwners
-# RegisteredUsers
-# MDMAppId - Application identifier used to register device into MDM. Read-only.
-# OnPremisesSyncEnabled - 'true' if this object is synced from an on-premises directory; 'false' if this object was originally synced from an on-premises directory but is no longer synced; null if this object has never been synced from an on-premises directory (default). Read-only.
-# ProfileType - The profile type of the device. Possible values: RegisteredDevice (default), SecureVM, Printer, Shared, IoT.
-# SecurityIdentifier - xxx
-
 # Total Number of Devices
 $Total = ($Devices | Measure-Object).Count
 Write-Output "[Info]  Total Number of Devices: $Total"
@@ -501,8 +476,8 @@ $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
 # SIG # Begin signature block
 # MIIrxQYJKoZIhvcNAQcCoIIrtjCCK7ICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUisEuFmZISh8XRlFEriOmC4RR
-# H/iggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUakOVL4pd+5/v75vDMDEdpJhs
+# QzmggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
 # AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
 # MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
 # MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
@@ -704,33 +679,33 @@ $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
 # YmxpYyBDb2RlIFNpZ25pbmcgQ0EgUjM2AhEAjEGek78rzqyIBig7dhm9PDAJBgUr
 # DgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMx
 # DAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkq
-# hkiG9w0BCQQxFgQUAsoV0OgnqfeAqnpjyAed595IOiswDQYJKoZIhvcNAQEBBQAE
-# ggIAC13QbhMjRbY4ZwciNqFa0VILInLMDaAkGd3PJ0bHU44foYnC64NLFhezxi5x
-# 7Tv5+EmVQzMygforLqtfBCJzz60jYGTrzJoeIFWmF7A6pfojrfrBO6ltXACIMpzd
-# 3c7QJuilb08hnUOpV1ZhL7xQ7bU9/iPxGRN8d5mkoskzmn132IX9qn32OCo7zm+M
-# 0O1Iysbc2vhFbWvVHg39/GCzOf/8XbPslZdTfDAogryYjJzwcv+Gu7nnXCvfsAIu
-# AllMgZLrgLE3MVeKY+LgjoIB+nuwz59gTcQfeJJIuO14wtYIcnY9te0mq4GRIyPb
-# Hs2Y3XiWwOHdB+0y+B7+JRHnrNs/snxAf9t7hRkokeeyFuqeuhsoITfjDIGwtExU
-# eT+RHeqRxfgjQfY+0iuph/DgUT3d7Dj1KiPjivB6vsaYL1Q3uROEKhQQXDsRGDvR
-# gyjnl3/FMwqBY8lqST0y5i1Y1MU5y7LHtw1iIcfBcRz/AeZ3zeck1ZRm2p3efjBU
-# HYibqhmkZtOyeXmnNfkWtGpIM2pMwyU+gvnqSPAvjp9l3gQuLUpyEUGsi7hNKcMd
-# KfY6KH4WS6l564oXUvE/nZxygtcsykydxx4mfM2OoKSvzR2A1yKlIRfqJSV0tpoe
-# 9p/wikHbFHSphdNWKuqOjM/5GhLxwMEWIz+YhDmYGDKPHL2hggMiMIIDHgYJKoZI
+# hkiG9w0BCQQxFgQUI/BWVye1Y641bAegmunG6WiBGKEwDQYJKoZIhvcNAQEBBQAE
+# ggIAsG5zI7qNARF8SiuCEnmoQ6fUDsJfa4B0kboEf2dlZOWTEHZ/T+yr8pQph4Ng
+# /hkTYAOr52Vt47fSrOeCDHVgpccvYWFj4x9HdKooSNNzvSCOB6HTdF97T8A56/J+
+# vjhNZYN+dNzvCOAVsEEiE7xWIyldR6G7ZRpWfTTb9qWc0GVwBBtYsC6u602+yuhI
+# qqTBvyZrxWm06mChXFCJ3iO+cWfjnxdg1fJ+D/RNOAXJYsS2UiROo27DVSbhYQHV
+# oyv+kASOiEkEG/987Wy32TJ/zH+DzClPJftyxJxD4SUNYSXxbxiTXbSTJmoIxhNp
+# klQDdKlgjKDoR5O49SsEbueXf0cIGU1nVh1NfBVx+zbY/rN39zWFJCga5d/TX+NM
+# 2f791Vs4x0hJnTKoJJ3XAPEDrF9j0CY1NwfhoCjev0nFjZcLbppMtJxVETDNcJKd
+# eB4Iqkf5wzR1V58kg6BGRiUkhHWGHpfc8LtXbPVELa/2UPFiiQhYRGcg3uD96mLQ
+# y2UQrYxkskJw6MItHbdswBIBYbuaHXcqhAEiciYcGob+AP7HM+YL+DAKvWpP7ODD
+# 6lP6WhcBW2BKx81cLx3HTOkQpXHU/uiyTAT1r9bvDP+lS9KrTyX85JyK89/bHtA4
+# cp9tXF1++VUM3uo+fZwIg1iCk5139+6TBeU2kHPEMRD0c3ShggMiMIIDHgYJKoZI
 # hvcNAQkGMYIDDzCCAwsCAQEwaTBVMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2Vj
 # dGlnbyBMaW1pdGVkMSwwKgYDVQQDEyNTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1w
 # aW5nIENBIFIzNgIQOlJqLITOVeYdZfzMEtjpiTANBglghkgBZQMEAgIFAKB5MBgG
-# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI1MDEyMDA1
-# NDkyM1owPwYJKoZIhvcNAQkEMTIEMAmatf+upAPOkAkTwBN/UmKN2iHu10Zbsv41
-# Kk9eidpiTdPQKKpmAgzL36LhJINCXDANBgkqhkiG9w0BAQEFAASCAgAfQQMf3pgC
-# S9COIj0eiIJiJS3jqYQLtVppWp6B0kJWBhEkIvSxuDiDRS1yy3gBMs/gTnMsErCV
-# mzevhTnCyXWDyag/82u19TjBFm/xzLvo6ZoKm2HEZ56ERuy0l6jp+vb+mviufDIE
-# Kl+UN5NBuZZwgXCikbPYbfnnugMrBjlC9hT47YnWt0KqTQKV7k5PEKlSPxGM1gGy
-# F1HH/NO8aBn/Vgl2XyNyTAZtD6fsXQkbb1b2pLlgyHJ3cNYkwblFKER5RPzBNV+j
-# yFMj+OreSjl3dWiByWK3e5HfYC4TU5Br7ABVQSEwtfbYGHtaKdLXoVJ+Bvpa6yX2
-# CeyNkC44bXc0uX4w4aoy3MmCyyEvMkStjm1+s5Qmy1HVzn/a2a4tjcQ86u5z6PFI
-# 2cfJQfP8DeTd6azwqgKgJ+zCE9AFGpFz397Qlnv77/4hqjO+uiGTbwpC2pa/SNKU
-# yoldlpH5p4XyYNkS1jsmnW23QfnkNAGoz1G3ge6418++zyBLE3wxL6IA6KAtRpAK
-# 0ZNv2oOi3jomf4rHrou3cBmsW1q8JxW0HXTfsdxYCKdUhWL6B8I93YNa9tU97s2m
-# 3280Ve7Bmp9iF7U6buLa7pzU6LyBs4hnzdf9Zvjgrl2fyb2Xgk4glXaSEW3Vu/Uy
-# nr4bwbvhENkwS7i3muYoCHlH8zKBvZnGIg==
+# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI1MDEyNzA1
+# NDkxN1owPwYJKoZIhvcNAQkEMTIEMDfdEKi9ZQ5iPVZ947cKxSXVLrULNdhwOrTv
+# 2P1QPEsTGi1zMzjjPqxm3cHvt/7Q3zANBgkqhkiG9w0BAQEFAASCAgBkd9Td4Iai
+# ymJp2WufLprLXOmISHxtIWESgiOZ02m3Yx2raZIj9Fn3vnpluCPc/PWB+DxCVvVp
+# D53anLNlxM9JRFpLMHUBaO4jxlkWILHTwrBrnCjsJI6dq6sjIpoVfQQmHZN2zmrE
+# 5ipp2z59bRKuYAlbyGUx6it5YjEJ+qtmYPvON/1PEtxGwSeMHj5k+SbW91xo2iGD
+# fELqUzYjG6uaNtZ9cVvOzK8hVPV8F8tt7norxIKAKg5j/ACl7/LoRB0wPHrQQiFo
+# mCnFF2DtySzs7G9WR7xceE2KLPDra6OJ1jqae+i4y3/RzK8mok3biMQSIGEET5p7
+# 2dT/4K8T550shVE9OhL5du96DaSMOlVLsSslCV7rf/woOHP8hVjrmU9EKEUtwek5
+# tcG7QVFBIWHKPTP0WsfOobOQmyLdlQ1LBpFe1UAjtPHu1tqXzmcEd5LZlUjlHWZT
+# ZgVKITkfJksi6EzT/lEloTu+a5Q5wU7pWcG8n8IgXoNo/Zjae5ensEI5Jx4mChsx
+# 5EC9pkI13B8TR20K6yK2/7ISP9HHMM/Q+3DKIxSBlX7Lp8ZZhUn9lHLVBKcDPI8f
+# Yo9nyLlDRYfOf0XLleyKL1fVmG3+lfsmkMEnaJY6tYvA52GOPvHUebi7uBzDTJWX
+# jIhkX2bXOx8NzbYG9Fli50Z7hCJ1Z5A+bQ==
 # SIG # End signature block

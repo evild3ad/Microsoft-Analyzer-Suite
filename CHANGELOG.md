@@ -2,6 +2,20 @@
 
 All changes to the Microsoft-Analyzer-Suite will be documented in this file.  
 
+## [1.3.0] - 2025-01-27
+### Added
+- UAL-Analyzer: UserAgent-Blacklist.csv
+- UAL-Analyzer: MailItemsAccessed &#8594; AppId-AppDisplayName (Stats)
+- UAL-Analyzer: ClientInfoString and Mailbox Synchronization detection of eM Client (Traitorware)
+- EntraAuditLogs-Analyzer: UserAgent-Blacklist.csv
+- EntraAuditLogs-Analyzer: Activity (Line Chart)
+- EntraSignInLogs-Analyzer: UserAgent-Blacklist.csv
+- EntraSignInLogs-Analyzer: SignInEventTypes (Stats)
+
+## Fixed
+- ReadTheDocs links of the Microsoft-Extractor-Suite documentation updated
+- Multiple minor fixes and improvements
+
 ## [1.2.0] - 2025-01-20
 ### Added
 - ADAuditLogsGraph-Analyzer &#8594; EntraAuditLogs-Analyzer

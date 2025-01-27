@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2025 Martin Willing. All rights reserved. Licensed under the MIT license.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2025-01-20
+# @date:      2025-01-27
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -22,7 +22,7 @@
 #
 #
 # Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 5.1 (5.1.19041.5369)
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 7.4.6
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 7.5.0
 #
 #
 #############################################################################################################################################################################################
@@ -35,9 +35,9 @@
 .DESCRIPTION
   MailboxPermissions-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of the Delegated Mailbox Permissions extracted via "Microsoft-Extractor-Suite" by Invictus Incident Response.
 
-  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v3.0.0)
+  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v3.0.1)
 
-  https://microsoft-365-extractor-suite.readthedocs.io/en/latest/
+  https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/M365/MailboxDelegatedPermissions.html
 
 .PARAMETER OutputDir
   Specifies the output directory. Default is "$env:USERPROFILE\Desktop\MailboxPermissions-Analyzer".
@@ -364,8 +364,8 @@ $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
 # SIG # Begin signature block
 # MIIrxQYJKoZIhvcNAQcCoIIrtjCCK7ICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUqM93g85OjVpDmVZPGIgMPgYn
-# 1FqggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQU5a+uC8JVKMSyEf6Nao5HrV0V
+# 0YiggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
 # AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
 # MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
 # MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
@@ -567,33 +567,33 @@ $Host.UI.RawUI.WindowTitle = "$DefaultWindowsTitle"
 # YmxpYyBDb2RlIFNpZ25pbmcgQ0EgUjM2AhEAjEGek78rzqyIBig7dhm9PDAJBgUr
 # DgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMx
 # DAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkq
-# hkiG9w0BCQQxFgQUrJxHgdMbHOOjhBKbXUZt6cere8cwDQYJKoZIhvcNAQEBBQAE
-# ggIAXgIuS/oCryYQimZOtAu0SQvGfvHkACWUU+3mVVRUt/2aCmk7cVlt3eL409o+
-# jwNFXmKUswduhnKMV2Wp4yYFeiIgtZeeMJ2N7rwztms+olYLCIWezH6ejmD49wVZ
-# FKV07/ChRpdWEipGIjPInjmTwjXWstxvyku8Uc1GExDOuaNPeP1/nIqExjjEBw9q
-# 9c25nv4zSIf4UdqgZiTTCqcbzOUcBVVPDnisGMGS+7x3AV0WFk2hxPV4yl4x7tSp
-# YNq/CHXnPL+Etw/JbTwOpf5n4ZET0/DFz/veRzGu4s5LZ/uCBTWULFJkdxSriozG
-# oTS7H2QbTCRzqRbqttxeFIcDL7JbpNqjAKF5g1i/C70hvso4IxGRFFgnPV3gBIxE
-# jlt/38u5XvQp+vwgEKVhJiLTne3DzZFPuHkaKXuHiwzRPHh65/MDqa259jiX7Sk2
-# A8bEU7Vb3DUmiEWT1zg2+xRIlTupZ1I8SghxlYB2YPRJ/qLS+Lvv1GTOl02MxgWL
-# BRtFrq97Dk+DKOfUG6bPlczUGcR804/rv9XdikYgGHQcg0I+9dy6KmUO1kXM+xEt
-# /t4yVLHrWxVNE24ewwEvJ8XKVyRVCFAy1/DV4CtM5TyMP/Y3+dtO+Zs69DPZUZ1h
-# j3sfD5+O5nE9zMnbCp1wUuHrSlUqAmmkOeCmqFTrNiRe9BKhggMiMIIDHgYJKoZI
+# hkiG9w0BCQQxFgQUPmW/wnWlIvDIWhbdWMIsxFd7D68wDQYJKoZIhvcNAQEBBQAE
+# ggIAU1o6uy5ltbEmT1nJXVzegFqX7lD3LpVBi1PeshkbABxkwuEY5jhetDMJPypQ
+# FHOZ4UtLq/EFFZ/f56mCtmHEh7vIq+d4e93h3EPT1bvMU5us+t2V0xO+U2U6ckGs
+# 0oOj5QXWOth1KQwra14qfxCLf81Zj3c4j4cg9+ky/x5ixm3L69GH2CE7JqD6BT0y
+# YL8miyRYGAzmaEvb+GSNVIn/aerN4/jq2NAQa5d0lBGugdxPvpJeTvO96myhtXJa
+# iLuvnSqJsbD8tP7x4WCn5BHtCPaFTSD241JPL7XCTk+1SUzQf7u+1oluH9Aui1Iy
+# /+V/xITwwZ8Z/sZ1HYfADIL8CFWFwS9T5ASPLY1WFILDFZB2UHld+Wdt7jjYo4Vj
+# JHkvSBFYQw8WM5G1GRqYhYgTecKeHRy4S2Prg8DAMutzOhCdTuphyh2/xvUkcF+p
+# WWvVvE19rpNOS3Rj54kVlL0qqNWEVQSh6IjfQcTC+0eE1a5CneEnHhqBvo41syQR
+# FMF6PuZlOZpsVUwCLYPsSC1+YGaRx7lfbHMdyhnIHrcSYEK+5/AX4p9BP0I0Vg32
+# OlkA8sUtsM4SpMtEQ5ZzL7eUlLuSnpelX0dAVBbWYwHmXIe6TkIiY8Xk4xFnj58b
+# y+wq5zsjyd1hsu3UWCfHtz6rWpysHxyvJXFnJkWa6Np2utKhggMiMIIDHgYJKoZI
 # hvcNAQkGMYIDDzCCAwsCAQEwaTBVMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2Vj
 # dGlnbyBMaW1pdGVkMSwwKgYDVQQDEyNTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1w
 # aW5nIENBIFIzNgIQOlJqLITOVeYdZfzMEtjpiTANBglghkgBZQMEAgIFAKB5MBgG
-# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI1MDEyMDA1
-# NDkzNlowPwYJKoZIhvcNAQkEMTIEMA/gMzZP/rcp/+pEdjszaXlehGU11cdiKFMG
-# hzQLaUHIOMt2sIoeyxfYPJo14MylhjANBgkqhkiG9w0BAQEFAASCAgCKPDsCuHJL
-# mNRxoLC4x0Rjrjd8Oh7/M3+su2lrcSo+hadAOlQPjGWX2zD2wiRqDyRZ/dRprtY8
-# kHnYfvZid2HWdlSZ5IwdAN5mN1YXJ19vIpS0MU+ttn0AObUNFMu+9uO9AUabN52/
-# yAHnvmHS2b4ajagF8fXQdbUOjtZPaPpV08YnhKPFA45oGYb4xzJuXlljJZ22SPqD
-# asqzbW10Y48dSCu2XoisfNpeTSPY8zrJgE721kAxRIBwV7lDzBKN7R3Du547shy2
-# Try0N0q36rvBjl+HvNIFaJeXHQlLYOxGiGhlre/gsgzlqD8tyTCFAdcgWWalXIPK
-# fgF4mK6PDbreL8lOT7zXxKE+PVE0P86qM/2n9KzAsHlxiAjSi9dtvOwAlsRR0tc+
-# rhtym4UYElk8J2kcgsD9L5cr3EDfhaI17jetkgoqoRLN+e23GhakPePs5WypXucS
-# 37m4oF6VUIBHTq9kt6nLLVMXFYyn5ZoxkIBxhZkJXrC9UO8wtWcywjD+mUPysBe4
-# RryI/pVretXXjBdAwvxODESArigR24WKvrn1nYXGHdRfQUYN9DLr4ka+p6TH2oTA
-# SmGtiZVflzJlgz6bqUC6ffjo0OXAqcEj/CgR4P3SfaFZ/Y58hhBjgm/tYELJoLtw
-# 0MslgGCtoKZtJxgQzYDAAUucuJfoW/vCvQ==
+# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI1MDEyNzA1
+# NDkzMFowPwYJKoZIhvcNAQkEMTIEMMzb4uExTu6e3hDwjIu5IcAZZFlU0M+IQ+2J
+# HJNF6lk64cJGWrEyQfsPEae63o3DTjANBgkqhkiG9w0BAQEFAASCAgBI0uSRDGQt
+# 1HKdIJlZIVkyNbaLBi8/WDavRhd8s64C5k/lK75a4+M8hnNltPW9isC37CqsebS+
+# nMyk7J6d0PzWRGUbNEkx3L3FYv+gRjaaAYAJ0gZDYA2Pwjr4mUNKvlmhJ8JeWe3z
+# UBIJKrCoMADbntdG7Gn61icvfQ7ZWu/UWoe9lilhrCWIFSqrNdl+KogWsTecmhpy
+# uKyAfd52ZAlPW06HD42J8D0UHUiwB/ZR3H+eHGFTrRhcnRUHnjb2YHjq87Vs9Co4
+# MkjXMKJerv3AUcmey8sTHKvXfzzXl35JBx4eotZHlO3U2rfiyEkeA0bRifGHZWNY
+# C2vVjqKWhSzwkq7XFjq+PKWXGxUGISDeNy9LK18uZdeadroG+uD2g6HM3Rfp2iHM
+# BtmiNPUSdL3QXcMs/iUbK9UkG0NORXK1iOAanIkviAOMFC/Z9i06mCwT9P1t9/zZ
+# beHIcOElcuNF6C1U5Q9MXLW/Ig1L9oSm+AJrOQYuxBayw4oPYkO2T+U5meJCEZjR
+# Q4ZgPt4plCwGMWf7pjzN4K+OmtxCHG2KxUIM4uIyOd06vmb2GHfISlTrux4epT8v
+# j3avGCR8/Dp6jlvHWJAmI99IXI2h6KvsiC4OS1vUi7M95Q7no7shXufPpZ3E7rMj
+# MXFbwc5WIWeQljZwdEr/3lEmskopJY+0DA==
 # SIG # End signature block

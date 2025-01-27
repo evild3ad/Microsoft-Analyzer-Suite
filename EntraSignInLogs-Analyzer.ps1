@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2025 Martin Willing. All rights reserved. Licensed under the MIT license.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2025-01-22
+# @date:      2025-01-27
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -29,7 +29,7 @@
 #
 #
 # Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 5.1 (5.1.19041.5369)
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 7.4.6
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 7.5.0
 #
 #
 #############################################################################################################################################################################################
@@ -42,9 +42,9 @@
 .DESCRIPTION
   EntraSignInLogs-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of Microsoft Entra ID Sign-In Logs extracted via "Microsoft Extractor Suite" by Invictus Incident Response.
 
-  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v3.0.0)
+  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v3.0.1)
 
-  https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/AzureSignInLogsGraph.html
+  https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/Azure/AzureActiveDirectorysign-inlogs.html
 
 .PARAMETER OutputDir
   Specifies the output directory. Default is "$env:USERPROFILE\Desktop\EntraSignInLogs-Analyzer".
@@ -985,27 +985,19 @@ if (Test-Path "$($IPinfo)")
                                     # BackgroundColor and FontColor for specific cells of TopRow
                                     $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
                                     Set-Format -Address $WorkSheet.Cells["A1:AW1"] -BackgroundColor $BackgroundColor -FontColor White
-                                    # HorizontalAlignment "Center" of columns A-AW
-                                    $WorkSheet.Cells["A:AW"].Style.HorizontalAlignment="Center"
+                                    # HorizontalAlignment "Center" of columns A-X and AA-AW
+                                    $WorkSheet.Cells["A:X"].Style.HorizontalAlignment="Center"
+                                    $WorkSheet.Cells["AA:AW"].Style.HorizontalAlignment="Center"
                                     # ConditionalFormatting - AppId
                                     Add-ConditionalFormatting -Address $WorkSheet.Cells["F:G"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("29d9ed98-a469-4536-ade2-f981bc1d605e",$F1)))' -BackgroundColor Red # Microsoft Authentication Broker
                                     # ConditionalFormatting - AuthenticationProtocol
                                     Add-ConditionalFormatting -Address $WorkSheet.Cells["AK:AK"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("deviceCode",$AK1)))' -BackgroundColor Red # Device Code Authentication
                                     # ConditionalFormatting - Browser
                                     Add-ConditionalFormatting -Address $WorkSheet.Cells["AE:AE"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Python Requests",$AE1)))' -BackgroundColor Red # Offensive Tool
-                                    # ConditionalFormatting - Error Codes
+                                    # ConditionalFormatting - ErrorCode
                                     $Cells = "X:Y"
                                     Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("50053",$X1)))' -BackgroundColor Red # Sign-in was blocked because it came from an IP address with malicious activity
                                     Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("90095",$X1)))' -BackgroundColor Red # Admin consent is required for the permissions requested by this application. An admin consent request may be sent to the admin.
-                                    # ConditionalFormatting - UserAgent
-                                    $Cells = "AW:AW"
-                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("AADInternals",$AW1)))' -BackgroundColor Red # Offensive Tool
-                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("azurehound",$AW1)))' -BackgroundColor Red # Offensive Tool
-                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("python-requests",$AW1)))' -BackgroundColor Red # Offensive Tool
-                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("axios/",$AW1)))' -BackgroundColor Red # Password Spraying Attack
-                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("agentaxios",$AW1)))' -BackgroundColor Red # Password Spraying Attack
-                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("BAV2ROPC",$AW1)))' -BackgroundColor Red # Password Spraying Attack
-                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("fasthttp",$AW1)))' -BackgroundColor Red # Password Spraying Attack
 
                                     # Iterating over the Application-Blacklist HashTable
                                     foreach ($AppId in $ApplicationBlacklist_HashTable.Keys) 
@@ -1027,6 +1019,14 @@ if (Test-Path "$($IPinfo)")
                                     {
                                         $ConditionValue = 'NOT(ISERROR(FIND("{0}",$AP1)))' -f $Country
                                         Add-ConditionalFormatting -Address $WorkSheet.Cells["AO:AP"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                    }
+
+                                    # Iterating over the UserAgent-Blacklist HashTable
+                                    foreach ($UserAgent in $UserAgentBlacklist_HashTable.Keys) 
+                                    {
+                                        $Severity = $UserAgentBlacklist_HashTable["$UserAgent"][1]
+                                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$AV1)))' -f $UserAgent
+                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["AV:AV"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
                                     }
 
                                     }
@@ -1183,27 +1183,19 @@ if (Test-Path "$($IPinfo)")
                                     # BackgroundColor and FontColor for specific cells of TopRow
                                     $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
                                     Set-Format -Address $WorkSheet.Cells["A1:BC1"] -BackgroundColor $BackgroundColor -FontColor White
-                                    # HorizontalAlignment "Center" of columns A-BC
-                                    $WorkSheet.Cells["A:BC"].Style.HorizontalAlignment="Center"
+                                    # HorizontalAlignment "Center" of columns A-X and AA-BC
+                                    $WorkSheet.Cells["A:X"].Style.HorizontalAlignment="Center"
+                                    $WorkSheet.Cells["AA:BC"].Style.HorizontalAlignment="Center"
                                     # ConditionalFormatting - AppId
                                     Add-ConditionalFormatting -Address $WorkSheet.Cells["F:G"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("29d9ed98-a469-4536-ade2-f981bc1d605e",$F1)))' -BackgroundColor Red # Microsoft Authentication Broker
                                     # ConditionalFormatting - AuthenticationProtocol
                                     Add-ConditionalFormatting -Address $WorkSheet.Cells["AK:AK"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("deviceCode",$AK1)))' -BackgroundColor Red # Device Code Authentication
                                     # ConditionalFormatting - Browser
                                     Add-ConditionalFormatting -Address $WorkSheet.Cells["AE:AE"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Python Requests",$AE1)))' -BackgroundColor Red # Offensive Tool
-                                    # ConditionalFormatting - Error Codes
+                                    # ConditionalFormatting - ErrorCode
                                     $Cells = "X:Y"
                                     Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("50053",$X1)))' -BackgroundColor Red # Sign-in was blocked because it came from an IP address with malicious activity
                                     Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("90095",$X1)))' -BackgroundColor Red # Admin consent is required for the permissions requested by this application. An admin consent request may be sent to the admin.
-                                    # ConditionalFormatting - UserAgent
-                                    $Cells = "AW:AW"
-                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("AADInternals",$AW1)))' -BackgroundColor Red # Offensive Tool
-                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("azurehound",$AW1)))' -BackgroundColor Red # Offensive Tool
-                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("python-requests",$AW1)))' -BackgroundColor Red # Offensive Tool
-                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("axios/",$AW1)))' -BackgroundColor Red # Password Spraying Attack
-                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("agentaxios",$AW1)))' -BackgroundColor Red # Password Spraying Attack
-                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("BAV2ROPC",$AW1)))' -BackgroundColor Red # Password Spraying Attack
-                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("fasthttp",$AW1)))' -BackgroundColor Red # Password Spraying Attack
                                     # ConditionalFormatting - VPN
                                     Add-ConditionalFormatting -Address $WorkSheet.Cells["AV:AV"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("true",$AV1)))' -BackgroundColor Red
                                     # ConditionalFormatting - Proxy
@@ -1236,6 +1228,14 @@ if (Test-Path "$($IPinfo)")
                                     {
                                         $ConditionValue = 'NOT(ISERROR(FIND("{0}",$AP1)))' -f $Country
                                         Add-ConditionalFormatting -Address $WorkSheet.Cells["AO:AP"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                    }
+
+                                    # Iterating over the UserAgent-Blacklist HashTable
+                                    foreach ($UserAgent in $UserAgentBlacklist_HashTable.Keys) 
+                                    {
+                                        $Severity = $UserAgentBlacklist_HashTable["$UserAgent"][1]
+                                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$BB1)))' -f $UserAgent
+                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["BB:BB"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
                                     }
 
                                     }
@@ -1274,252 +1274,182 @@ $StartTime_Stats = (Get-Date)
 
 # Stats
 Write-Output "[Info]  Creating Hunting Stats ..."
-New-Item "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV" -ItemType Directory -Force | Out-Null
-New-Item "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX" -ItemType Directory -Force | Out-Null
+New-Item "$OUTPUT_FOLDER\EntraSignInLogs\Stats" -ItemType Directory -Force | Out-Null
 
 # AppDisplayName (Stats)
-$Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Select-Object AppDisplayName | Measure-Object).Count
 $Count = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Select-Object AppDisplayName -Unique | Measure-Object).Count
 $AppDisplayName = '{0:N0}' -f $Count
-Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Group-Object AppDisplayName,AppId | Select-Object @{Name='AppDisplayName'; Expression={ $_.Values[0] }},@{Name='AppId'; Expression={ $_.Values[1] }},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\AppDisplayName.csv" -NoTypeInformation
 Write-Output "[Info]  $AppDisplayName Applications found"
 
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\AppDisplayName.csv")
+$Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Select-Object AppDisplayName | Measure-Object).Count
+if ($Total -ge "1")
 {
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\AppDisplayName.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\AppDisplayName.csv" -Delimiter ","
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX\AppDisplayName.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "AppDisplayName" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns B-D
-        $WorkSheet.Cells["B:D"].Style.HorizontalAlignment="Center"
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Group-Object AppDisplayName,AppId | Select-Object @{Name='AppDisplayName'; Expression={ $_.Values[0] }},@{Name='AppId'; Expression={ $_.Values[1] }},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\AppDisplayName.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "AppDisplayName" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns B-D
+    $WorkSheet.Cells["B:D"].Style.HorizontalAlignment="Center"
         
-        # Iterating over the Application-Blacklist HashTable
-        foreach ($AppId in $ApplicationBlacklist_HashTable.Keys) 
-        {
-            $Severity = $ApplicationBlacklist_HashTable["$AppId"][1]
-            $ConditionValue = 'NOT(ISERROR(FIND("{0}",$B1)))' -f $AppId
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["A:D"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
-        }
+    # Iterating over the Application-Blacklist HashTable
+    foreach ($AppId in $ApplicationBlacklist_HashTable.Keys) 
+    {
+        $Severity = $ApplicationBlacklist_HashTable["$AppId"][1]
+        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$B1)))' -f $AppId
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:D"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
+    }
 
-        }
     }
 }
 
-# ASN / Status
-                        
-# CSV (Stats)
-if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv")
+# ASN / Status (Stats)
+$Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object ASN | Measure-Object).Count
+if ($Total -ge "1")
 {
-    if([int](& $xsv count "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv") -gt 0)
+    $Stats = Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object ASN,OrgName,Status | Where-Object {$_.ASN -ne '' } | Where-Object { $null -ne ($_.PSObject.Properties | ForEach-Object {$_.Value}) } | Group-Object ASN,OrgName,Status | Select-Object @{Name='ASN'; Expression={ $_.Values[0] }},@{Name='OrgName'; Expression={ $_.Values[1] }},@{Name='Status'; Expression={ $_.Values[2] }},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\ASN.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "ASN" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:E1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns A-E
+    $WorkSheet.Cells["A:E"].Style.HorizontalAlignment="Center"
+
+    # Iterating over the ASN-Blacklist HashTable
+    foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
     {
-        $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object ASN | Measure-Object).Count
-        Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object ASN,OrgName,Status | Where-Object {$_.ASN -ne '' } | Where-Object { $null -ne ($_.PSObject.Properties | ForEach-Object {$_.Value}) } | Group-Object ASN,OrgName,Status | Select-Object @{Name='ASN'; Expression={ $_.Values[0] }},@{Name='OrgName'; Expression={ $_.Values[1] }},@{Name='Status'; Expression={ $_.Values[2] }},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\ASN.csv" -NoTypeInformation -Encoding UTF8
+        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$A1)))' -f $ASN
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:E"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
     }
-}
 
-# XLSX (Stats)
-if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\ASN.csv")
-{
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\ASN.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\ASN.csv" -Delimiter ","
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX\ASN.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "ASN" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:E1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns A-E
-        $WorkSheet.Cells["A:E"].Style.HorizontalAlignment="Center"
-
-        # Iterating over the ASN-Blacklist HashTable
-        foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
-        {
-            $ConditionValue = 'NOT(ISERROR(FIND("{0}",$A1)))' -f $ASN
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["A:E"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
-        }
-
-        }
     }
 }
 
 # AuthenticationProtocol (Stats)
 $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Select-Object AuthenticationProtocol | Measure-Object).Count
-Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Group-Object AuthenticationProtocol | Select-Object @{Name='AuthenticationProtocol';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\AuthenticationProtocol.csv" -NoTypeInformation
-
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\AuthenticationProtocol.csv")
+if ($Total -ge "1")
 {
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\AuthenticationProtocol.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\AuthenticationProtocol.csv" -Delimiter ","
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX\AuthenticationProtocol.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "AuthenticationProtocol" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns B-C
-        $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
-        # ConditionalFormatting - AuthenticationProtocol
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("deviceCode",$A1)))' -BackgroundColor Red # Device Code Authentication
-        }
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Group-Object AuthenticationProtocol | Select-Object @{Name='AuthenticationProtocol';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\AuthenticationProtocol.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "AuthenticationProtocol" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns B-C
+    $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
+    # ConditionalFormatting - AuthenticationProtocol
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["A:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("deviceCode",$A1)))' -BackgroundColor Red # Device Code Authentication
     }
 }
 
 # AuthenticationRequirement (Stats)
 $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Select-Object AuthenticationRequirement | Measure-Object).Count
-Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Group-Object AuthenticationRequirement | Select-Object @{Name='AuthenticationRequirement';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\AuthenticationRequirement.csv" -NoTypeInformation
-
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\AuthenticationRequirement.csv")
+if ($Total -ge "1")
 {
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\AuthenticationRequirement.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\AuthenticationRequirement.csv" -Delimiter ","
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX\AuthenticationRequirement.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "AuthenticationRequirement" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns B-C
-        $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
-        }
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Group-Object AuthenticationRequirement | Select-Object @{Name='AuthenticationRequirement';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\AuthenticationRequirement.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "AuthenticationRequirement" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns B-C
+    $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
     }
 }
 
 # AuthMethod (Stats)
 $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Select-Object AuthMethod | Measure-Object).Count
-Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Group-Object AuthMethod | Select-Object @{Name='AuthMethod';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\AuthMethod.csv" -NoTypeInformation
-
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\AuthMethod.csv")
+if ($Total -ge "1")
 {
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\AuthMethod.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\AuthMethod.csv" -Delimiter ","
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX\AuthMethod.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "AuthMethod" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns B-C
-        $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
-        }
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Group-Object AuthMethod | Select-Object @{Name='AuthMethod';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\AuthMethod.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "AuthMethod" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns B-C
+    $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
     }
 }
 
 # Browser (Stats)
 $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Select-Object Browser | Measure-Object).Count
-Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Group-Object Browser | Select-Object @{Name='Browser';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\Browser.csv" -NoTypeInformation
-
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\Browser.csv")
+if ($Total -ge "1")
 {
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\Browser.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\Browser.csv" -Delimiter ","
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX\Browser.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Browser" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns B-C
-        $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
-        # ConditionalFormatting - Browser
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Python Requests",$A1)))' -BackgroundColor Red
-        }
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Group-Object Browser | Select-Object @{Name='Browser';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\Browser.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Browser" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns B-C
+    $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
+    # ConditionalFormatting - Browser
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["A:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Python Requests",$A1)))' -BackgroundColor Red
     }
 }
 
 # ClientAppUsed (Stats)
 $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Select-Object ClientAppUsed | Measure-Object).Count
-Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Group-Object ClientAppUsed | Select-Object @{Name='ClientAppUsed';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\ClientAppUsed.csv" -NoTypeInformation
-
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\ClientAppUsed.csv")
+if ($Total -ge "1")
 {
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\ClientAppUsed.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\ClientAppUsed.csv" -Delimiter ","
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX\ClientAppUsed.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "ClientAppUsed" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns B-C
-        $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
-        # ConditionalFormatting - Modern Authentication Clients
-        $Green = [System.Drawing.Color]::FromArgb(0,176,80)
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Browser",$A1)))' -BackgroundColor $Green
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Mobile Apps and Desktop clients",$A1)))' -BackgroundColor $Green
-        # ConditionalFormatting - Legacy Authentication Clients
-        # https://learn.microsoft.com/en-us/azure/active-directory/conditional-access/block-legacy-authentication
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Authenticated SMTP",$A1)))' -BackgroundColor Red
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Other clients",$A1)))' -BackgroundColor Red
-        }
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Group-Object ClientAppUsed | Select-Object @{Name='ClientAppUsed';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\ClientAppUsed.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "ClientAppUsed" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns B-C
+    $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
+    # ConditionalFormatting - Modern Authentication Clients
+    $Green = [System.Drawing.Color]::FromArgb(0,176,80)
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["A:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Browser",$A1)))' -BackgroundColor $Green
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["A:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Mobile Apps and Desktop clients",$A1)))' -BackgroundColor $Green
+    # ConditionalFormatting - Legacy Authentication Clients
+    # https://learn.microsoft.com/en-us/azure/active-directory/conditional-access/block-legacy-authentication
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["A:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Authenticated SMTP",$A1)))' -BackgroundColor Red
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["A:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Other clients",$A1)))' -BackgroundColor Red
     }
 }
 
-# ClientAppUsed / Status 
-                        
-# CSV (Stats)
-if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv")
+# ClientAppUsed / Status (Stats)
+$Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object ClientAppUsed | Measure-Object).Count
+if ($Total -ge "1")
 {
-    if([int](& $xsv count "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv") -gt 0)
-    {
-        $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object ClientAppUsed | Measure-Object).Count
-        Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Select-Object @{Name='ClientAppUsed'; Expression={if($_.ClientAppUsed){$_.ClientAppUsed}else{'N/A'}}},Status | Group-Object ClientAppUsed,Status | Select-Object @{Name='ClientAppUsed'; Expression={ $_.Values[0] }},@{Name='Status'; Expression={ $_.Values[1] }},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\ClientAppUsed-Status.csv" -NoTypeInformation -Encoding UTF8
-    }
-}
-
-# XLSX (Stats)
-if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\ClientAppUsed-Status.csv")
-{
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\ClientAppUsed-Status.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\ClientAppUsed-Status.csv" -Delimiter ","
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX\ClientAppUsed-Status.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "ClientAppUsed" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns A-D
-        $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
-        # ConditionalFormatting - Modern Authentication Clients
-        $Green = [System.Drawing.Color]::FromArgb(0,176,80)
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:A"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Browser",$A1)))' -BackgroundColor $Green
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:A"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Mobile Apps and Desktop clients",$A1)))' -BackgroundColor $Green
-        # ConditionalFormatting - Legacy Authentication Clients
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:A"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Authenticated SMTP",$A1)))' -BackgroundColor Red
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:D"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '=AND($A1="Authenticated SMTP",$B1="Failure")' -BackGroundColor "Red"
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:A"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Other clients",$A1)))' -BackgroundColor Red
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:D"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '=AND($A1="Other clients",$B1="Failure")' -BackGroundColor "Red"
-        }
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Select-Object @{Name='ClientAppUsed'; Expression={if($_.ClientAppUsed){$_.ClientAppUsed}else{'N/A'}}},Status | Group-Object ClientAppUsed,Status | Select-Object @{Name='ClientAppUsed'; Expression={ $_.Values[0] }},@{Name='Status'; Expression={ $_.Values[1] }},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\ClientAppUsed-Status.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "ClientAppUsed" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns A-D
+    $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
+    # ConditionalFormatting - Modern Authentication Clients
+    $Green = [System.Drawing.Color]::FromArgb(0,176,80)
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["A:A"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Browser",$A1)))' -BackgroundColor $Green
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["A:A"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Mobile Apps and Desktop clients",$A1)))' -BackgroundColor $Green
+    # ConditionalFormatting - Legacy Authentication Clients
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["A:A"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Authenticated SMTP",$A1)))' -BackgroundColor Red
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["A:D"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '=AND($A1="Authenticated SMTP",$B1="Failure")' -BackGroundColor "Red"
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["A:A"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Other clients",$A1)))' -BackgroundColor Red
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["A:D"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '=AND($A1="Other clients",$B1="Failure")' -BackGroundColor "Red"
     }
 }
 
 # ConditionalAccessStatus (Stats)
 $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Select-Object ConditionalAccessStatus | Measure-Object).Count
-Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Group-Object ConditionalAccessStatus | Select-Object @{Name='ConditionalAccessStatus'; Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\ConditionalAccessStatus.csv" -NoTypeInformation
-
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\ConditionalAccessStatus.csv")
+if ($Total -ge "1")
 {
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\ConditionalAccessStatus.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\ConditionalAccessStatus.csv" -Delimiter ","
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX\ConditionalAccessStatus.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "ConditionalAccessStatus" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns A-C
-        $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
-        }
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Group-Object ConditionalAccessStatus | Select-Object @{Name='ConditionalAccessStatus'; Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\ConditionalAccessStatus.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "ConditionalAccessStatus" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns A-C
+    $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
     }
 }
 
@@ -1530,315 +1460,232 @@ if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\ConditionalAccessStatus.
 
 # Note: Conditional Access policies are enforced after first-factor authentication is completed. Conditional Access isn't intended to be an organization's first line of defense for scenarios like denial-of-service (DoS) attacks, but it can use signals from these events to determine access.
 
-# Country / Country Name
-                        
-# CSV (Stats)
-if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv")
-{
-    if([int](& $xsv count "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv") -gt 0)
+# Country / Country Name (Stats)
+$Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object Country | Measure-Object).Count
+if ($Total -ge "1")
+{       
+    $Stats = Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object Country,"Country Name" | Where-Object {$_.Country -ne '' } | Where-Object { $null -ne ($_.PSObject.Properties | ForEach-Object {$_.Value}) } | Group-Object Country,"Country Name" | Select-Object @{Name='Country'; Expression={ $_.Values[0] }},@{Name='Country Name'; Expression={ $_.Values[1] }},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\Country.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Countries" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns A-D
+    $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
+
+    # Iterating over the Country-Blacklist HashTable
+    foreach ($Country in $CountryBlacklist_HashTable.Keys) 
     {
-        $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object Country | Measure-Object).Count
-        Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object Country,"Country Name" | Where-Object {$_.Country -ne '' } | Where-Object { $null -ne ($_.PSObject.Properties | ForEach-Object {$_.Value}) } | Group-Object Country,"Country Name" | Select-Object @{Name='Country'; Expression={ $_.Values[0] }},@{Name='Country Name'; Expression={ $_.Values[1] }},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\Country.csv" -NoTypeInformation -Encoding UTF8
-                                
-        # Countries
-        $Countries = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object Country -Unique | Where-Object { $_.Country -ne '' } | Measure-Object).Count
+        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$B1)))' -f $Country
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:D"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+    }
 
-        # Cities
-        $Cities = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object City -Unique | Where-Object { $_.City -ne '' } | Measure-Object).Count
+    }
 
-        Write-Output "[Info]  $Countries Countries and $Cities Cities found"
+    $Countries = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object Country -Unique | Where-Object { $_.Country -ne '' } | Measure-Object).Count
+    $Cities = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object City -Unique | Where-Object { $_.City -ne '' } | Measure-Object).Count
+    Write-Output "[Info]  $Countries Countries and $Cities Cities found"
+}                  
+
+# ErrorCode / Status (Stats)
+$Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object ErrorCode | Measure-Object).Count
+if ($Total -ge "1")
+{
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8| Select-Object Status,ErrorCode,FailureReason,AdditionalDetails | Group-Object Status,ErrorCode,FailureReason,AdditionalDetails | Select-Object @{Name='Status'; Expression={ $_.Values[0] }},@{Name='ErrorCode'; Expression={ $_.Values[1] }},@{Name='FailureReason'; Expression={ $_.Values[2] }},@{Name='AdditionalDetails'; Expression={ $_.Values[3] }},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\ErrorCode.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "ErrorCode" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:F1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns A-B and E-F
+    $WorkSheet.Cells["A:B"].Style.HorizontalAlignment="Center"
+    $WorkSheet.Cells["E:F"].Style.HorizontalAlignment="Center"
+    # ConditionalFormatting - Suspicious Error Codes
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["A:F"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("50034",$B1)))' -BackgroundColor Red # "The user account does not exist in the tenant directory." --> involving non-existent user accounts
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["A:F"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("50053",$B1)))' -BackgroundColor Red # Sign-in was blocked because it came from an IP address with malicious activity or The account is locked, you've tried to sign in too many times with an incorrect user ID or password.
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["A:F"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("50126",$B1)))' -BackgroundColor Red # "Error validating credentials due to invalid username or password." --> Failed authentication attempts (Password Spraying Attack): Identify a traditional password spraying attack where a high number of users fail to authenticate from one single source IP in a short period of time.
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["A:F"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("90094",$B1)))' -BackgroundColor Red # Admin consent is required for the permissions requested by this application.
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["A:F"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("90095",$B1)))' -BackgroundColor Red # Admin consent is required for the permissions requested by this application. An admin consent request may be sent to the admin.
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["A:F"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("500121",$B1)))' -BackgroundColor Red # "Authentication failed during strong authentication request." --> MFA Fatigue aka MFA Prompt Bombing
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["A:F"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("530032",$B1)))' -BackgroundColor Red # User blocked due to risk on home tenant.
     }
 }
 
-# XLSX (Stats)
-if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\Country.csv")
+# IpAddress / Country Name (Stats)
+$Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object IpAddress | Measure-Object).Count
+if ($Total -ge "1")
 {
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\Country.csv") -gt 0)
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Select-Object IpAddress,Country,"Country Name",ASN,OrgName | Where-Object {$_.IpAddress -ne '' } | Where-Object {$_."Country Name" -ne '' } | Where-Object { $null -ne ($_.PSObject.Properties | ForEach-Object {$_.Value}) } | Group-Object IpAddress,Country,"Country Name",ASN,OrgName | Select-Object @{Name='IpAddress'; Expression={ $_.Values[0] }},@{Name='Country'; Expression={ $_.Values[1] }},@{Name='Country Name'; Expression={ $_.Values[2] }},@{Name='ASN'; Expression={ $_.Values[3] }},@{Name='OrgName'; Expression={ $_.Values[4] }},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\IpAddress.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "IpAddress" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:G1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns A-G
+    $WorkSheet.Cells["A:G"].Style.HorizontalAlignment="Center"
+
+    # Iterating over the ASN-Blacklist HashTable
+    foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
     {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\Country.csv" -Delimiter ","
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX\Country.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Countries" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns A-D
-        $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
-
-        # Iterating over the Country-Blacklist HashTable
-        foreach ($Country in $CountryBlacklist_HashTable.Keys) 
-        {
-            $ConditionValue = 'NOT(ISERROR(FIND("{0}",$B1)))' -f $Country
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["A:D"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
-        }
-
-        }
+        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$D1)))' -f $ASN
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["D:E"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
     }
-}
 
-# ErrorCode / Status
-
-# CSV (Stats)
-if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv")
-{
-    if([int](& $xsv count "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv") -gt 0)
+    # Iterating over the Country-Blacklist HashTable
+    foreach ($Country in $CountryBlacklist_HashTable.Keys) 
     {
-        $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object ErrorCode | Measure-Object).Count
-        Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8| Select-Object Status,ErrorCode,FailureReason,AdditionalDetails | Group-Object Status,ErrorCode,FailureReason,AdditionalDetails | Select-Object Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}},@{Name='Status'; Expression={ $_.Values[0] }},@{Name='ErrorCode'; Expression={ $_.Values[1] }},@{Name='FailureReason'; Expression={ $_.Values[2] }},@{Name='AdditionalDetails'; Expression={ $_.Values[3] }} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\ErrorCode.csv" -NoTypeInformation -Encoding UTF8
+        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$C1)))' -f $Country
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["B:C"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
     }
-}
 
-# XLSX (Stats)
-if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\ErrorCode.csv")
-{
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\ErrorCode.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\ErrorCode.csv" -Delimiter ","
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX\ErrorCode.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "ErrorCode" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:F1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns A-D
-        $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
-        # ConditionalFormatting - Suspicious Error Codes
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:F"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("50034",$D1)))' -BackgroundColor Red # "The user account does not exist in the tenant directory." --> involving non-existent user accounts
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:F"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("50053",$D1)))' -BackgroundColor Red # Sign-in was blocked because it came from an IP address with malicious activity or The account is locked, you've tried to sign in too many times with an incorrect user ID or password.
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:F"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("50126",$D1)))' -BackgroundColor Red # "Error validating credentials due to invalid username or password." --> Failed authentication attempts (Password Spraying Attack): Identify a traditional password spraying attack where a high number of users fail to authenticate from one single source IP in a short period of time.
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:F"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("90094",$D1)))' -BackgroundColor Red # Admin consent is required for the permissions requested by this application.
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:F"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("90095",$D1)))' -BackgroundColor Red # Admin consent is required for the permissions requested by this application. An admin consent request may be sent to the admin.
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:F"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("500121",$D1)))' -BackgroundColor Red # "Authentication failed during strong authentication request." --> MFA Fatigue aka MFA Prompt Bombing
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:F"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("530032",$D1)))' -BackgroundColor Red # User blocked due to risk on home tenant.
-        }
-    }
-}
-
-# IpAddress / Country Name
-                        
-# CSV (Stats)
-if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv")
-{
-    if([int](& $xsv count "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv") -gt 0)
-    {
-        $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object IpAddress | Measure-Object).Count
-        Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Select-Object IpAddress,Country,"Country Name",ASN,OrgName | Where-Object {$_.IpAddress -ne '' } | Where-Object {$_."Country Name" -ne '' } | Where-Object { $null -ne ($_.PSObject.Properties | ForEach-Object {$_.Value}) } | Group-Object IpAddress,Country,"Country Name",ASN,OrgName | Select-Object @{Name='IpAddress'; Expression={ $_.Values[0] }},@{Name='Country'; Expression={ $_.Values[1] }},@{Name='Country Name'; Expression={ $_.Values[2] }},@{Name='ASN'; Expression={ $_.Values[3] }},@{Name='OrgName'; Expression={ $_.Values[4] }},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\IpAddress.csv" -NoTypeInformation -Encoding UTF8
-    }
-}
-
-# XLSX (Stats)
-if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\IpAddress.csv")
-{
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\IpAddress.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\IpAddress.csv" -Delimiter ","
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX\IpAddress.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "IpAddress" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:G1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns A-G
-        $WorkSheet.Cells["A:G"].Style.HorizontalAlignment="Center"
-
-        # Iterating over the ASN-Blacklist HashTable
-        foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
-        {
-            $ConditionValue = 'NOT(ISERROR(FIND("{0}",$D1)))' -f $ASN
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["D:E"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
-        }
-
-        # Iterating over the Country-Blacklist HashTable
-        foreach ($Country in $CountryBlacklist_HashTable.Keys) 
-        {
-            $ConditionValue = 'NOT(ISERROR(FIND("{0}",$C1)))' -f $Country
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["B:C"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
-        }
-
-        }
     }
 }
 
 # NetworkNames (Stats)
 $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Select-Object NetworkNames | Measure-Object).Count
-Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Group-Object NetworkNames | Select-Object @{Name='NetworkNames'; Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\NetworkNames.csv" -NoTypeInformation
-
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\NetworkNames.csv")
+if ($Total -ge "1")
 {
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\NetworkNames.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\NetworkNames.csv" -Delimiter ","
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX\NetworkNames.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "NetworkNames" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns B-C
-        $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
-        }
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Group-Object NetworkNames | Select-Object @{Name='NetworkNames'; Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\NetworkNames.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "NetworkNames" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns B-C
+    $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
     }
 }
 
 # OperatingSystem (Stats)
 $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Select-Object OperatingSystem | Measure-Object).Count
-Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Group-Object OperatingSystem | Select-Object @{Name='OperatingSystem';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\OperatingSystem.csv" -NoTypeInformation
-
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\OperatingSystem.csv")
+if ($Total -ge "1")
 {
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\OperatingSystem.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\OperatingSystem.csv" -Delimiter ","
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX\OperatingSystem.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "OperatingSystem" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns A-C
-        $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
-        }
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Group-Object OperatingSystem | Select-Object @{Name='OperatingSystem';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\OperatingSystem.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "OperatingSystem" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns A-C
+    $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
     }
 }
 
 # ResourceDisplayName (Stats)
-$Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Select-Object ResourceDisplayName | Measure-Object).Count
 $Count = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Select-Object ResourceDisplayName | Sort-Object ResourceDisplayName -Unique | Measure-Object).Count
 $ResourceDisplayName = '{0:N0}' -f $Count
-Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Group-Object ResourceDisplayName | Select-Object @{Name='ResourceDisplayName';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\ResourceDisplayName.csv" -NoTypeInformation
 Write-Output "[Info]  $ResourceDisplayName Resources found"
 
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\ResourceDisplayName.csv")
+$Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Select-Object ResourceDisplayName | Measure-Object).Count
+if ($Total -ge "1")
 {
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\ResourceDisplayName.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\ResourceDisplayName.csv" -Delimiter ","
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX\ResourceDisplayName.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "ResourceDisplayName" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns B-C
-        $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
-        }
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Group-Object ResourceDisplayName | Select-Object @{Name='ResourceDisplayName';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\ResourceDisplayName.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "ResourceDisplayName" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns B-C
+    $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
     }
 }
 
 # RiskDetail (Stats)
 $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Select-Object RiskDetail | Measure-Object).Count
-Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Group-Object RiskDetail | Select-Object @{Name='RiskDetail';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\RiskDetail.csv" -NoTypeInformation
-
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\RiskDetail.csv")
+if ($Total -ge "1")
 {
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\RiskDetail.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\RiskDetail.csv" -Delimiter ","
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX\RiskDetail.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "RiskDetail" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns B-C
-        $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
-        }
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Group-Object RiskDetail | Select-Object @{Name='RiskDetail';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\RiskDetail.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "RiskDetail" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns B-C
+    $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
     }
 }
 
 # RiskEventTypesV2 (Stats)
 $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Select-Object RiskEventTypesV2 | Measure-Object).Count
-Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Group-Object RiskEventTypesV2 | Select-Object @{Name='RiskEventTypesV2';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\RiskEventTypesV2.csv" -NoTypeInformation
-
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\RiskEventTypesV2.csv")
+if ($Total -ge "1")
 {
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\RiskEventTypesV2.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\RiskEventTypesV2.csv" -Delimiter ","
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX\RiskEventTypesV2.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "RiskEventTypesV2" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns B-C
-        $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
-        }
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Group-Object RiskEventTypesV2 | Select-Object @{Name='RiskEventTypesV2';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\RiskEventTypesV2.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "RiskEventTypesV2" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns B-C
+    $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
     }
 }
 
 # RiskLevelDuringSignIn (Stats)
 $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Select-Object RiskLevelDuringSignIn | Measure-Object).Count
-Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Group-Object RiskLevelDuringSignIn | Select-Object @{Name='RiskLevelDuringSignIn';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\RiskLevelDuringSignIn.csv" -NoTypeInformation
-
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\RiskLevelDuringSignIn.csv")
+if ($Total -ge "1")
 {
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\RiskLevelDuringSignIn.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\RiskLevelDuringSignIn.csv" -Delimiter ","
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX\RiskLevelDuringSignIn.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "RiskLevelDuringSignIn" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns A-C
-        $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
-        }
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Group-Object RiskLevelDuringSignIn | Select-Object @{Name='RiskLevelDuringSignIn';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\RiskLevelDuringSignIn.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "RiskLevelDuringSignIn" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns A-C
+    $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
+    }
+}
+
+# SignInEventTypes (Stats)
+$Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Select-Object SignInEventTypes | Measure-Object).Count
+if ($Total -ge "1")
+{
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8 | Group-Object SignInEventTypes | Select-Object @{Name='SignInEventTypes';Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\SignInEventTypes.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "SignInEventTypes" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns A-C
+    $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
     }
 }
 
 # Status (Stats)
-if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv")
+$Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object Status | Measure-Object).Count
+if ($Total -ge "1")
 {
-    if([int](& $xsv count "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv") -gt 0)
-    {
-        $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object Status | Measure-Object).Count
-        Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," | Group-Object Status | Select-Object @{Name='Status'; Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\Status.csv" -NoTypeInformation
-    }
-}
-
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\Status.csv")
-{
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\Status.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\Status.csv" -Delimiter ","
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX\Status.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Status" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns A-C
-        $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
-        }
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," | Group-Object Status | Select-Object @{Name='Status'; Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\Status.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Status" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns A-C
+    $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
     }
 }
 
 # UserAgent (Stats)
 $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Select-Object UserAgent | Measure-Object).Count
-Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Group-Object UserAgent | Select-Object @{Name='UserAgent';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\UserAgent.csv" -NoTypeInformation
-
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\UserAgent.csv")
+if ($Total -ge "1")
 {
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\UserAgent.csv") -gt 0)
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Untouched.csv" -Delimiter "," | Group-Object UserAgent | Select-Object @{Name='UserAgent';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\UserAgent.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "UserAgent" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns B-C
+    $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
+
+    # Iterating over the UserAgent-Blacklist HashTable
+    foreach ($UserAgent in $UserAgentBlacklist_HashTable.Keys) 
     {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\UserAgent.csv" -Delimiter ","
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX\UserAgent.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "UserAgent" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns B-C
-        $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
-        # ConditionalFormatting - UserAgent
-        $Cells = "A:C"
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("AADInternals",$A1)))' -BackgroundColor Red # Offensive Tool
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("azurehound",$A1)))' -BackgroundColor Red # Offensive Tool
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("python-requests",$A1)))' -BackgroundColor Red # Offensive Tool
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("axios/",$A1)))' -BackgroundColor Red # Password Spraying Attack
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("agentaxios",$A1)))' -BackgroundColor Red # Password Spraying Attack
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("BAV2ROPC",$A1)))' -BackgroundColor Red # Password Spraying Attack
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("fasthttp",$A1)))' -BackgroundColor Red # Password Spraying Attack
-        }
+        $Severity = $UserAgentBlacklist_HashTable["$UserAgent"][1]
+        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$A1)))' -f $UserAgent
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:C"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
+    }
+        
     }
 }
 
@@ -1856,7 +1703,6 @@ if ($PrivacyDetection -eq "True")
             {
                 $Total = ($Import | Measure-Object).Count
                 $VPNServices = $Import | Where-Object {$_.VPN -eq "true"} | Where-Object {$_.Service -ne ""} | Group-Object Service | Select-Object @{Name='VPN Service';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
-                $VPNServices | Export-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\VPN-Services.csv" -NoTypeInformation -Encoding UTF8
 
                 Write-Host "[Alert] Suspicious VPN Services found ($Count)" -ForegroundColor Red
 
@@ -1867,24 +1713,16 @@ if ($PrivacyDetection -eq "True")
                     Write-Host "[Alert] Suspicious VPN Service detected: $Service ($Count)" -ForegroundColor Red
                 }
 
-                # XLSX (Stats)
-                if (Test-Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\VPN-Services.csv")
-                {
-                    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\VPN-Services.csv") -gt 0)
-                    {
-                        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\Stats\CSV\VPN-Services.csv" -Delimiter ","
-                        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX\VPN-Services.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "VPN" -CellStyleSB {
-                        param($WorkSheet)
-                        # BackgroundColor and FontColor for specific cells of TopRow
-                        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-                        # HorizontalAlignment "Center" of columns B-C
-                        $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
-                        # ConditionalFormatting - Service
-                        $LastRow = $WorkSheet.Dimension.End.Row
-                        Add-ConditionalFormatting -Address $WorkSheet.Cells["A2:C$LastRow"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '=$A2<>""' -BackgroundColor Red
-                        }
-                    }
+                $VPNServices | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\VPN-Services.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "VPN" -CellStyleSB {
+                param($WorkSheet)
+                # BackgroundColor and FontColor for specific cells of TopRow
+                $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+                Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+                # HorizontalAlignment "Center" of columns B-C
+                $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
+                # ConditionalFormatting - Service
+                $LastRow = $WorkSheet.Dimension.End.Row
+                Add-ConditionalFormatting -Address $WorkSheet.Cells["A2:C$LastRow"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '=$A2<>""' -BackgroundColor Red
                 }
             }
         }
@@ -2116,7 +1954,7 @@ if ($Count -ge 1)
 #############################################################################################################################################################################################
 
 # Line Charts
-New-Item "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX\LineCharts" -ItemType Directory -Force | Out-Null
+New-Item "$OUTPUT_FOLDER\EntraSignInLogs\Stats\LineCharts" -ItemType Directory -Force | Out-Null
 
 # Failure (Sign-Ins)
 $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.Status -eq 'Failure' } | Select-Object IpAddress | Measure-Object).Count
@@ -2131,7 +1969,7 @@ $Import = Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter ",
 if ($Count -gt 5)
 {
     $ChartDefinition = New-ExcelChartDefinition -XRange CreatedDateTime -YRange Count -Title "Failed Sign-Ins" -ChartType Line -NoLegend -Width 1200
-    $Import | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX\LineCharts\Failure.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
+    $Import | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\LineCharts\Failure.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
 }
 
 # Failure (Map)
@@ -2175,7 +2013,7 @@ $Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
 if ($Count -gt 5)
 {
     $ChartDefinition = New-ExcelChartDefinition -XRange CreatedDateTime -YRange Count -Title "Successful Sign-Ins" -ChartType Line -NoLegend -Width 1200
-    $Import | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX\LineCharts\Success.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
+    $Import | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\LineCharts\Success.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
 }
 
 # Success (Map)
@@ -2217,7 +2055,7 @@ if ($Count -ge 5)
 {
     $Import = Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.Status -eq 'Interrupted' } | Group-Object{($_.CreatedDateTime -split "\s+")[0]} | Select-Object Count,@{Name='CreatedDateTime'; Expression={ $_.Values[0] }} | Sort-Object { $_.CreatedDateTime -as [datetime] }
     $ChartDefinition = New-ExcelChartDefinition -XRange CreatedDateTime -YRange Count -Title "Interrupted Sign-Ins" -ChartType Line -NoLegend -Width 1200
-    $Import | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX\LineCharts\Interrupted.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
+    $Import | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\LineCharts\Interrupted.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
 }
 
 #############################################################################################################################################################################################
@@ -2231,7 +2069,7 @@ if ($Count -ge 10)
 {
     $Import = Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.ConditionalAccessStatus -eq 'Success' } | Group-Object{($_.CreatedDateTime -split "\s+")[0]} | Select-Object Count,@{Name='CreatedDateTime'; Expression={ $_.Values[0] }} | Sort-Object { $_.CreatedDateTime -as [datetime] }
     $ChartDefinition = New-ExcelChartDefinition -XRange CreatedDateTime -YRange Count -Title "Conditional Access Result: Success" -ChartType Line -NoLegend -Width 1200
-    $Import | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX\LineCharts\ConditionalAccessResult-Success.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
+    $Import | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\LineCharts\ConditionalAccessResult-Success.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
 }
 
 # Conditional Access Result: Failure (Line Chart)
@@ -2241,7 +2079,7 @@ if ($Count -ge 10)
 {
     $Import = Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.ConditionalAccessStatus -eq 'Failure' } | Group-Object{($_.CreatedDateTime -split "\s+")[0]} | Select-Object Count,@{Name='CreatedDateTime'; Expression={ $_.Values[0] }} | Sort-Object { $_.CreatedDateTime -as [datetime] }
     $ChartDefinition = New-ExcelChartDefinition -XRange CreatedDateTime -YRange Count -Title "Conditional Access Result: Failure" -ChartType Line -NoLegend -Width 1200
-    $Import | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX\LineCharts\ConditionalAccessResult-Failure.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
+    $Import | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\LineCharts\ConditionalAccessResult-Failure.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
 }
 
 # Conditional Access Result: Not applied (Line Chart)
@@ -2251,7 +2089,7 @@ if ($Count -ge 10)
 {
     $Import = Import-Csv "$OUTPUT_FOLDER\EntraSignInLogs\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.ConditionalAccessStatus -eq 'notApplied' } | Group-Object{($_.CreatedDateTime -split "\s+")[0]} | Select-Object Count,@{Name='CreatedDateTime'; Expression={ $_.Values[0] }} | Sort-Object { $_.CreatedDateTime -as [datetime] }
     $ChartDefinition = New-ExcelChartDefinition -XRange CreatedDateTime -YRange Count -Title "Conditional Access Result: Not applied" -ChartType Line -NoLegend -Width 1200
-    $Import | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\XLSX\LineCharts\ConditionalAccessResult-NotApplied.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
+    $Import | Export-Excel -Path "$OUTPUT_FOLDER\EntraSignInLogs\Stats\LineCharts\ConditionalAccessResult-NotApplied.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
 }
 
 # Conditional Access (NOT Blocked)
@@ -2756,7 +2594,16 @@ Write-Output "$ElapsedTime"
 # Stop logging
 Write-Host ""
 Stop-Transcript
-Start-Sleep 1
+Start-Sleep 0.5
+
+# IPinfo Logout
+& $IPinfo logout > $null
+
+# IPinfo Clear Cache (Optional)
+#& $IPinfo cache clear > $null
+
+# Cleaning up
+Clear-Variable Token
 
 # MessageBox UI
 $MessageBody = "Status: Sign-In Logs Analysis completed."
@@ -2766,10 +2613,7 @@ $MessageIcon = "Information"
 $Result = [System.Windows.Forms.MessageBox]::Show($MessageBody, $MessageTitle, $ButtonType, $MessageIcon)
 
 if ($Result -eq "OK" ) 
-{
-    # IPinfo Logout
-    & $IPinfo logout > $null
-    
+{   
     # Reset Progress Preference
     $Global:ProgressPreference = $OriginalProgressPreference
 
@@ -2786,8 +2630,8 @@ if ($Result -eq "OK" )
 # SIG # Begin signature block
 # MIIrxQYJKoZIhvcNAQcCoIIrtjCCK7ICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUgLRANHlC/Fmu4po+w//N55/F
-# xc6ggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUKqBfuS4itLFHwGrH+Hd9lOUK
+# EEqggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
 # AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
 # MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
 # MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
@@ -2989,33 +2833,33 @@ if ($Result -eq "OK" )
 # YmxpYyBDb2RlIFNpZ25pbmcgQ0EgUjM2AhEAjEGek78rzqyIBig7dhm9PDAJBgUr
 # DgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMx
 # DAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkq
-# hkiG9w0BCQQxFgQUh96u2NbRGfZYfx5p+Daj1EYrn5IwDQYJKoZIhvcNAQEBBQAE
-# ggIAzI/rYNGlPNlq3atwhaVnaigcb9Vfhwd+ea+/9XH2LXtjJstS3LD/FQdGOdpn
-# 4G1Xm/Yb+nyqaOazwa+MBUR1ACKQB2ioznLXf+RCgQMZmpOrycG/c0TBFrVikzaS
-# pjP5qLPXu2Tqp+jtbJcneTay47tCMjJw3LPyUCvdRm1rwHBsss4XzKIt85NGHMFr
-# eBn0Nx186NjuaMLxoZhp8cl2InERpkldNUBX6kf82qMBK/2vAn55BYMhGxfjstMd
-# JC3pedjhaFYsCsEpDkNKpssUsPdO4uD58UFD/ONbGbfWQ51920JcTZzvcY7Ips+l
-# OGLcBgqNBXvE1jX7rmJxXwBoQA/Dz6c6avv2MdfxG9KxcQjPVObWhL1Z+76IJ4Ey
-# g07VoXEtQ9IYY7DbnmKkA7XmgfJhTGkIE31aM6PZWFcNIpuRpvKfT3VvgSxZd1po
-# QN2lVA8gW8dBCd+2owsspBafUPKuO5CEIgehfT8YnpMQD98RCTekWBQhKGpPn0pg
-# a8WiUggjVQsrVMyIsdEjX9vxgreCbanBNAb6iRUfoJVtftPFibvK+ZNfwyOLuaFt
-# oNpz3PJr5FMB7B0fCEmrwWUdFEHKTYD2WZfMnBmUpthRzP275RCaZt9LbP1Hj7gJ
-# wjLCc9RG47m5WX2XxMFwEdtwlb22Snn12BdSVdgzl3pJwuGhggMiMIIDHgYJKoZI
+# hkiG9w0BCQQxFgQUigw3WzMWGmtXNYP5vHxAKWyK5S0wDQYJKoZIhvcNAQEBBQAE
+# ggIAVhpC5FvXZZdjZMOaIcwn/cyDKrewPtuYlJiggi/PXw7HsWULhaSBWX/wUMJF
+# zivqODMI7XToTmJYY9nM2c5gcK79UU28WBEwDzb7GSXznXL3sa90gmPGDkrr/ucI
+# CbaRTvEQjp9BQ6pDl2/5E+Fl26Nt4W2IjUeMUrFn5qdGS2wqOQAXxexk+ywkXe4l
+# N8Db2dSaDMh2n9qBcMB1fNQTMwkwiGKuIUi2sf75qYO6bghTWb9gLqJ3Kz4lST8e
+# cVwK0oKLZXSmSnnUZEmTPX6OV1bM4lbMXwSCH6lZ1ww9Xc8dsPa77l/R2yO+DrVi
+# ubjoDcuH82UN/vwbgkwGoPfB7l/OZDef3k2R4uczN+txF6ISZ1Jgao4oW8PfpP/2
+# fbK8BeQOVAR78RZujGFxxotNbtWDsmM728iXmpaMnHj0B1L4CYl+AKzBddEOq7TD
+# esOuhNGgfX3LwKLoXW0/LmMAjoj1bgCEAhEnjJK5orYy2JxpzbXLvGMiKroQBXjZ
+# CwFa0JqV1TUqcIYyEvCKlSgAySLCK5yxxrTBGJv3l4evVzuQTY47DV2vBFh/VTcH
+# 46ayHRcLZs5TvjByQmNS5azCQMVxuufkaZpCiGWojZjlz1EfMLzkSZtXT+/jFESG
+# aytRFUJWY/C/Nqd8j18cndosn+N2IPgPCr76ZC/Xai7Hs82hggMiMIIDHgYJKoZI
 # hvcNAQkGMYIDDzCCAwsCAQEwaTBVMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2Vj
 # dGlnbyBMaW1pdGVkMSwwKgYDVQQDEyNTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1w
 # aW5nIENBIFIzNgIQOlJqLITOVeYdZfzMEtjpiTANBglghkgBZQMEAgIFAKB5MBgG
-# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI1MDEyMjE1
-# MDMzNlowPwYJKoZIhvcNAQkEMTIEMCHePCp7xHZY2QlgFw/582cvqAKXqKwa2L1E
-# rwLDck8T1GxhAT0MfE7hZUITIdl5tzANBgkqhkiG9w0BAQEFAASCAgA1Afid0wqC
-# Kfooct5UwY4gcruz/2PZICMxDiHvR7pek5FEz296N2ijX/+sDXz96/Oxov1cED0P
-# NLmql/imlxwPwPg+yqXFYY/lCsfrYOESSRtSSjia+S/08GgJ+vDxzE88KUxgvjMf
-# WND8vYFD0rYdYwll2aSHEvSXUFrn65ICCMT9LXEE6p4mm4HxGLHbqg6d07nnKDLG
-# eq7BxWRXcoJCLbx6+MpDYQcrMnLv2kazNKxEAe+oDka3e1IDC4ZO1jQPgyuuMre4
-# VL9EMC8Km0p8qSxWrT7cZatAOng+WLrlHPWzk7zYVmpxKq3LsieCY1ySdMoZtPFg
-# 73elgeR7St0d1ZyHkD55cuoWuSWA4dlkULw3YJolQxjEVEDD1M5QxNitN3Z+wlBT
-# sqoyAbc2DBiwX6qPa44y+Msku8M3V/8TkyrkSyV4nH+0j/4mYPD8Ya8CwXCsyhqt
-# a2cEBOGiSyTqUgYCyBxWgHplC2zLwjCIMnYebWhbJMf44EhaqPVSlkC1Kn/LlRla
-# R9KcS9imdP1BSCnNcPjxq7jiAZsIzAoZExR6llk7r7zqGGL1JT8luXR5PcSpG/iI
-# JyDE8XFA8gisZ+E4SMHIuDECg1of0tbdkFYAZRZdOBDsmJn+6F9JuLqSixAGEGku
-# AX5AIwyZdx5/8ukERqYfcIwmE4SLfnOr2A==
+# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI1MDEyNzA1
+# NDkyM1owPwYJKoZIhvcNAQkEMTIEMPSIrhUW+e0f7HSVykwqe6E3ne9K0WaNsj5S
+# IJAISApZq6vMkGiAG5ErDB7ySPTIBjANBgkqhkiG9w0BAQEFAASCAgBrbIW9InEt
+# n6cdTOfJKtbouL68xkiOy9Z+eim5OrcD4JQRl8Ugq9YJYVPF4ViNU4n1B3BDtiqD
+# k0gWADMZ0XWRZqRBq0NYghEmnEcU4tN0E3bk/N44xFtdJXwL/4JWeMXMsWFZ0o8J
+# ULEdBUBEnGF3lawy9K42rPKTTqr7kQeO+8hBN1SCu5Ndn72R9z45IX6kxcc3FyiI
+# AhfeTeDRpiiihilO4610rZzCVbqcyWt3i2WVFshRsSw5FuBpmPI1wXPE393fhLaG
+# 748jabODbbcri1LnDsdrxGTiTTZU8dVkkyn+zuURuzf3zskMrybd3DLevP8PJqSG
+# 6AoEABSKqs2yHM/gfTob34f0aL3je6bVcStjopzD9YlXOCxx9SSqIluVO4RhvOIf
+# 4Y6+CV2ptG0vvsar1hen4ueDxnpmW+mdsJsESwOCcI8Piu0MFi52NVstMWTXmU0R
+# zKBKA5iiSzoLzH6eh2aw28afnxjKzfOg3enAECwUmV/YXWr55AIJacj5hq7EyQ5j
+# MB8DELX6xLn290SYKUDim9Ol+vpVicEIzW0tKafeQ1CtpNTfS6Nc0miXNNWtguUo
+# CjUE1jNJRZbeDcL5bk52KTuAegKtCTUw3kndMeiKRv+iMwK13uICGb8rfAQJmCEe
+# R5m+TNBu9/tsIRQg5pNyK9JPuTB6q9ZU5g==
 # SIG # End signature block

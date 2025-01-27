@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2025 Martin Willing. All rights reserved. Licensed under the MIT license.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2025-01-20
+# @date:      2025-01-27
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -28,8 +28,8 @@
 # https://github.com/BurntSushi/xsv
 #
 #
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 5.1 (5.1.19041.5369)
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 7.4.6
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 5.1 (5.1.19041.5247)
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 7.5.0
 #
 #
 #############################################################################################################################################################################################
@@ -42,9 +42,9 @@
 .DESCRIPTION
   EntraAuditLogs-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of Microsoft Entra ID Audit Logs extracted via "Microsoft Extractor Suite" by Invictus-IR.
 
-  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v3.0.0)
+  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v3.0.1)
 
-  https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/AzureAuditLogsGraph.html
+  https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/Azure/AzureActiveDirectoryAuditLog.html
 
 .PARAMETER OutputDir
   Specifies the output directory. Default is "$env:USERPROFILE\Desktop\EntraAuditLogs-Analyzer".
@@ -307,6 +307,20 @@ if (Test-Path "$SCRIPT_DIR\Blacklists\Country-Blacklist.csv")
     }
 }
 
+# Create HashTable and import 'UserAgent-Blacklist.csv'
+$script:UserAgentBlacklist_HashTable = [ordered]@{}
+if (Test-Path "$SCRIPT_DIR\Blacklists\UserAgent-Blacklist.csv")
+{
+    if([int](& $xsv count "$SCRIPT_DIR\Blacklists\UserAgent-Blacklist.csv") -gt 0)
+    {
+        Import-Csv "$SCRIPT_DIR\Blacklists\UserAgent-Blacklist.csv" -Delimiter "," | ForEach-Object { $UserAgentBlacklist_HashTable[$_.UserAgent] = $_.Category,$_.Severity }
+
+        # Count Ingested Properties
+        $Count = $UserAgentBlacklist_HashTable.Count
+        Write-Output "[Info]  Initializing 'UserAgent-Blacklist.csv' Lookup Table ($Count) ..."
+    }
+}
+
 #endregion Header
 
 #############################################################################################################################################################################################
@@ -513,7 +527,7 @@ if (Test-Path "$OUTPUT_FOLDER\EntraAuditLogs\XLSX\Untouched.xlsx")
 
 $EndTime_Processing = (Get-Date)
 $Time_Processing = ($EndTime_Processing-$StartTime_Processing)
-('EntraAuditLogs Processing duration:     {0} h {1} min {2} sec' -f $Time_Processing.Hours, $Time_Processing.Minutes, $Time_Processing.Seconds) >> "$OUTPUT_FOLDER\Stats.txt"
+('EntraAuditLogs Processing duration:   {0} h {1} min {2} sec' -f $Time_Processing.Hours, $Time_Processing.Minutes, $Time_Processing.Seconds) >> "$OUTPUT_FOLDER\Stats.txt"
 
 }
 
@@ -530,293 +544,235 @@ $StartTime_Stats = (Get-Date)
 
 # Stats
 Write-Output "[Info]  Creating Statistics ..."
-New-Item "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV" -ItemType Directory -Force | Out-Null
-New-Item "$OUTPUT_FOLDER\EntraAuditLogs\Stats\XLSX" -ItemType Directory -Force | Out-Null
+New-Item "$OUTPUT_FOLDER\EntraAuditLogs\Stats" -ItemType Directory -Force | Out-Null
 
 # ActivityDisplayName --> Activity (Stats)
 $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," | Select-Object ActivityDisplayName | Measure-Object).Count
-Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8 | Group-Object ActivityDisplayName | Select-Object @{Name='Activity'; Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\ActivityDisplayName.csv" -NoTypeInformation -Encoding UTF8
-
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\ActivityDisplayName.csv")
+if ($Total -ge "1")
 {
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\ActivityDisplayName.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\ActivityDisplayName.csv" -Delimiter "," -Encoding UTF8
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\XLSX\ActivityDisplayName.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Activity" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns B-C
-        $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
-        # ConditionalFormatting - Activity
-        $Cells = "A:C"
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add application",$A1)))' -BackgroundColor Red # Application Creation (Privilege Escalation)
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add delegated permission grant",$A1)))' -BackgroundColor Red # OAuth Application Permission Grant
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add eligible member to role in PIM completed (permanent)",$A1)))' -BackgroundColor Red # AZT401 - Privileged Identity Management Role (Privilege Escalation)
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add eligible member to role in PIM requested (permanent)",$A1)))' -BackgroundColor Red # AZT401 - Privileged Identity Management Role (Privilege Escalation)
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add member to role completed (PIM activation)",$A1)))' -BackgroundColor Red # AZT401 - Privileged Identity Management Role (Privilege Escalation)
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add member to role requested (PIM activation)",$A1)))' -BackgroundColor Red # AZT401 - Privileged Identity Management Role (Privilege Escalation)
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Change user password",$A1)))' -BackgroundColor Yellow # A user changes their password. Self-service password reset has to be enabled (for all or selected users) in your organization to allow users to reset their password.
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Consent to application",$A1)))' -BackgroundColor Red # OAuth Application Permission Grant
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Disable account",$A1)))' -BackgroundColor Yellow # Disable a user in Microsoft Entra ID
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Reset user password",$A1)))' -BackgroundColor Red # Administrator resets the password for a user. ATO?
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Set domain authentication",$A1)))' -BackgroundColor Red # Modification of Trusted Domain
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Set federation settings on domain",$A1)))' -BackgroundColor Red # Modification of Trusted Domain
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Update application",$A1)))' -BackgroundColor Red # Modifying Permissions / Adding Permissions (Privilege Escalation)
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Update application - Certificates and secrets management",$A1)))' -BackgroundColor Red # A user added a secret or certificate to an Entra ID Application (Privilege Escalation)
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Update StsRefreshTokenValidFrom Timestamp",$A1)))' -BackgroundColor Yellow # A Refresh Token becomes valid. Entra ID will force users to perform re-authentication whenever this attribute is updated (e.g. after Session Revoke).  
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered all required security info",$A1)))' -BackgroundColor Red # MFA registered
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered security info",$A1)))' -BackgroundColor Red # MFA registered
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User reported unusual sign-in event as not legitimate",$A1)))' -BackgroundColor Red # ATO
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User started security info registration",$A1)))' -BackgroundColor Red # MFA registered
-        }
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8 | Group-Object ActivityDisplayName | Select-Object @{Name='Activity'; Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\ActivityDisplayName.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Activity" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns B-C
+    $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
+    # ConditionalFormatting - Activity
+    $Cells = "A:C"
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add application",$A1)))' -BackgroundColor Red # Application Creation (Privilege Escalation)
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add delegated permission grant",$A1)))' -BackgroundColor Red # OAuth Application Permission Grant
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add eligible member to role in PIM completed (permanent)",$A1)))' -BackgroundColor Red # AZT401 - Privileged Identity Management Role (Privilege Escalation)
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add eligible member to role in PIM requested (permanent)",$A1)))' -BackgroundColor Red # AZT401 - Privileged Identity Management Role (Privilege Escalation)
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add member to role completed (PIM activation)",$A1)))' -BackgroundColor Red # AZT401 - Privileged Identity Management Role (Privilege Escalation)
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add member to role requested (PIM activation)",$A1)))' -BackgroundColor Red # AZT401 - Privileged Identity Management Role (Privilege Escalation)
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Change user password",$A1)))' -BackgroundColor Yellow # A user changes their password. Self-service password reset has to be enabled (for all or selected users) in your organization to allow users to reset their password.
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Consent to application",$A1)))' -BackgroundColor Red # OAuth Application Permission Grant
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Disable account",$A1)))' -BackgroundColor Yellow # Disable a user in Microsoft Entra ID
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Reset user password",$A1)))' -BackgroundColor Red # Administrator resets the password for a user. ATO?
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Set domain authentication",$A1)))' -BackgroundColor Red # Modification of Trusted Domain
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Set federation settings on domain",$A1)))' -BackgroundColor Red # Modification of Trusted Domain
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Update application",$A1)))' -BackgroundColor Red # Modifying Permissions / Adding Permissions (Privilege Escalation)
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Update application - Certificates and secrets management",$A1)))' -BackgroundColor Red # A user added a secret or certificate to an Entra ID Application (Privilege Escalation)
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Update StsRefreshTokenValidFrom Timestamp",$A1)))' -BackgroundColor Yellow # A Refresh Token becomes valid. Entra ID will force users to perform re-authentication whenever this attribute is updated (e.g. after Session Revoke).  
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered all required security info",$A1)))' -BackgroundColor Red # MFA registered
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered security info",$A1)))' -BackgroundColor Red # MFA registered
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User reported unusual sign-in event as not legitimate",$A1)))' -BackgroundColor Red # ATO
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User started security info registration",$A1)))' -BackgroundColor Red # MFA registered
     }
 }
 
 # Category (Stats)
 $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," | Select-Object Category | Measure-Object).Count
-Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8 | Group-Object Category | Select-Object @{Name='Category'; Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\Category.csv" -NoTypeInformation -Encoding UTF8
-
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\Category.csv")
+if ($Total -ge "1")
 {
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\Category.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\Category.csv" -Delimiter "," -Encoding UTF8
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\XLSX\Category.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Category" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns B-C
-        $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
-        }
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8 | Group-Object Category | Select-Object @{Name='Category'; Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\Category.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Category" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns B-C
+    $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
     }
 }
 
 # LoggedByService --> Service (Stats)
 $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," | Select-Object LoggedByService | Measure-Object).Count
-Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8 | Group-Object LoggedByService | Select-Object @{Name='Service'; Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\LoggedByService.csv" -NoTypeInformation -Encoding UTF8
-
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\LoggedByService.csv")
+if ($Total -ge "1")
 {
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\LoggedByService.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\LoggedByService.csv" -Delimiter "," -Encoding UTF8
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\XLSX\LoggedByService.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Service" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns B-C
-        $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
-        }
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8 | Group-Object LoggedByService | Select-Object @{Name='Service'; Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\LoggedByService.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Service" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns B-C
+    $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
     }
 }
 
 # OperationType (Stats)
 $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," | Select-Object OperationType | Measure-Object).Count
-Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8 | Group-Object OperationType | Select-Object @{Name='OperationType';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\OperationType.csv" -NoTypeInformation -Encoding UTF8
-
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\OperationType.csv")
+if ($Total -ge "1")
 {
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\OperationType.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\OperationType.csv" -Delimiter "," -Encoding UTF8
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\XLSX\OperationType.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "OperationType" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns B-C
-        $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
-        }
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8 | Group-Object OperationType | Select-Object @{Name='OperationType';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\OperationType.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "OperationType" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns B-C
+    $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
     }
 }
 
 # PrimaryTarget (Stats)
 $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," | Select-Object Target1DisplayName | Measure-Object).Count
-Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8 | Group-Object Target1DisplayName | Select-Object @{Name='PrimaryTarget';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\PrimaryTarget.csv" -NoTypeInformation -Encoding UTF8
-
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\PrimaryTarget.csv")
+if ($Total -ge "1")
 {
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\PrimaryTarget.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\PrimaryTarget.csv" -Delimiter "," -Encoding UTF8
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\XLSX\PrimaryTarget.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "PrimaryTarget" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns B-C
-        $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
-        }
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8 | Group-Object Target1DisplayName | Select-Object @{Name='PrimaryTarget';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\PrimaryTarget.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "PrimaryTarget" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns B-C
+    $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
     }
 }
 
 # Status (Stats)
 $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," | Select-Object Result | Measure-Object).Count
-Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8 | Group-Object Result | Select-Object @{Name='Status'; Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\Status.csv" -NoTypeInformation -Encoding UTF8
-
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\Status.csv")
+if ($Total -ge "1")
 {
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\Status.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\Status.csv" -Delimiter "," -Encoding UTF8
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\XLSX\Status.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Status" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns A-C
-        $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
-        }
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8 | Group-Object Result | Select-Object @{Name='Status'; Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\Status.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Status" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns A-C
+    $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
     }
 }
 
 # StatusReason (Stats)
 $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," | Select-Object ResultReason | Measure-Object).Count
-Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8 | Group-Object ResultReason | Select-Object @{Name='StatusReason';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\StatusReason.csv" -NoTypeInformation -Encoding UTF8
-
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\StatusReason.csv")
+if ($Total -ge "1")
 {
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\StatusReason.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\StatusReason.csv" -Delimiter "," -Encoding UTF8
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\XLSX\StatusReason.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "StatusReason" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns B-C
-        $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
-        # ConditionalFormatting - StatusReason
-        $Cells = "A:C"
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Access denied. Insufficient privileges to proceed.",$A1)))' -BackgroundColor Red # Denied Access Request
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User failed to register Authenticator App with Code",$A1)))' -BackgroundColor Red # Persistence Attempt
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered all required security info.",$A1)))' -BackgroundColor Red # Persistence
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Authenticator App with Code",$A1)))' -BackgroundColor Red # Persistence
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Authenticator App with Notification",$A1)))' -BackgroundColor Red # Persistence
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Authenticator App with Notification and Code",$A1)))' -BackgroundColor Red # Persistence
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User started the registration for Authenticator App with Code",$A1)))' -BackgroundColor Red # Persistence
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User started the registration for Authenticator App with Notification and Code",$A1)))' -BackgroundColor Red # Persistence
-        }
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8 | Group-Object ResultReason | Select-Object @{Name='StatusReason';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\StatusReason.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "StatusReason" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns B-C
+    $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
+    # ConditionalFormatting - StatusReason
+    $Cells = "A:C"
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Access denied. Insufficient privileges to proceed.",$A1)))' -BackgroundColor Red # Denied Access Request
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User failed to register Authenticator App with Code",$A1)))' -BackgroundColor Red # Persistence Attempt
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered all required security info.",$A1)))' -BackgroundColor Red # Persistence
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Authenticator App with Code",$A1)))' -BackgroundColor Red # Persistence
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Authenticator App with Notification",$A1)))' -BackgroundColor Red # Persistence
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Authenticator App with Notification and Code",$A1)))' -BackgroundColor Red # Persistence
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User started the registration for Authenticator App with Code",$A1)))' -BackgroundColor Red # Persistence
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User started the registration for Authenticator App with Notification and Code",$A1)))' -BackgroundColor Red # Persistence
     }
 }
 
 # Status / StatusReason (Stats)
 $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," | Select-Object Result | Measure-Object).Count
-Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8 | Select-Object @{Name='Status'; Expression={$_.Result}},@{Name='StatusReason';Expression={if($_.ResultReason){$_.ResultReason}else{'N/A'}}} | Group-Object Status,StatusReason | Select-Object @{Name='Status'; Expression={ $_.Values[0] }},@{Name='StatusReason'; Expression={ $_.Values[1] }},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\Status-StatusReason.csv" -NoTypeInformation -Encoding UTF8
-
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\Status-StatusReason.csv")
+if ($Total -ge "1")
 {
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\Status-StatusReason.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\Status-StatusReason.csv" -Delimiter "," -Encoding UTF8
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\XLSX\Status-StatusReason.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Status-StatusReason" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns A and C-D
-        $WorkSheet.Cells["A:A"].Style.HorizontalAlignment="Center"
-        $WorkSheet.Cells["C:D"].Style.HorizontalAlignment="Center"
-        # ConditionalFormatting - StatusReason
-        $Cells = "A:D"
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Access denied. Insufficient privileges to proceed.",$B1)))' -BackgroundColor Red # Denied Access Request
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User failed to register Authenticator App with Code",$B1)))' -BackgroundColor Red # Persistence Attempt
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered all required security info.",$B1)))' -BackgroundColor Red # Persistence
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Authenticator App with Code",$B1)))' -BackgroundColor Red # Persistence
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Authenticator App with Notification",$B1)))' -BackgroundColor Red # Persistence
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Authenticator App with Notification and Code",$B1)))' -BackgroundColor Red # Persistence
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User started the registration for Authenticator App with Code",$B1)))' -BackgroundColor Red # Persistence
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User started the registration for Authenticator App with Notification and Code",$B1)))' -BackgroundColor Red # Persistence 
-        }
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8 | Select-Object @{Name='Status'; Expression={$_.Result}},@{Name='StatusReason';Expression={if($_.ResultReason){$_.ResultReason}else{'N/A'}}} | Group-Object Status,StatusReason | Select-Object @{Name='Status'; Expression={ $_.Values[0] }},@{Name='StatusReason'; Expression={ $_.Values[1] }},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\Status-StatusReason.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Status-StatusReason" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns A and C-D
+    $WorkSheet.Cells["A:A"].Style.HorizontalAlignment="Center"
+    $WorkSheet.Cells["C:D"].Style.HorizontalAlignment="Center"
+    # ConditionalFormatting - StatusReason
+    $Cells = "A:D"
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Access denied. Insufficient privileges to proceed.",$B1)))' -BackgroundColor Red # Denied Access Request
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User failed to register Authenticator App with Code",$B1)))' -BackgroundColor Red # Persistence Attempt
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered all required security info.",$B1)))' -BackgroundColor Red # Persistence
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Authenticator App with Code",$B1)))' -BackgroundColor Red # Persistence
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Authenticator App with Notification",$B1)))' -BackgroundColor Red # Persistence
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Authenticator App with Notification and Code",$B1)))' -BackgroundColor Red # Persistence
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User started the registration for Authenticator App with Code",$B1)))' -BackgroundColor Red # Persistence
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User started the registration for Authenticator App with Notification and Code",$B1)))' -BackgroundColor Red # Persistence 
     }
 }
 
 # TargetType (Stats)
 $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," | Select-Object Target1Type | Measure-Object).Count
-Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8 | Group-Object Target1Type | Select-Object @{Name='TargetType';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\TargetType.csv" -NoTypeInformation -Encoding UTF8
-
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\TargetType.csv")
+if ($Total -ge "1")
 {
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\TargetType.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\TargetType.csv" -Delimiter "," -Encoding UTF8
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\XLSX\TargetType.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "TargetType" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns A-C
-        $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
-        }
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8 | Group-Object Target1Type | Select-Object @{Name='TargetType';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\TargetType.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "TargetType" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns A-C
+    $WorkSheet.Cells["A:C"].Style.HorizontalAlignment="Center"
     }
 }
 
-# User-Agent (Stats)
+# UserAgent (Stats)
 $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," | Where-Object {$_.UserAgent -ne '' } | Select-Object UserAgent | Measure-Object).Count
-Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8 | Where-Object {$_.UserAgent -ne '' } | Group-Object UserAgent | Select-Object @{Name='User-Agent';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\User-Agent.csv" -NoTypeInformation -Encoding UTF8
-
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\User-Agent.csv")
+if ($Total -ge "1")
 {
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\User-Agent.csv") -gt 0)
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8 | Where-Object {$_.UserAgent -ne '' } | Group-Object UserAgent | Select-Object @{Name='UserAgent';Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\UserAgent.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "UserAgent" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns B-C
+    $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
+
+    # Iterating over the UserAgent-Blacklist HashTable
+    foreach ($UserAgent in $UserAgentBlacklist_HashTable.Keys) 
     {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\User-Agent.csv" -Delimiter "," -Encoding UTF8
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\XLSX\User-Agent.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "User-Agent" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns B-C
-        $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
-        # ConditionalFormatting - User-Agent
-        $Cells = "A:C"
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("AzurePowershell/",$A1)))' -BackgroundColor $Orange # User-Agent associated with scripting/generic HTTP client
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("PostmanRuntime/",$A1)))' -BackgroundColor Red # User-Agent associated with scripting/generic HTTP client
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("PowerShell/5.1",$A1)))' -BackgroundColor $Orange # User-Agent associated with scripting/generic HTTP client
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("PowerShell/7",$A1)))' -BackgroundColor $Orange # User-Agent associated with scripting/generic HTTP client
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("python-requests",$A1)))' -BackgroundColor Red # User-Agent associated with scripting/generic HTTP client
-        Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("python/",$A1)))' -BackgroundColor Red # User-Agent associated with scripting/generic HTTP client
-        }
+        $Severity = $UserAgentBlacklist_HashTable["$UserAgent"][1]
+        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$A1)))' -f $UserAgent
+        Add-ConditionalFormatting -Address $WorkSheet.Cells["A:C"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
+    }
+
     }
 }
 
 # UserDisplayName (Stats)
 $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," | Where-Object {$_.UserDisplayName -ne '' } | Select-Object UserDisplayName | Measure-Object).Count
-Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8 | Where-Object {$_.UserDisplayName -ne '' } | Group-Object UserDisplayName | Select-Object @{Name='UserDisplayName'; Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\UserDisplayName.csv" -NoTypeInformation -Encoding UTF8
-
-# XLSX
-if (Test-Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\UserDisplayName.csv")
+if ($Total -ge "1")
 {
-    if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\UserDisplayName.csv") -gt 0)
-    {
-        $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\UserDisplayName.csv" -Delimiter "," -Encoding UTF8
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\XLSX\UserDisplayName.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "UserDisplayName" -CellStyleSB {
-        param($WorkSheet)
-        # BackgroundColor and FontColor for specific cells of TopRow
-        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns B-C
-        $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
-        }
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8 | Where-Object {$_.UserDisplayName -ne '' } | Group-Object UserDisplayName | Select-Object @{Name='UserDisplayName'; Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\UserDisplayName.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "UserDisplayName" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:C1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of columns B-C
+    $WorkSheet.Cells["B:C"].Style.HorizontalAlignment="Center"
     }
 }
 
+# Line Charts
+New-Item "$OUTPUT_FOLDER\EntraAuditLogs\Stats\LineCharts" -ItemType Directory -Force | Out-Null
+
+# ActivityDisplayName --> Activity
+$Import = Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8 | Select-Object @{Name="ActivityDateTime";Expression={((Get-Date $_.ActivityDateTime).ToString("yyyy-MM-dd"))}},ActivityDisplayName | Group-Object{($_.ActivityDateTime)} | Select-Object Count,@{Name='ActivityDateTime'; Expression={ $_.Values[0] }} | Sort-Object { $_.ActivityDateTime -as [datetime] }
+$ChartDefinition = New-ExcelChartDefinition -XRange ActivityDateTime -YRange Count -Title "Activity" -ChartType Line -NoLegend -Width 1200
+$Import | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\LineCharts\Activity.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
+
 $EndTime_Stats = (Get-Date)
 $Time_Stats = ($EndTime_Stats-$StartTime_Stats)
-('EntraAuditLogs Stats duration:          {0} h {1} min {2} sec' -f $Time_Stats.Hours, $Time_Stats.Minutes, $Time_Stats.Seconds) >> "$OUTPUT_FOLDER\Stats.txt"
+('EntraAuditLogs Stats duration:        {0} h {1} min {2} sec' -f $Time_Stats.Hours, $Time_Stats.Minutes, $Time_Stats.Seconds) >> "$OUTPUT_FOLDER\Stats.txt"
 
 }
 
@@ -903,16 +859,32 @@ if (Test-Path "$OUTPUT_FOLDER\IPAddress\IPv6.txt")
 # Check IPinfo Subscription Plan (https://ipinfo.io/pricing)
 if (Test-Path "$($IPinfo)")
 {
+    $Quota = & $IPinfo quota
+    if ($Quota -eq "err: please login first to check quota")
+    {
+        # Login
+        & $IPinfo init "$Token" > $null
+        $Quota = & $IPinfo quota
+    }
+
     Write-Output "[Info]  Checking IPinfo Subscription Plan ..."
-    [int]$TotalRequests = & $IPinfo quota | Select-String -Pattern "Total Requests" | ForEach-Object{($_ -split "\s+")[-1]}
-    [int]$RemainingRequests = & $IPinfo quota | Select-String -Pattern "Remaining Requests" | ForEach-Object{($_ -split "\s+")[-1]}
+    [int]$TotalRequests = $Quota | Select-String -Pattern "Total Requests" | ForEach-Object{($_ -split "\s+")[-1]}
+    [int]$RemainingRequests = $Quota | Select-String -Pattern "Remaining Requests" | ForEach-Object{($_ -split "\s+")[-1]}
     $TotalMonth = '{0:N0}' -f $TotalRequests | ForEach-Object {$_ -replace ' ','.'}
     $RemainingMonth = '{0:N0}' -f $RemainingRequests | ForEach-Object {$_ -replace ' ','.'}
-    if ($TotalRequests -eq "50000") {Write-Output "[Info]  IPinfo Subscription: Free ($TotalMonth Requests/Month)`n[Info]  $RemainingMonth Requests left this month"} # No Privacy Detection
-    elseif ($TotalRequests -eq "150000"){Write-Output "[Info]  IPinfo Subscription: Basic"} # No Privacy Detection
-    elseif ($TotalRequests -eq "250000"){Write-Output "[Info]  IPinfo Subscription: Standard"} # Privacy Detection
-    elseif ($TotalRequests -eq "500000"){Write-Output "[Info]  IPinfo Subscription: Business"} # Privacy Detection
-    else {Write-Output "[Info]  IPinfo Subscription Plan: Enterprise"} # Privacy Detection
+
+    if (& $IPinfo myip --token "$Token" | Select-String -Pattern "Privacy" -Quiet)
+    {
+        $script:PrivacyDetection = "True"
+        Write-output "[Info]  IPinfo Subscription Plan w/ Privacy Detection found"
+        Write-Output "[Info]  $RemainingMonth Requests left this month"
+    }
+    else
+    {
+        $script:PrivacyDetection = "False"
+        Write-output "[Info]  IPinfo Subscription: Free ($TotalMonth Requests/Month)"
+        Write-Output "[Info]  $RemainingMonth Requests left this month"
+    }
 }
 
 # IPinfo CLI
@@ -950,82 +922,165 @@ if (Test-Path "$($IPinfo)")
                         # Summarize IPs
                         # https://ipinfo.io/summarize-ips
 
-                        # TXT (lists VPNs)
-                        Get-Content "$OUTPUT_FOLDER\IPAddress\IP.txt" | & $IPinfo summarize -t $Token | Out-File "$OUTPUT_FOLDER\IPAddress\IPinfo\Summary.txt"
+                        # TXT --> Top Privacy Services
+                        Get-Content "$OUTPUT_FOLDER\IPAddress\IP.txt" | & $IPinfo summarize --token "$Token" | Out-File "$OUTPUT_FOLDER\IPAddress\IPinfo\Summary.txt"
 
-                        # CSV --> No Privacy Detection --> Standard ($249/month w/ 250k lookups)
-                        Get-Content "$OUTPUT_FOLDER\IPAddress\IP.txt" | & $IPinfo --csv -t $Token | Out-File "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo.csv"
+                        # CSV
+                        Get-Content "$OUTPUT_FOLDER\IPAddress\IP.txt" | & $IPinfo --csv --token "$Token" | Out-File "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo.csv"
 
                         # Custom CSV (Free)
-                        if (Test-Path "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo.csv")
+                        if ($PrivacyDetection -eq "False")
                         {
-                            if([int](& $xsv count "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo.csv") -gt 0)
+                            if (Test-Path "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo.csv")
                             {
-                                $Import = Import-Csv "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo.csv" -Delimiter ","
+                                if([int](& $xsv count "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo.csv") -gt 0)
+                                {
+                                    $IPinfoRecords = Import-Csv "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo.csv" -Delimiter "," -Encoding UTF8
 
-                                $Import | Foreach-Object {
-
-                                    New-Object -TypeName PSObject -Property @{
-                                        "IP"           = $_ | Select-Object -ExpandProperty ip
-                                        "City"         = $_ | Select-Object -ExpandProperty city
-                                        "Region"       = $_ | Select-Object -ExpandProperty region
-                                        "Country"      = $_ | Select-Object -ExpandProperty country
-                                        "Country Name" = $_ | Select-Object -ExpandProperty country_name
-                                        "EU"           = $_ | Select-Object -ExpandProperty isEU
-                                        "Location"     = $_ | Select-Object -ExpandProperty loc
-                                        "ASN"          = $_ | Select-Object -ExpandProperty org | ForEach-Object{($_ -split "\s+")[0]}
-                                        "OrgName"      = $_ | Select-Object -ExpandProperty org | ForEach-Object {$_ -replace "^AS[0-9]+ "} # OrgName
-                                        "Postal Code"  = $_ | Select-Object -ExpandProperty postal
-                                        "Timezone"     = $_ | Select-Object -ExpandProperty timezone
+                                    $Results = [Collections.Generic.List[PSObject]]::new()
+                                    ForEach($IPinfoRecord in $IPinfoRecords)
+                                    {
+                                        $Line = [PSCustomObject]@{
+                                            "IP"           = $IPinfoRecord.ip
+                                            "City"         = $IPinfoRecord.city
+                                            "Region"       = $IPinfoRecord.region
+                                            "Country"      = $IPinfoRecord.country
+                                            "Country Name" = $IPinfoRecord.country_name
+                                            "EU"           = $IPinfoRecord.isEU
+                                            "Location"     = $IPinfoRecord.loc
+                                            "ASN"          = $IPinfoRecord | Select-Object -ExpandProperty org | ForEach-Object{($_ -split "\s+")[0]}
+                                            "OrgName"      = $IPinfoRecord | Select-Object -ExpandProperty org | ForEach-Object {$_ -replace "^AS[0-9]+ "}
+                                            "Postal Code"  = $IPinfoRecord.postal
+                                            "Timezone"     = $IPinfoRecord.timezone
                                         }
-                                } | Select-Object "IP","City","Region","Country","Country Name","EU","Location","ASN","OrgName","Postal Code","Timezone" | Sort-Object {$_.ip -as [Version]} | ConvertTo-Csv -NoTypeInformation -Delimiter "," | Out-File "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo-Custom.csv"
-                            }
-                        }
 
-                        # Custom XLSX (Free)
-                        if (Test-Path "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo-Custom.csv")
-                        {
-                            if([int](& $xsv count "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo-Custom.csv") -gt 0)
+                                        $Results.Add($Line)
+                                    }
+
+                                    $Results | Sort-Object {$_.ip -as [Version]} | Export-Csv -Path "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo-Custom.csv" -NoTypeInformation -Encoding UTF8
+                                }
+                            }
+
+                            # Custom XLSX (Free)
+                            if (Test-Path "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo-Custom.csv")
                             {
-                                $IMPORT = Import-Csv "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo-Custom.csv" -Delimiter "," | Sort-Object {$_.ip -as [Version]}
-                                $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo-Custom.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -IncludePivotTable -PivotTableName "PivotTable" -PivotRows "Country Name" -PivotData @{"IP"="Count"} -WorkSheetname "IPinfo (Free)" -CellStyleSB {
-                                param($WorkSheet)
-                                # BackgroundColor and FontColor for specific cells of TopRow
-                                $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                                Set-Format -Address $WorkSheet.Cells["A1:K1"] -BackgroundColor $BackgroundColor -FontColor White
-                                # HorizontalAlignment "Center" of columns A-K
-                                $WorkSheet.Cells["A:K"].Style.HorizontalAlignment="Center"
+                                if([int](& $xsv count "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo-Custom.csv") -gt 0)
+                                {
+                                    $IMPORT = Import-Csv "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo-Custom.csv" -Delimiter "," | Sort-Object {$_.ip -as [Version]}
+                                    $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo-Custom.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -IncludePivotTable -PivotTableName "PivotTable" -PivotRows "Country Name" -PivotData @{"IP"="Count"} -WorkSheetname "IPinfo (Free)" -CellStyleSB {
+                                    param($WorkSheet)
+                                    # BackgroundColor and FontColor for specific cells of TopRow
+                                    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+                                    Set-Format -Address $WorkSheet.Cells["A1:K1"] -BackgroundColor $BackgroundColor -FontColor White
+                                    # HorizontalAlignment "Center" of columns A-K
+                                    $WorkSheet.Cells["A:K"].Style.HorizontalAlignment="Center"
+                                    }
                                 }
                             }
                         }
 
-                        # XLSX (Free)
-                        if (Test-Path "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo.csv")
+                        # Custom CSV (Privacy Detection)
+                        if ($PrivacyDetection -eq "True")
                         {
-                            if([int](& $xsv count "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo.csv") -gt 0)
+                            if (Test-Path "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo.csv")
                             {
-                                $IMPORT = Import-Csv "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo.csv" -Delimiter "," | Select-Object ip,city,region,country,country_name,isEU,loc,org,postal,timezone | Sort-Object {$_.ip -as [Version]}
-                                $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "IPinfo (Free)" -CellStyleSB {
-                                param($WorkSheet)
-                                # BackgroundColor and FontColor for specific cells of TopRow
-                                $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                                Set-Format -Address $WorkSheet.Cells["A1:J1"] -BackgroundColor $BackgroundColor -FontColor White
-                                # HorizontalAlignment "Center" of columns A-J
-                                $WorkSheet.Cells["A:J"].Style.HorizontalAlignment="Center"
+                                if([int](& $xsv count "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo.csv") -gt 0)
+                                {
+                                    $IPinfoRecords = Import-Csv "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo.csv" -Delimiter "," -Encoding UTF8
+                                
+                                    $Results = [Collections.Generic.List[PSObject]]::new()
+                                    ForEach($IPinfoRecord in $IPinfoRecords)
+                                    {
+                                        $Line = [PSCustomObject]@{
+                                            "IP"           = $IPinfoRecord.ip
+                                            "City"         = $IPinfoRecord.city
+                                            "Region"       = $IPinfoRecord.region
+                                            "Country"      = $IPinfoRecord.country
+                                            "Country Name" = $IPinfoRecord.country_name
+                                            "Location"     = $IPinfoRecord.loc
+                                            "ASN"          = $IPinfoRecord.asn_id
+                                            "OrgName"      = $IPinfoRecord.asn_asn
+                                            "Postal Code"  = $IPinfoRecord.postal
+                                            "Timezone"     = $IPinfoRecord.timezone
+                                            "VPN"          = $IPinfoRecord.privacy_vpn
+                                            "Proxy"        = $IPinfoRecord.privacy_proxy
+                                            "Tor"          = $IPinfoRecord.privacy_tor
+                                            "Relay"        = $IPinfoRecord.privacy_relay
+                                            "Hosting"      = $IPinfoRecord.privacy_hosting
+                                            "Service"      = $IPinfoRecord.privacy_service
+                                        }
+
+                                        $Results.Add($Line)
+                                    }
+
+                                    $Results | Sort-Object {$_.ip-as [Version]} | Export-Csv -Path "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo-Custom.csv" -NoTypeInformation -Encoding UTF8
+                                }
+                            }
+
+                            # Custom XLSX (Privacy Detection)
+                            if (Test-Path "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo-Custom.csv")
+                            {
+                                if([int](& $xsv count "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo-Custom.csv") -gt 0)
+                                {
+                                    $IMPORT = Import-Csv "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo-Custom.csv" -Delimiter "," | Sort-Object {$_.ip -as [Version]}
+                                    $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo-Custom.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -IncludePivotTable -PivotTableName "PivotTable" -PivotRows "Country Name" -PivotData @{"IP"="Count"} -WorkSheetname "IPinfo (Standard)" -CellStyleSB {
+                                    param($WorkSheet)
+                                    # BackgroundColor and FontColor for specific cells of TopRow
+                                    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+                                    Set-Format -Address $WorkSheet.Cells["A1:P1"] -BackgroundColor $BackgroundColor -FontColor White
+                                    # HorizontalAlignment "Center" of columns A-P
+                                    $WorkSheet.Cells["A:P"].Style.HorizontalAlignment="Center"
+                                    # ConditionalFormatting - VPN
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["K:K"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("true",$K1)))' -BackgroundColor Red
+                                    # ConditionalFormatting - Proxy
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["L:L"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("true",$L1)))' -BackgroundColor Red
+                                    # ConditionalFormatting - Tor
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["M:M"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("true",$M1)))' -BackgroundColor Red
+                                    # ConditionalFormatting - Relay
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["N:N"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("true",$N1)))' -BackgroundColor Red
+                                    # ConditionalFormatting - Service
+                                    $LastRow = $WorkSheet.Dimension.End.Row
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["P2:P$LastRow"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '=$P2<>""' -BackgroundColor Red
+                                    
+                                    # ConditionalFormatting - ASN
+                                    foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
+                                    {
+                                        $ConditionValue = 'NOT(ISERROR(FIND("AS{0}",$G1)))' -f $ASN
+                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["G:G"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                    }
+
+                                    # ConditionalFormatting - Country
+                                    foreach ($Country in $CountryBlacklist_HashTable.Keys) 
+                                    {
+                                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$E1)))' -f $Country
+                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["E:E"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                    }
+                                    
+                                    }
                                 }
                             }
                         }
 
                         # Create HashTable and import 'IPinfo-Custom.csv'
-                        $script:HashTable = @{}
+                        $script:IPinfo_HashTable = @{}
                         if (Test-Path "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo-Custom.csv")
                         {
                             if([int](& $xsv count "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo-Custom.csv") -gt 0)
                             {
-                                Import-Csv "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo-Custom.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $HashTable[$_.IP] = $_.City,$_.Region,$_.Country,$_."Country Name",$_.ASN,$_.OrgName }
+                                # Free
+                                if ($PrivacyDetection -eq "False")
+                                {
+                                    Import-Csv -Path "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo-Custom.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $IPinfo_HashTable[$_.IP] = $_.City,$_.Region,$_.Country,$_."Country Name",$_.Location,$_.ASN,$_.OrgName,$_."Postal Code",$_.Timezone }
+                                }
+
+                                # Privacy Detection
+                                if ($PrivacyDetection -eq "True")
+                                {
+                                    Import-Csv -Path "$OUTPUT_FOLDER\IPAddress\IPinfo\IPinfo-Custom.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $IPinfo_HashTable[$_.IP] = $_.City,$_.Region,$_.Country,$_."Country Name",$_.Location,$_.ASN,$_.OrgName,$_."Postal Code",$_.Timezone,$_.VPN,$_.Proxy,$_.Tor,$_.Relay,$_.Hosting,$_.Service }
+                                }
 
                                 # Count Ingested Properties
-                                $Count = $HashTable.Count
+                                $Count = $IPinfo_HashTable.Count
                                 Write-Output "[Info]  Initializing 'IPinfo-Custom.csv' Lookup Table ($Count) ..."
                             }
                         }
@@ -1041,184 +1096,411 @@ if (Test-Path "$($IPinfo)")
                         Write-Output "[Info]  Initializing 'Country-Blacklist.csv' Lookup Table ($Count) ..."
 
                         # Entra Audit Logs
-                        if (Test-Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv")
+
+                        # IPinfo Subscription: Free
+                        if ($PrivacyDetection -eq "False")
                         {
-                            if([int](& $xsv count "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv") -gt 0)
+                            if (Test-Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv")
                             {
-                                $Records = Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8
-
-                                # CSV
-                                $Results = [Collections.Generic.List[PSObject]]::new()
-                                ForEach($Record in $Records)
+                                if([int](& $xsv count "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv") -gt 0)
                                 {
-                                    # IPAddress
-                                    $IP = $Record.IPAddress
+                                    $Records = Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8
 
-                                    # Check if HashTable contains IP
-                                    if($HashTable.ContainsKey("$IP"))
+                                    # CSV
+                                    $Results = [Collections.Generic.List[PSObject]]::new()
+                                    ForEach($Record in $Records)
                                     {
-                                        $City        = $HashTable["$IP"][0]
-                                        $Region      = $HashTable["$IP"][1]
-                                        $Country     = $HashTable["$IP"][2]
-                                        $CountryName = $HashTable["$IP"][3]
-                                        $ASN         = $HashTable["$IP"][4]
-                                        $OrgName     = $HashTable["$IP"][5]
-                                    }
-                                    else
-                                    {
-                                        $City        = ""
-                                        $Region      = ""
-                                        $Country     = ""
-                                        $CountryName = ""
-                                        $ASN         = ""
-                                        $OrgName     = ""
+                                        # IPAddress
+                                        $IP = $Record.IPAddress
+
+                                        # Check if HashTable contains IP
+                                        if($IPinfo_HashTable.ContainsKey("$IP"))
+                                        {
+                                            $City        = $IPinfo_HashTable["$IP"][0]
+                                            $Region      = $IPinfo_HashTable["$IP"][1]
+                                            $Country     = $IPinfo_HashTable["$IP"][2]
+                                            $CountryName = $IPinfo_HashTable["$IP"][3]
+                                            $Location    = $IPinfo_HashTable["$IP"][4]
+                                            $ASN         = $IPinfo_HashTable["$IP"][5] | ForEach-Object {$_ -replace "^AS"}
+                                            $OrgName     = $IPinfo_HashTable["$IP"][6]
+                                            $PostalCode  = $IPinfo_HashTable["$IP"][7]
+                                            $Timezone    = $IPinfo_HashTable["$IP"][8]
+                                        }
+                                        else
+                                        {
+                                            $City        = ""
+                                            $Region      = ""
+                                            $Country     = ""
+                                            $CountryName = ""
+                                            $Location    = ""
+                                            $ASN         = ""
+                                            $OrgName     = ""
+                                            $PostalCode  = ""
+                                            $Timezone    = ""
+                                        }
+
+                                        $Line = [PSCustomObject]@{
+                                            "ActivityDateTime"                 = $Record.activityDateTime # Date and time the activity was performed in UTC.
+                                            "InitiatedBy (UPN)"                = $Record."InitiatedBy (UPN)"
+                                            "TargetResources (UPN)"            = $Record."TargetResources (UPN)"
+                                            "UserId"                           = $Record.UserId
+                                            "AppDisplayName"                   = $Record.AppDisplayName
+                                            "AppId"                            = $Record.AppId # Empty
+                                            "ServicePrincipalId"               = $record.ServicePrincipalId
+                                            "Service"                          = $Record.loggedByService # Service that initiated the activity.
+                                            "Category"                         = $Record.category
+                                            "Activity"                         = $Record.activityDisplayName # Activity name or the operation name.
+                                            "OperationType"                    = $Record.operationType # Type of the operation. Possible values are Add Update Delete and Other.
+                                            "Status"                           = $Record.result # Result of the activity. Possible values are: success, failure, timeout, and unknownFutureValue.
+                                            "StatusReason"                     = $Record.resultReason # Describes cause of failure or timeout results.
+                                            "IPAddress"                        = $IP
+                                            "City"                             = $City
+                                            "Region"                           = $Region
+                                            "Country"                          = $Country
+                                            "Country Name"                     = $CountryName
+                                            "ASN"                              = $ASN
+                                            "OrgName"                          = $OrgName
+                                            "Timezone"                         = $Timezone
+                                            "UserPrincipalName"                = $Record.UserPrincipalName
+                                            "ServicePrincipalName"             = $Record.ServicePrincipalName
+                                            "Target1DisplayName"               = $Record.Target1DisplayName
+                                            "Target1GroupType"                 = $Record.Target1GroupType
+                                            "Target1Id"                        = $Record.Target1Id
+                                            "Target1Type"                      = $Record.Target1Type
+                                            "Target1ModifiedProperty1Name"     = $Record.Target1ModifiedProperty1Name
+                                            "Target1ModifiedProperty1OldValue" = $Record.Target1ModifiedProperty1OldValue
+                                            "Target1ModifiedProperty1NewValue" = $Record.Target1ModifiedProperty1NewValue
+                                            "Target1ModifiedProperty2Name"     = $Record.Target1ModifiedProperty2Name
+                                            "Target1ModifiedProperty2OldValue" = $Record.Target1ModifiedProperty2OldValue
+                                            "Target1ModifiedProperty2NewValue" = $Record.Target1ModifiedProperty2NewValue
+                                            "Target1ModifiedProperty3Name"     = $Record.Target1ModifiedProperty3Name
+                                            "Target1ModifiedProperty3OldValue" = $Record.Target1ModifiedProperty3OldValue
+                                            "Target1ModifiedProperty3NewValue" = $Record.Target1ModifiedProperty3NewValue
+                                            "Target1ModifiedProperty4Name"     = $Record.Target1ModifiedProperty4Name
+                                            "Target1ModifiedProperty4OldValue" = $Record.Target1ModifiedProperty4OldValue
+                                            "Target1ModifiedProperty4NewValue" = $Record.Target1ModifiedProperty4NewValue
+                                            "Target1ModifiedProperty5Name"     = $Record.Target1ModifiedProperty5Name
+                                            "Target1ModifiedProperty5OldValue" = $Record.Target1ModifiedProperty5OldValue
+                                            "Target1ModifiedProperty5NewValue" = $Record.Target1ModifiedProperty5NewValue
+                                            "Target1UserPrincipalName"         = $Record.Target1UserPrincipalName
+                                            "Target2DisplayName"               = $Record.Target2DisplayName
+                                            "Target2GroupType"                 = $Record.Target2GroupType
+                                            "Target2Id"                        = $Record.Target2Id
+                                            "Target2Type"                      = $Record.Target2Type
+                                            "Target2UserPrincipalName"         = $Record.Target2UserPrincipalName
+                                            "Target3DisplayName"               = $Record.Target3DisplayName
+                                            "Target3GroupType"                 = $Record.Target3GroupType
+                                            "Target3Id"                        = $Record.Target3Id
+                                            "Target3Type"                      = $Record.Target3Type
+                                            "Target3UserPrincipalName"         = $Record.Target3UserPrincipalName
+                                            "GroupType"                        = $Record.GroupType
+                                            "UserType"                         = $Record.UserType
+                                            "UserAgent"                        = $Record.UserAgent
+                                            "DeviceId"                         = $Record.DeviceId
+                                            "DeviceOSType"                     = $Record.DeviceOSType
+                                            "DeviceTrustType"                  = $Record.DeviceTrustType
+                                            "CorrelationId"                    = $Record.CorrelationId
+                                            "Id"                               = $Record.Id
+                                        }
+
+                                        $Results.Add($Line)
                                     }
 
-                                    $Line = [PSCustomObject]@{
-                                        "ActivityDateTime"                 = $Record.activityDateTime # Date and time the activity was performed in UTC.
-                                        "InitiatedBy (UPN)"                = $Record."InitiatedBy (UPN)"
-                                        "TargetResources (UPN)"            = $Record."TargetResources (UPN)"
-                                        "UserId"                           = $Record.UserId
-                                        "AppDisplayName"                   = $Record.AppDisplayName
-                                        "AppId"                            = $Record.AppId # Empty
-                                        "ServicePrincipalId"               = $record.ServicePrincipalId
-                                        "Service"                          = $Record.loggedByService # Service that initiated the activity.
-                                        "Category"                         = $Record.category
-                                        "Activity"                         = $Record.activityDisplayName # Activity name or the operation name.
-                                        "OperationType"                    = $Record.operationType # Type of the operation. Possible values are Add Update Delete and Other.
-                                        "Status"                           = $Record.result # Result of the activity. Possible values are: success, failure, timeout, and unknownFutureValue.
-                                        "StatusReason"                     = $Record.resultReason # Describes cause of failure or timeout results.
-                                        "IPAddress"                        = $IP
-                                        "City"                             = $City
-                                        "Region"                           = $Region
-                                        "Country"                          = $Country
-                                        "Country Name"                     = $CountryName
-                                        "ASN"                              = $ASN
-                                        "OrgName"                          = $OrgName
-                                        "UserPrincipalName"                = $Record.UserPrincipalName
-                                        "ServicePrincipalName"             = $Record.ServicePrincipalName
-                                        "Target1DisplayName"               = $Record.Target1DisplayName
-                                        "Target1GroupType"                 = $Record.Target1GroupType
-                                        "Target1Id"                        = $Record.Target1Id
-                                        "Target1Type"                      = $Record.Target1Type
-                                        "Target1ModifiedProperty1Name"     = $Record.Target1ModifiedProperty1Name
-                                        "Target1ModifiedProperty1OldValue" = $Record.Target1ModifiedProperty1OldValue
-                                        "Target1ModifiedProperty1NewValue" = $Record.Target1ModifiedProperty1NewValue
-                                        "Target1ModifiedProperty2Name"     = $Record.Target1ModifiedProperty2Name
-                                        "Target1ModifiedProperty2OldValue" = $Record.Target1ModifiedProperty2OldValue
-                                        "Target1ModifiedProperty2NewValue" = $Record.Target1ModifiedProperty2NewValue
-                                        "Target1ModifiedProperty3Name"     = $Record.Target1ModifiedProperty3Name
-                                        "Target1ModifiedProperty3OldValue" = $Record.Target1ModifiedProperty3OldValue
-                                        "Target1ModifiedProperty3NewValue" = $Record.Target1ModifiedProperty3NewValue
-                                        "Target1ModifiedProperty4Name"     = $Record.Target1ModifiedProperty4Name
-                                        "Target1ModifiedProperty4OldValue" = $Record.Target1ModifiedProperty4OldValue
-                                        "Target1ModifiedProperty4NewValue" = $Record.Target1ModifiedProperty4NewValue
-                                        "Target1ModifiedProperty5Name"     = $Record.Target1ModifiedProperty5Name
-                                        "Target1ModifiedProperty5OldValue" = $Record.Target1ModifiedProperty5OldValue
-                                        "Target1ModifiedProperty5NewValue" = $Record.Target1ModifiedProperty5NewValue
-                                        "Target1UserPrincipalName"         = $Record.Target1UserPrincipalName
-                                        "Target2DisplayName"               = $Record.Target2DisplayName
-                                        "Target2GroupType"                 = $Record.Target2GroupType
-                                        "Target2Id"                        = $Record.Target2Id
-                                        "Target2Type"                      = $Record.Target2Type
-                                        "Target2UserPrincipalName"         = $Record.Target2UserPrincipalName
-                                        "Target3DisplayName"               = $Record.Target3DisplayName
-                                        "Target3GroupType"                 = $Record.Target3GroupType
-                                        "Target3Id"                        = $Record.Target3Id
-                                        "Target3Type"                      = $Record.Target3Type
-                                        "Target3UserPrincipalName"         = $Record.Target3UserPrincipalName
-                                        "GroupType"                        = $Record.GroupType
-                                        "UserType"                         = $Record.UserType
-                                        "UserAgent"                        = $Record.UserAgent
-                                        "DeviceId"                         = $Record.DeviceId
-                                        "DeviceOSType"                     = $Record.DeviceOSType
-                                        "DeviceTrustType"                  = $Record.DeviceTrustType
-                                        "CorrelationId"                    = $Record.CorrelationId
-                                        "Id"                               = $Record.Id
-                                    }
-
-                                    $Results.Add($Line)
+                                    $Results | Export-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv" -NoTypeInformation -Encoding UTF8
                                 }
-
-                                $Results | Export-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv" -NoTypeInformation -Encoding UTF8
                             }
+
+                            # XLSX
+                            if (Test-Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv")
+                            {
+                                if([int](& $xsv count "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv") -gt 0)
+                                {
+                                    $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv" -Delimiter "," | Sort-Object { $_.ActivityDateTime -as [datetime] } -Descending
+                                    $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\XLSX\Hunt.xlsx" -NoHyperLinkConversion * -NoNumberConversion * -FreezePane 2,4 -BoldTopRow -AutoSize -AutoFilter -IncludePivotTable -PivotTableName "PivotTable" -WorkSheetname "EntraAuditLogs" -CellStyleSB {
+                                    param($WorkSheet)
+                                    # BackgroundColor and FontColor for specific cells of TopRow
+                                    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+                                    Set-Format -Address $WorkSheet.Cells["A1:BI1"] -BackgroundColor $BackgroundColor -FontColor White
+                                    # HorizontalAlignment "Center" of columns A-L and N-BI
+                                    $WorkSheet.Cells["A:L"].Style.HorizontalAlignment="Center"
+                                    $WorkSheet.Cells["N:BI"].Style.HorizontalAlignment="Center"
+                                    # ConditionalFormatting - Activity
+                                    $Cells = "J:J"
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add application",$J1)))' -BackgroundColor Red # Application Creation (Privilege Escalation)
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add delegated permission grant",$J1)))' -BackgroundColor Red # OAuth Application Permission Grant
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add eligible member to role in PIM completed (permanent)",$J1)))' -BackgroundColor Red # AZT401 - Privileged Identity Management Role (Privilege Escalation)
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add eligible member to role in PIM requested (permanent)",$J1)))' -BackgroundColor Red # AZT401 - Privileged Identity Management Role (Privilege Escalation)
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add member to role completed (PIM activation)",$J1)))' -BackgroundColor Red # AZT401 - Privileged Identity Management Role (Privilege Escalation)
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add member to role requested (PIM activation)",$J1)))' -BackgroundColor Red # AZT401 - Privileged Identity Management Role (Privilege Escalation)
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Change user password",$J1)))' -BackgroundColor Yellow # A user changes their password. Self-service password reset has to be enabled (for all or selected users) in your organization to allow users to reset their password.
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Consent to application",$J1)))' -BackgroundColor Red # OAuth Application Permission Grant
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Disable account",$J1)))' -BackgroundColor Yellow # Disable a user in Microsoft Entra ID
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Reset user password",$J1)))' -BackgroundColor Red # Administrator resets the password for a user. ATO?
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Set domain authentication",$J1)))' -BackgroundColor Red # Modification of Trusted Domain
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Set federation settings on domain",$J1)))' -BackgroundColor Red # Modification of Trusted Domain
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Update application",$J1)))' -BackgroundColor Red # Modifying Permissions / Adding Permissions (Privilege Escalation)
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Update application - Certificates and secrets management",$J1)))' -BackgroundColor Red # A user added a secret or certificate to an Entra ID Application (Privilege Escalation)
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Update StsRefreshTokenValidFrom Timestamp",$J1)))' -BackgroundColor Yellow # A Refresh Token becomes valid. Entra ID will force users to perform re-authentication whenever this attribute is updated (e.g. after Session Revoke).  
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered all required security info",$J1)))' -BackgroundColor Red # MFA registered
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered security info",$J1)))' -BackgroundColor Red # MFA registered
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User reported unusual sign-in event as not legitimate",$J1)))' -BackgroundColor Red # ATO
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User started security info registration",$J1)))' -BackgroundColor Red # MFA registered
+                                    # ConditionalFormatting - StatusReason
+                                    $Cells = "M:M"
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Access denied. Insufficient privileges to proceed.",$M1)))' -BackgroundColor Red # Denied Access Request
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User failed to register Authenticator App with Code",$M1)))' -BackgroundColor Red # Persistence Attempt
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered all required security info.",$M1)))' -BackgroundColor Red # Persistence
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Authenticator App with Code",$M1)))' -BackgroundColor Red # Persistence
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Authenticator App with Notification",$M1)))' -BackgroundColor Red # Persistence
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Authenticator App with Notification and Code",$M1)))' -BackgroundColor Red # Persistence
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User started the registration for Authenticator App with Code",$M1)))' -BackgroundColor Red # Persistence
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User started the registration for Authenticator App with Notification and Code",$M1)))' -BackgroundColor Red # Persistence
+                                    # ConditionalFormatting - UserAgent
+                                    $Cells = "BC:BC"
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("AzurePowershell/",$BC1)))' -BackgroundColor $Orange # User-Agent associated with scripting/generic HTTP client
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("PostmanRuntime/",$BC1)))' -BackgroundColor Red # User-Agent associated with scripting/generic HTTP client
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("PowerShell/5.1",$BC1)))' -BackgroundColor $Orange # User-Agent associated with scripting/generic HTTP client
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("PowerShell/7",$BC1)))' -BackgroundColor $Orange # User-Agent associated with scripting/generic HTTP client
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("python-requests",$BC1)))' -BackgroundColor Red # User-Agent associated with scripting/generic HTTP client
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("python/",$BC1)))' -BackgroundColor Red # User-Agent associated with scripting/generic HTTP client
+                                    
+                                    # Iterating over the Application-Blacklist HashTable - Target1ModifiedProperty3NewValue
+                                    foreach ($AppId in $ApplicationBlacklist_HashTable.Keys) 
+                                    {
+                                        $Severity = $ApplicationBlacklist_HashTable["$AppId"][1]
+                                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$AJ1)))' -f $AppId
+                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["AJ:AJ"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
+                                    }
+
+                                    # Iterating over the ASN-Blacklist HashTable
+                                    foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
+                                    {
+                                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$S1)))' -f $ASN
+                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["S:S"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                    }
+
+                                    # Iterating over the Country-Blacklist HashTable
+                                    foreach ($Country in $CountryBlacklist_HashTable.Keys) 
+                                    {
+                                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$R1)))' -f $Country
+                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["R:R"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                    }
+
+                                    }
+                                }
+                            } 
                         }
 
-                        # XLSX
-                        if (Test-Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv")
+                        # IPinfo Subscription Plan w/ Privacy Detection
+                        if ($PrivacyDetection -eq "True")
                         {
-                            if([int](& $xsv count "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv") -gt 0)
+                            if (Test-Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv")
                             {
-                                $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv" -Delimiter "," | Sort-Object { $_.ActivityDateTime -as [datetime] } -Descending
-                                $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\XLSX\Hunt.xlsx" -NoHyperLinkConversion * -NoNumberConversion * -FreezePane 2,4 -BoldTopRow -AutoSize -AutoFilter -IncludePivotTable -PivotTableName "PivotTable" -WorkSheetname "EntraAuditLogs" -CellStyleSB {
-                                param($WorkSheet)
-                                # BackgroundColor and FontColor for specific cells of TopRow
-                                $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                                Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
-                                # HorizontalAlignment "Center" of columns A-L and N-BH
-                                $WorkSheet.Cells["A:L"].Style.HorizontalAlignment="Center"
-                                $WorkSheet.Cells["N:BH"].Style.HorizontalAlignment="Center"
-                                # ConditionalFormatting - Activity
-                                $Cells = "J:J"
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add application",$J1)))' -BackgroundColor Red # Application Creation (Privilege Escalation)
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add delegated permission grant",$J1)))' -BackgroundColor Red # OAuth Application Permission Grant
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add eligible member to role in PIM completed (permanent)",$J1)))' -BackgroundColor Red # AZT401 - Privileged Identity Management Role (Privilege Escalation)
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add eligible member to role in PIM requested (permanent)",$J1)))' -BackgroundColor Red # AZT401 - Privileged Identity Management Role (Privilege Escalation)
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add member to role completed (PIM activation)",$J1)))' -BackgroundColor Red # AZT401 - Privileged Identity Management Role (Privilege Escalation)
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add member to role requested (PIM activation)",$J1)))' -BackgroundColor Red # AZT401 - Privileged Identity Management Role (Privilege Escalation)
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Change user password",$J1)))' -BackgroundColor Yellow # A user changes their password. Self-service password reset has to be enabled (for all or selected users) in your organization to allow users to reset their password.
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Consent to application",$J1)))' -BackgroundColor Red # OAuth Application Permission Grant
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Disable account",$J1)))' -BackgroundColor Yellow # Disable a user in Microsoft Entra ID
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Reset user password",$J1)))' -BackgroundColor Red # Administrator resets the password for a user. ATO?
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Set domain authentication",$J1)))' -BackgroundColor Red # Modification of Trusted Domain
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Set federation settings on domain",$J1)))' -BackgroundColor Red # Modification of Trusted Domain
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Update application",$J1)))' -BackgroundColor Red # Modifying Permissions / Adding Permissions (Privilege Escalation)
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Update application - Certificates and secrets management",$J1)))' -BackgroundColor Red # A user added a secret or certificate to an Entra ID Application (Privilege Escalation)
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Update StsRefreshTokenValidFrom Timestamp",$J1)))' -BackgroundColor Yellow # A Refresh Token becomes valid. Entra ID will force users to perform re-authentication whenever this attribute is updated (e.g. after Session Revoke).  
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered all required security info",$J1)))' -BackgroundColor Red # MFA registered
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered security info",$J1)))' -BackgroundColor Red # MFA registered
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User reported unusual sign-in event as not legitimate",$J1)))' -BackgroundColor Red # ATO
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User started security info registration",$J1)))' -BackgroundColor Red # MFA registered
-                                # ConditionalFormatting - StatusReason
-                                $Cells = "M:M"
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Access denied. Insufficient privileges to proceed.",$M1)))' -BackgroundColor Red # Denied Access Request
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User failed to register Authenticator App with Code",$M1)))' -BackgroundColor Red # Persistence Attempt
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered all required security info.",$M1)))' -BackgroundColor Red # Persistence
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Authenticator App with Code",$M1)))' -BackgroundColor Red # Persistence
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Authenticator App with Notification",$M1)))' -BackgroundColor Red # Persistence
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Authenticator App with Notification and Code",$M1)))' -BackgroundColor Red # Persistence
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User started the registration for Authenticator App with Code",$M1)))' -BackgroundColor Red # Persistence
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User started the registration for Authenticator App with Notification and Code",$M1)))' -BackgroundColor Red # Persistence
-                                # ConditionalFormatting - User-Agent
-                                $Cells = "BC:BC"
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("AzurePowershell/",$BC1)))' -BackgroundColor $Orange # User-Agent associated with scripting/generic HTTP client
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("PostmanRuntime/",$BC1)))' -BackgroundColor Red # User-Agent associated with scripting/generic HTTP client
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("PowerShell/5.1",$BC1)))' -BackgroundColor $Orange # User-Agent associated with scripting/generic HTTP client
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("PowerShell/7",$BC1)))' -BackgroundColor $Orange # User-Agent associated with scripting/generic HTTP client
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("python-requests",$BC1)))' -BackgroundColor Red # User-Agent associated with scripting/generic HTTP client
-                                Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("python/",$BC1)))' -BackgroundColor Red # User-Agent associated with scripting/generic HTTP client
-                                # Iterating over the Application-Blacklist HashTable - Target1ModifiedProperty3NewValue
-                                foreach ($AppId in $ApplicationBlacklist_HashTable.Keys) 
+                                if([int](& $xsv count "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv") -gt 0)
                                 {
-                                    $Severity = $ApplicationBlacklist_HashTable["$AppId"][1]
-                                    $ConditionValue = 'NOT(ISERROR(FIND("{0}",$AI1)))' -f $AppId
-                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["AI:AI"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
-                                }
+                                    $Records = Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Untouched.csv" -Delimiter "," -Encoding UTF8
 
-                                # Iterating over the ASN-Blacklist HashTable
-                                foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
+                                    # CSV
+                                    $Results = [Collections.Generic.List[PSObject]]::new()
+                                    ForEach($Record in $Records)
+                                    {
+                                        # IPAddress
+                                        $IP = $Record.IPAddress
+
+                                        # Check if HashTable contains IP
+                                        if($IPinfo_HashTable.ContainsKey("$IP"))
+                                        {
+                                            $City        = $IPinfo_HashTable["$IP"][0]
+                                            $Region      = $IPinfo_HashTable["$IP"][1]
+                                            $Country     = $IPinfo_HashTable["$IP"][2]
+                                            $CountryName = $IPinfo_HashTable["$IP"][3]
+                                            $Location    = $IPinfo_HashTable["$IP"][4]
+                                            $ASN         = $IPinfo_HashTable["$IP"][5] | ForEach-Object {$_ -replace "^AS"}
+                                            $OrgName     = $IPinfo_HashTable["$IP"][6]
+                                            $PostalCode  = $IPinfo_HashTable["$IP"][7]
+                                            $Timezone    = $IPinfo_HashTable["$IP"][8]
+                                            $VPN         = $IPinfo_HashTable["$IP"][9]
+                                            $Proxy       = $IPinfo_HashTable["$IP"][10]
+                                            $Tor         = $IPinfo_HashTable["$IP"][11]
+                                            $Relay       = $IPinfo_HashTable["$IP"][12]
+                                            $Hosting     = $IPinfo_HashTable["$IP"][13]
+                                            $Service     = $IPinfo_HashTable["$IP"][14]
+                                        }
+                                        else
+                                        {
+                                            $City        = ""
+                                            $Region      = ""
+                                            $Country     = ""
+                                            $CountryName = ""
+                                            $Location    = ""
+                                            $ASN         = ""
+                                            $OrgName     = ""
+                                            $PostalCode  = ""
+                                            $Timezone    = ""
+                                            $VPN         = ""
+                                            $Proxy       = ""
+                                            $Tor         = ""
+                                            $Relay       = ""
+                                            $Hosting     = ""
+                                            $Service     = ""
+                                        }
+
+                                        $Line = [PSCustomObject]@{
+                                            "ActivityDateTime"                 = $Record.activityDateTime # Date and time the activity was performed in UTC.
+                                            "InitiatedBy (UPN)"                = $Record."InitiatedBy (UPN)"
+                                            "TargetResources (UPN)"            = $Record."TargetResources (UPN)"
+                                            "UserId"                           = $Record.UserId
+                                            "AppDisplayName"                   = $Record.AppDisplayName
+                                            "AppId"                            = $Record.AppId # Empty
+                                            "ServicePrincipalId"               = $record.ServicePrincipalId
+                                            "Service"                          = $Record.loggedByService # Service that initiated the activity.
+                                            "Category"                         = $Record.category
+                                            "Activity"                         = $Record.activityDisplayName # Activity name or the operation name.
+                                            "OperationType"                    = $Record.operationType # Type of the operation. Possible values are Add Update Delete and Other.
+                                            "Status"                           = $Record.result # Result of the activity. Possible values are: success, failure, timeout, and unknownFutureValue.
+                                            "StatusReason"                     = $Record.resultReason # Describes cause of failure or timeout results.
+                                            "IPAddress"                        = $IP
+                                            "City"                             = $City
+                                            "Region"                           = $Region
+                                            "Country"                          = $Country
+                                            "Country Name"                     = $CountryName
+                                            "Location"                         = $Location
+                                            "ASN"                              = $ASN
+                                            "OrgName"                          = $OrgName
+                                            "Postal Code"                      = $PostalCode
+                                            "Timezone"                         = $Timezone
+                                            "VPN"                              = $VPN
+                                            "Proxy"                            = $Proxy
+                                            "Tor"                              = $Tor
+                                            "Relay"                            = $Relay
+                                            "Hosting"                          = $Hosting
+                                            "Privacy Service"                  = $Service
+                                            "UserPrincipalName"                = $Record.UserPrincipalName
+                                            "ServicePrincipalName"             = $Record.ServicePrincipalName
+                                            "Target1DisplayName"               = $Record.Target1DisplayName
+                                            "Target1GroupType"                 = $Record.Target1GroupType
+                                            "Target1Id"                        = $Record.Target1Id
+                                            "Target1Type"                      = $Record.Target1Type
+                                            "Target1ModifiedProperty1Name"     = $Record.Target1ModifiedProperty1Name
+                                            "Target1ModifiedProperty1OldValue" = $Record.Target1ModifiedProperty1OldValue
+                                            "Target1ModifiedProperty1NewValue" = $Record.Target1ModifiedProperty1NewValue
+                                            "Target1ModifiedProperty2Name"     = $Record.Target1ModifiedProperty2Name
+                                            "Target1ModifiedProperty2OldValue" = $Record.Target1ModifiedProperty2OldValue
+                                            "Target1ModifiedProperty2NewValue" = $Record.Target1ModifiedProperty2NewValue
+                                            "Target1ModifiedProperty3Name"     = $Record.Target1ModifiedProperty3Name
+                                            "Target1ModifiedProperty3OldValue" = $Record.Target1ModifiedProperty3OldValue
+                                            "Target1ModifiedProperty3NewValue" = $Record.Target1ModifiedProperty3NewValue
+                                            "Target1ModifiedProperty4Name"     = $Record.Target1ModifiedProperty4Name
+                                            "Target1ModifiedProperty4OldValue" = $Record.Target1ModifiedProperty4OldValue
+                                            "Target1ModifiedProperty4NewValue" = $Record.Target1ModifiedProperty4NewValue
+                                            "Target1ModifiedProperty5Name"     = $Record.Target1ModifiedProperty5Name
+                                            "Target1ModifiedProperty5OldValue" = $Record.Target1ModifiedProperty5OldValue
+                                            "Target1ModifiedProperty5NewValue" = $Record.Target1ModifiedProperty5NewValue
+                                            "Target1UserPrincipalName"         = $Record.Target1UserPrincipalName
+                                            "Target2DisplayName"               = $Record.Target2DisplayName
+                                            "Target2GroupType"                 = $Record.Target2GroupType
+                                            "Target2Id"                        = $Record.Target2Id
+                                            "Target2Type"                      = $Record.Target2Type
+                                            "Target2UserPrincipalName"         = $Record.Target2UserPrincipalName
+                                            "Target3DisplayName"               = $Record.Target3DisplayName
+                                            "Target3GroupType"                 = $Record.Target3GroupType
+                                            "Target3Id"                        = $Record.Target3Id
+                                            "Target3Type"                      = $Record.Target3Type
+                                            "Target3UserPrincipalName"         = $Record.Target3UserPrincipalName
+                                            "GroupType"                        = $Record.GroupType
+                                            "UserType"                         = $Record.UserType
+                                            "UserAgent"                        = $Record.UserAgent
+                                            "DeviceId"                         = $Record.DeviceId
+                                            "DeviceOSType"                     = $Record.DeviceOSType
+                                            "DeviceTrustType"                  = $Record.DeviceTrustType
+                                            "CorrelationId"                    = $Record.CorrelationId
+                                            "Id"                               = $Record.Id
+                                        }
+
+                                        $Results.Add($Line)
+                                    }
+
+                                    $Results | Export-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv" -NoTypeInformation -Encoding UTF8
+                                }
+                            }
+
+                            # XLSX
+                            if (Test-Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv")
+                            {
+                                if([int](& $xsv count "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv") -gt 0)
                                 {
-                                    $ConditionValue = 'NOT(ISERROR(FIND("{0}",$S1)))' -f $ASN
-                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["S:S"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
-                                }
+                                    $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv" -Delimiter "," | Sort-Object { $_.ActivityDateTime -as [datetime] } -Descending
+                                    $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\XLSX\Hunt.xlsx" -NoHyperLinkConversion * -NoNumberConversion * -FreezePane 2,4 -BoldTopRow -AutoSize -AutoFilter -IncludePivotTable -PivotTableName "PivotTable" -WorkSheetname "EntraAuditLogs" -CellStyleSB {
+                                    param($WorkSheet)
+                                    # BackgroundColor and FontColor for specific cells of TopRow
+                                    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+                                    Set-Format -Address $WorkSheet.Cells["A1:BQ1"] -BackgroundColor $BackgroundColor -FontColor White
+                                    # HorizontalAlignment "Center" of columns A-L and N-BQ
+                                    $WorkSheet.Cells["A:L"].Style.HorizontalAlignment="Center"
+                                    $WorkSheet.Cells["N:BQ"].Style.HorizontalAlignment="Center"
+                                    # ConditionalFormatting - Activity
+                                    $Cells = "J:J"
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add application",$J1)))' -BackgroundColor Red # Application Creation (Privilege Escalation)
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add delegated permission grant",$J1)))' -BackgroundColor Red # OAuth Application Permission Grant
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add eligible member to role in PIM completed (permanent)",$J1)))' -BackgroundColor Red # AZT401 - Privileged Identity Management Role (Privilege Escalation)
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add eligible member to role in PIM requested (permanent)",$J1)))' -BackgroundColor Red # AZT401 - Privileged Identity Management Role (Privilege Escalation)
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add member to role completed (PIM activation)",$J1)))' -BackgroundColor Red # AZT401 - Privileged Identity Management Role (Privilege Escalation)
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add member to role requested (PIM activation)",$J1)))' -BackgroundColor Red # AZT401 - Privileged Identity Management Role (Privilege Escalation)
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Change user password",$J1)))' -BackgroundColor Yellow # A user changes their password. Self-service password reset has to be enabled (for all or selected users) in your organization to allow users to reset their password.
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Consent to application",$J1)))' -BackgroundColor Red # OAuth Application Permission Grant
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Disable account",$J1)))' -BackgroundColor Yellow # Disable a user in Microsoft Entra ID
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Reset user password",$J1)))' -BackgroundColor Red # Administrator resets the password for a user. ATO?
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Set domain authentication",$J1)))' -BackgroundColor Red # Modification of Trusted Domain
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Set federation settings on domain",$J1)))' -BackgroundColor Red # Modification of Trusted Domain
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Update application",$J1)))' -BackgroundColor Red # Modifying Permissions / Adding Permissions (Privilege Escalation)
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Update application - Certificates and secrets management",$J1)))' -BackgroundColor Red # A user added a secret or certificate to an Entra ID Application (Privilege Escalation)
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Update StsRefreshTokenValidFrom Timestamp",$J1)))' -BackgroundColor Yellow # A Refresh Token becomes valid. Entra ID will force users to perform re-authentication whenever this attribute is updated (e.g. after Session Revoke).  
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered all required security info",$J1)))' -BackgroundColor Red # MFA registered
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered security info",$J1)))' -BackgroundColor Red # MFA registered
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User reported unusual sign-in event as not legitimate",$J1)))' -BackgroundColor Red # ATO
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User started security info registration",$J1)))' -BackgroundColor Red # MFA registered
+                                    # ConditionalFormatting - StatusReason
+                                    $Cells = "M:M"
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Access denied. Insufficient privileges to proceed.",$M1)))' -BackgroundColor Red # Denied Access Request
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User failed to register Authenticator App with Code",$M1)))' -BackgroundColor Red # Persistence Attempt
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered all required security info.",$M1)))' -BackgroundColor Red # Persistence
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Authenticator App with Code",$M1)))' -BackgroundColor Red # Persistence
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Authenticator App with Notification",$M1)))' -BackgroundColor Red # Persistence
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Authenticator App with Notification and Code",$M1)))' -BackgroundColor Red # Persistence
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User started the registration for Authenticator App with Code",$M1)))' -BackgroundColor Red # Persistence
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User started the registration for Authenticator App with Notification and Code",$M1)))' -BackgroundColor Red # Persistence
 
-                                # Iterating over the Country-Blacklist HashTable
-                                foreach ($Country in $CountryBlacklist_HashTable.Keys) 
-                                {
-                                    $ConditionValue = 'NOT(ISERROR(FIND("{0}",$R1)))' -f $Country
-                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["R:R"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
-                                }
+                                    # Iterating over the Application-Blacklist HashTable - Target1ModifiedProperty3NewValue
+                                    foreach ($AppId in $ApplicationBlacklist_HashTable.Keys) 
+                                    {
+                                        $Severity = $ApplicationBlacklist_HashTable["$AppId"][1]
+                                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$AR1)))' -f $AppId
+                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["AR:AR"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
+                                    }
 
+                                    # Iterating over the ASN-Blacklist HashTable
+                                    foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
+                                    {
+                                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$T1)))' -f $ASN
+                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["T:T"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                    }
+
+                                    # Iterating over the Country-Blacklist HashTable
+                                    foreach ($Country in $CountryBlacklist_HashTable.Keys) 
+                                    {
+                                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$R1)))' -f $Country
+                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["R:R"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                    }
+
+                                    # Iterating over the UserAgent-Blacklist HashTable
+                                    foreach ($UserAgent in $UserAgentBlacklist_HashTable.Keys) 
+                                    {
+                                        $Severity = $UserAgentBlacklist_HashTable["$UserAgent"][1]
+                                        $ConditionValue = 'NOT(ISERROR(FIND("{0}",$BL1)))' -f $UserAgent
+                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["BL:BL"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
+                                    }
+
+                                    }
                                 }
                             }
                         }
@@ -1230,136 +1512,90 @@ if (Test-Path "$($IPinfo)")
                             Write-Output "[Info]  File Size (Hunt.xlsx): $Size"
                         }
 
-                        # ASN 
-                        
-                        # CSV (Stats)
-                        if (Test-Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv")
+                        # ASN (Stats)
+                        $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object ASN | Where-Object {$_.ASN -ne '' } | Measure-Object).Count
+                        if ($Total -ge "1")
                         {
-                            if([int](& $xsv count "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv") -gt 0)
+                            $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object ASN,OrgName | Where-Object {$_.ASN -ne '' } | Where-Object {$null -ne ($_.PSObject.Properties | ForEach-Object {$_.Value})} | Group-Object ASN,OrgName | Select-Object @{Name='ASN'; Expression={ $_.Values[0] }},@{Name='OrgName'; Expression={ $_.Values[1] }},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+                            $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\ASN.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "ASN" -CellStyleSB {
+                            param($WorkSheet)
+                            # BackgroundColor and FontColor for specific cells of TopRow
+                            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+                            Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
+                            # HorizontalAlignment "Center" of columns A-D
+                            $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
+
+                            # Iterating over the ASN-Blacklist HashTable
+                            foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
                             {
-                                $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object ASN | Where-Object {$_.ASN -ne '' } | Measure-Object).Count
-                                Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object ASN,OrgName | Where-Object {$_.ASN -ne '' } | Where-Object {$null -ne ($_.PSObject.Properties | ForEach-Object {$_.Value})} | Group-Object ASN,OrgName | Select-Object Count,@{Name='ASN'; Expression={ $_.Values[0] }},@{Name='OrgName'; Expression={ $_.Values[1] }},@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\ASN.csv" -NoTypeInformation -Encoding UTF8
+                                $ConditionValue = 'NOT(ISERROR(FIND("{0}",$A1)))' -f $ASN
+                                Add-ConditionalFormatting -Address $WorkSheet.Cells["A:D"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                            }
+
                             }
                         }
 
-                        # XLSX (Stats)
-                        if (Test-Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\ASN.csv")
+                        # IPAddress / Country Name (Stats)
+                        $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object IPAddress | Where-Object {$_.IPAddress -ne '' } | Measure-Object).Count
+                        if ($Total -ge "1")
                         {
-                            if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\ASN.csv") -gt 0)
+                            $Stats = Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Select-Object IPAddress,Country,"Country Name",ASN,OrgName | Where-Object {$_.IPAddress -ne '' } | Where-Object {$_."Country Name" -ne '' } | Where-Object {$null -ne ($_.PSObject.Properties | ForEach-Object {$_.Value})} | Group-Object IPAddress,Country,"Country Name",ASN,OrgName | Select-Object @{Name='IPAddress'; Expression={ $_.Values[0] }},@{Name='Country'; Expression={ $_.Values[1] }},@{Name='Country Name'; Expression={ $_.Values[2] }},@{Name='ASN'; Expression={ $_.Values[3] }},@{Name='OrgName'; Expression={ $_.Values[4] }},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+                            $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\IPAddress.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "IPAddress" -CellStyleSB {
+                            param($WorkSheet)
+                            # BackgroundColor and FontColor for specific cells of TopRow
+                            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+                            Set-Format -Address $WorkSheet.Cells["A1:G1"] -BackgroundColor $BackgroundColor -FontColor White
+                            # HorizontalAlignment "Center" of columns A-G
+                            $WorkSheet.Cells["A:G"].Style.HorizontalAlignment="Center"
+
+                            # Iterating over the ASN-Blacklist HashTable
+                            foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
                             {
-                                $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\ASN.csv" -Delimiter ","
-                                $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\XLSX\ASN.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "ASN" -CellStyleSB {
-                                param($WorkSheet)
-                                # BackgroundColor and FontColor for specific cells of TopRow
-                                $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                                Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
-                                # HorizontalAlignment "Center" of columns A-D
-                                $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
-
-                                # Iterating over the ASN-Blacklist HashTable
-                                foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
-                                {
-                                    $ConditionValue = 'NOT(ISERROR(FIND("{0}",$B1)))' -f $ASN
-                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["A:D"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
-                                }
-
-                                }
+                                $ConditionValue = 'NOT(ISERROR(FIND("{0}",$D1)))' -f $ASN
+                                Add-ConditionalFormatting -Address $WorkSheet.Cells["D:E"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
                             }
-                        }
 
-                        # IPAddress / Country Name
-                        
-                        # CSV (Stats)
-                        if (Test-Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv")
-                        {
-                            if([int](& $xsv count "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv") -gt 0)
+                            # Iterating over the Country-Blacklist HashTable
+                            foreach ($Country in $CountryBlacklist_HashTable.Keys) 
                             {
-                                $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object IPAddress | Where-Object {$_.IPAddress -ne '' } | Measure-Object).Count
-                                Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Select-Object IPAddress,Country,"Country Name",ASN,OrgName | Where-Object {$_.IPAddress -ne '' } | Where-Object {$_."Country Name" -ne '' } | Where-Object {$null -ne ($_.PSObject.Properties | ForEach-Object {$_.Value})} | Group-Object IPAddress,Country,"Country Name",ASN,OrgName | Select-Object Count,@{Name='IPAddress'; Expression={ $_.Values[0] }},@{Name='Country'; Expression={ $_.Values[1] }},@{Name='Country Name'; Expression={ $_.Values[2] }},@{Name='ASN'; Expression={ $_.Values[3] }},@{Name='OrgName'; Expression={ $_.Values[4] }},@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\IPAddress.csv" -NoTypeInformation -Encoding UTF8
+                                $ConditionValue = 'NOT(ISERROR(FIND("{0}",$C1)))' -f $Country
+                                Add-ConditionalFormatting -Address $WorkSheet.Cells["B:C"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
                             }
-                        }
-
-                        # XLSX (Stats)
-                        if (Test-Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\IPAddress.csv")
-                        {
-                            if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\IPAddress.csv") -gt 0)
-                            {
-                                $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\IPAddress.csv" -Delimiter ","
-                                $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\XLSX\IPAddress.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "IPAddress" -CellStyleSB {
-                                param($WorkSheet)
-                                # BackgroundColor and FontColor for specific cells of TopRow
-                                $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                                Set-Format -Address $WorkSheet.Cells["A1:G1"] -BackgroundColor $BackgroundColor -FontColor White
-                                # HorizontalAlignment "Center" of columns A-G
-                                $WorkSheet.Cells["A:G"].Style.HorizontalAlignment="Center"
-
-                                # Iterating over the ASN-Blacklist HashTable
-                                foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
-                                {
-                                    $ConditionValue = 'NOT(ISERROR(FIND("{0}",$E1)))' -f $ASN
-                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["E:F"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
-                                }
-
-                                # Iterating over the Country-Blacklist HashTable
-                                foreach ($Country in $CountryBlacklist_HashTable.Keys) 
-                                {
-                                    $ConditionValue = 'NOT(ISERROR(FIND("{0}",$D1)))' -f $Country
-                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["C:D"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
-                                }
                                     
-                                }
                             }
                         }
 
-                        # Country / Country Name
-
-                        # CSV (Stats)
-                        if (Test-Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv")
+                        # Country / Country Name (Stats)
+                        $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object Country | Where-Object {$_.Country -ne '' } | Measure-Object).Count
+                        if ($Total -ge "1")
                         {
-                            if([int](& $xsv count "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv") -gt 0)
+                            $Stats = Import-Csv "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object Country,"Country Name" | Where-Object {$_.Country -ne '' } | Where-Object {$null -ne ($_.PSObject.Properties | ForEach-Object {$_.Value})} | Group-Object Country,"Country Name" | Select-Object @{Name='Country'; Expression={ $_.Values[0] }},@{Name='Country Name'; Expression={ $_.Values[1] }},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+                            $Stats | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\Country.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Countries" -CellStyleSB {
+                            param($WorkSheet)
+                            # BackgroundColor and FontColor for specific cells of TopRow
+                            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+                            Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
+                            # HorizontalAlignment "Center" of columns A-D
+                            $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
+
+                            # Iterating over the Country-Blacklist HashTable
+                            foreach ($Country in $CountryBlacklist_HashTable.Keys) 
                             {
-                                $Total = (Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object Country | Where-Object {$_.Country -ne '' } | Measure-Object).Count
-                                Import-Csv "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object Country,"Country Name" | Where-Object {$_.Country -ne '' } | Where-Object {$null -ne ($_.PSObject.Properties | ForEach-Object {$_.Value})} | Group-Object Country,"Country Name" | Select-Object Count,@{Name='Country'; Expression={ $_.Values[0] }},@{Name='Country Name'; Expression={ $_.Values[1] }},@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending | Export-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\Country.csv" -NoTypeInformation -Encoding UTF8
-                                
-                                # Countries
-                                $Countries = (Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object Country -Unique | Where-Object { $_.Country -ne '' } | Measure-Object).Count
-
-                                # Cities
-                                $Cities = (Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object City -Unique | Where-Object { $_.City -ne '' } | Measure-Object).Count
-
-                                Write-Output "[Info]  $Countries Countries and $Cities Cities found"
+                                $ConditionValue = 'NOT(ISERROR(FIND("{0}",$B1)))' -f $Country
+                                Add-ConditionalFormatting -Address $WorkSheet.Cells["A:D"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
                             }
-                        }
 
-                        # XLSX (Stats)
-                        if (Test-Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\Country.csv")
-                        {
-                            if([int](& $xsv count -d "," "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\Country.csv") -gt 0)
-                            {
-                                $IMPORT = Import-Csv "$OUTPUT_FOLDER\EntraAuditLogs\Stats\CSV\Country.csv" -Delimiter ","
-                                $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\EntraAuditLogs\Stats\XLSX\Country.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Countries" -CellStyleSB {
-                                param($WorkSheet)
-                                # BackgroundColor and FontColor for specific cells of TopRow
-                                $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                                Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
-                                # HorizontalAlignment "Center" of columns A-D
-                                $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
-
-                                # Iterating over the Country-Blacklist HashTable
-                                foreach ($Country in $CountryBlacklist_HashTable.Keys) 
-                                {
-                                    $ConditionValue = 'NOT(ISERROR(FIND("{0}",$C1)))' -f $Country
-                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["A:D"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
-                                }
-
-                                }
                             }
-                        }
+
+                            $Countries = (Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object Country -Unique | Where-Object { $_.Country -ne '' } | Measure-Object).Count
+                            $Cities = (Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv" -Delimiter "," | Select-Object City -Unique | Where-Object { $_.City -ne '' } | Measure-Object).Count
+                            Write-Output "[Info]  $Countries Countries and $Cities Cities found"
+                        } 
 
                         # OAuth Applications --> needs to be checked: AppId vs. Target1ModifiedProperty3NewValue
                         $Data = Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv" -Delimiter ","
 
-                        # Iterating over the HashTable
+                        # Iterating over the Application-Backlist HashTable
                         foreach ($AppId in $ApplicationBlacklist_HashTable.Keys) 
                         {
                             $Import = $Data | Where-Object { $_.AppId -eq "$AppId" }
@@ -1380,7 +1616,7 @@ if (Test-Path "$($IPinfo)")
 
 $EndTime_IPlocation = (Get-Date)
 $Time_IPlocation = ($EndTime_IPlocation-$StartTime_IPlocation)
-('EntraAuditLogs IPLocation duration:     {0} h {1} min {2} sec' -f $Time_IPlocation.Hours, $Time_IPlocation.Minutes, $Time_IPlocation.Seconds) >> "$OUTPUT_FOLDER\Stats.txt"
+('EntraAuditLogs IPLocation duration:   {0} h {1} min {2} sec' -f $Time_IPlocation.Hours, $Time_IPlocation.Minutes, $Time_IPlocation.Seconds) >> "$OUTPUT_FOLDER\Stats.txt"
 
 }
 
@@ -1396,11 +1632,11 @@ if (Test-Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv")
     $Hunt = Import-Csv -Path "$OUTPUT_FOLDER\EntraAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8
 }
 
-# Count
-$Detect = (Get-Content "$SCRIPT_DIR\EntraAuditLogs-Analyzer.ps1" | Select-String -Pattern "Detect: " | Measure-Object).Count
-Write-Output "[Info]  Running Detection Ruleset ($Detect) ..."
+# Detection Rules
+$Detection = (Get-Content "$SCRIPT_DIR\EntraAuditLogs-Analyzer.ps1" | Select-String -Pattern "LETHAL-" -CaseSensitive).Count -1
+Write-Output "[Info]  Running Detection Ruleset ($Detection Rules) ..."
 
-# Detect: User registered Authenticator App with Code [T1098]
+# LETHAL-001: User registered Authenticator App with Code [T1098]
 # This could be an indication of an attacker adding an auth method to the user account so they can have continued access.
 $Import = $Hunt | Where-Object { $_.Service -eq 'Authentication Methods' } | Where-Object { $_.Activity -eq 'User registered security info' } | Where-Object { $_.StatusReason -eq 'User registered Authenticator App with Code' }
 $Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
@@ -1424,10 +1660,10 @@ if ($Count -ge 1)
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-L and N-BH
+            Set-Format -Address $WorkSheet.Cells["A1:BI1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-L and N-BI
             $WorkSheet.Cells["A:L"].Style.HorizontalAlignment="Center"
-            $WorkSheet.Cells["N:BH"].Style.HorizontalAlignment="Center"
+            $WorkSheet.Cells["N:BI"].Style.HorizontalAlignment="Center"
             # ConditionalFormatting - StatusReason
             Add-ConditionalFormatting -Address $WorkSheet.Cells["H:J,M:M"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Authenticator App with Code",$M1)))' -BackgroundColor Red
             }
@@ -1435,7 +1671,7 @@ if ($Count -ge 1)
     }
 }
 
-# Detect: User registered Authenticator App with Notification [T1098]
+# LETHAL-002: User registered Authenticator App with Notification [T1098]
 # This could be an indication of an attacker adding an auth method to the user account so they can have continued access.
 $Import = $Hunt | Where-Object { $_.Service -eq 'Authentication Methods' } | Where-Object { $_.Activity -eq 'User registered security info' } | Where-Object { $_.StatusReason -eq 'User registered Authenticator App with Notification' }
 $Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
@@ -1459,10 +1695,10 @@ if ($Count -ge 1)
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-L and N-BH
+            Set-Format -Address $WorkSheet.Cells["A1:BI1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-L and N-BI
             $WorkSheet.Cells["A:L"].Style.HorizontalAlignment="Center"
-            $WorkSheet.Cells["N:BH"].Style.HorizontalAlignment="Center"
+            $WorkSheet.Cells["N:BI"].Style.HorizontalAlignment="Center"
             # ConditionalFormatting - StatusReason
             Add-ConditionalFormatting -Address $WorkSheet.Cells["H:J,M:M"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Authenticator App with Notification",$M1)))' -BackgroundColor Red
             }
@@ -1470,7 +1706,7 @@ if ($Count -ge 1)
     }
 }
 
-# Detect: User registered Authenticator App with Notification and Code [T1098]
+# LETHAL-003: User registered Authenticator App with Notification and Code [T1098]
 # This could be an indication of an attacker adding an auth method to the user account so they can have continued access.
 $Import = $Hunt | Where-Object { $_.Service -eq 'Authentication Methods' } | Where-Object { $_.Activity -eq 'User registered security info' } | Where-Object { $_.StatusReason -eq 'User registered Authenticator App with Notification and Code' }
 $Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
@@ -1494,10 +1730,10 @@ if ($Count -ge 1)
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-L and N-BH
+            Set-Format -Address $WorkSheet.Cells["A1:BI1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-L and N-BI
             $WorkSheet.Cells["A:L"].Style.HorizontalAlignment="Center"
-            $WorkSheet.Cells["N:BH"].Style.HorizontalAlignment="Center"
+            $WorkSheet.Cells["N:BI"].Style.HorizontalAlignment="Center"
             # ConditionalFormatting - StatusReason
             Add-ConditionalFormatting -Address $WorkSheet.Cells["H:J,M:M"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Authenticator App with Notification and Code",$M1)))' -BackgroundColor Red
             }
@@ -1505,7 +1741,7 @@ if ($Count -ge 1)
     }
 }
 
-# Detect: Phone App Details for MFA updated (Modify Authentication Process: Multi-Factor Authentication) [T1556.006]
+# LETHAL-004: Phone App Details for MFA updated (Modify Authentication Process: Multi-Factor Authentication) [T1556.006]
 $Import = $Hunt | Where-Object { $_.Service -eq 'Core Directory' } | Where-Object { $_.Category -eq 'UserManagement' } | Where-Object { $_.Activity -eq 'Update User' } | Where-Object { $_.Status -eq 'success' } | Where-Object { $_.Target1ModifiedProperty1Name -eq 'StrongAuthenticationPhoneAppDetail' }
 $Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
 
@@ -1528,20 +1764,21 @@ if ($Count -ge 1)
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-U and X-BH
+            Set-Format -Address $WorkSheet.Cells["A1:BI1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-U and X-BI
             $WorkSheet.Cells["A:U"].Style.HorizontalAlignment="Center"
-            $WorkSheet.Cells["X:BH"].Style.HorizontalAlignment="Center"
+            $WorkSheet.Cells["X:BI"].Style.HorizontalAlignment="Center"
             # ConditionalFormatting - ActivityDisplayName
             Add-ConditionalFormatting -Address $WorkSheet.Cells["H:J"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Update user",$J1)))' -BackgroundColor Red
             # ConditionalFormatting - Target1ModifiedProperty1Name
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["U:U"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("StrongAuthenticationPhoneAppDetail",$U1)))' -BackgroundColor Red
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["AB:AB"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("StrongAuthenticationPhoneAppDetail",$AB1)))' -BackgroundColor Red # IPinfo Free
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["AJ:AJ"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("StrongAuthenticationPhoneAppDetail",$AJ1)))' -BackgroundColor Red # IPinfo Standard
             }
         }
     }
 }
 
-# Detect: User registered Mobile Phone SMS [T1098]
+# LETHAL-005: User registered Mobile Phone SMS [T1098]
 # This could be an indication of an attacker adding an auth method to the user account so they can have continued access.
 $Import = $Hunt | Where-Object { $_.Service -eq 'Authentication Methods' } | Where-Object { $_.Activity -eq 'User registered security info' } | Where-Object { $_.StatusReason -eq 'User registered Mobile Phone SMS' }
 $Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
@@ -1565,10 +1802,10 @@ if ($Count -ge 1)
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-K and N-BH
+            Set-Format -Address $WorkSheet.Cells["A1:BI1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-K and N-BI
             $WorkSheet.Cells["A:K"].Style.HorizontalAlignment="Center"
-            $WorkSheet.Cells["N:BH"].Style.HorizontalAlignment="Center"
+            $WorkSheet.Cells["N:BI"].Style.HorizontalAlignment="Center"
             # ConditionalFormatting - StatusReason
             Add-ConditionalFormatting -Address $WorkSheet.Cells["G:I,L:L"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("User registered Mobile Phone SMS",$L1)))' -BackgroundColor Red
             }
@@ -1593,7 +1830,7 @@ if ($Count -ge 1)
 # Add app role assignment grant to user
 # Consent to application
 
-# Detect: Add application --> Third-Party Application
+# LETHAL-006: Add application --> Third-Party Application
 $Import = $Hunt | Where-Object { $_.Service -eq 'Core Directory' } | Where-Object { $_.Category -eq 'ApplicationManagement' } | Where-Object { $_.Activity -eq 'Add application' }
 $Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
 
@@ -1616,9 +1853,9 @@ if ($Count -ge 1)
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-BH
-            $WorkSheet.Cells["A:BH"].Style.HorizontalAlignment="Center"
+            Set-Format -Address $WorkSheet.Cells["A1:BI1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-BI
+            $WorkSheet.Cells["A:BI"].Style.HorizontalAlignment="Center"
             # ConditionalFormatting - ActivityDisplayName
             Add-ConditionalFormatting -Address $WorkSheet.Cells["H:J"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add application",$J1)))' -BackgroundColor Red
             }
@@ -1626,7 +1863,7 @@ if ($Count -ge 1)
     }
 }
 
-# Detect: Add service principal - Application Access Token [T1550.001]
+# LETHAL-007: Add service principal - Application Access Token [T1550.001]
 # https://www.elastic.co/guide/en/security/current/azure-service-principal-addition.html
 $Import = $Hunt | Where-Object { $_.Service -eq 'Core Directory' } | Where-Object { $_.Category -eq 'ApplicationManagement' } | Where-Object { $_.Activity -eq 'Add service principal' }
 $Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
@@ -1650,21 +1887,21 @@ if ($Count -ge 1)
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-Y and AA-BH
+            Set-Format -Address $WorkSheet.Cells["A1:BI1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-Y and AA-BI
             $WorkSheet.Cells["A:Y"].Style.HorizontalAlignment="Center"
-            $WorkSheet.Cells["AA:BH"].Style.HorizontalAlignment="Center"
+            $WorkSheet.Cells["AA:BI"].Style.HorizontalAlignment="Center"
             # ConditionalFormatting - ActivityDisplayName
             Add-ConditionalFormatting -Address $WorkSheet.Cells["H:J"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add service principal",$J1)))' -BackgroundColor Red
             # ConditionalFormatting - Target1DisplayName
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["W:W"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("eM Client",$W1)))' -BackgroundColor Red
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["X:X"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("eM Client",$X1)))' -BackgroundColor Red
 
             # ConditionalFormatting - Application-Blacklist
             foreach ($AppId in $ApplicationBlacklist_HashTable.Keys) 
             {
                 $Severity = $ApplicationBlacklist_HashTable["$AppId"][1]
-                $ConditionValue = 'NOT(ISERROR(FIND("{0}",$AI1)))' -f $AppId
-                Add-ConditionalFormatting -Address $WorkSheet.Cells["AI:AI"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
+                $ConditionValue = 'NOT(ISERROR(FIND("{0}",$AJ1)))' -f $AppId
+                Add-ConditionalFormatting -Address $WorkSheet.Cells["AJ:AJ"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor $Severity
             }
 
             }
@@ -1672,7 +1909,7 @@ if ($Count -ge 1)
     }
 }
 
-# Detect: Add delegated permission grant - Enterprise App Abuse [T1528]
+# LETHAL-008: Add delegated permission grant - Enterprise App Abuse [T1528]
 $Import = $Hunt | Where-Object { $_.Service -eq 'Core Directory' } | Where-Object { $_.Category -eq 'ApplicationManagement' } | Where-Object { $_.Activity -eq 'Add delegated permission grant' }
 $Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
 
@@ -1695,10 +1932,10 @@ if ($Count -ge 1)
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-U and X-BH
+            Set-Format -Address $WorkSheet.Cells["A1:BI1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-U and X-BI
             $WorkSheet.Cells["A:U"].Style.HorizontalAlignment="Center"
-            $WorkSheet.Cells["X:BH"].Style.HorizontalAlignment="Center"
+            $WorkSheet.Cells["X:BI"].Style.HorizontalAlignment="Center"
             # ConditionalFormatting - ActivityDisplayName
             Add-ConditionalFormatting -Address $WorkSheet.Cells["H:J"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add delegated permission grant",$J1)))' -BackgroundColor Red
             }
@@ -1706,7 +1943,7 @@ if ($Count -ge 1)
     }
 }
 
-# Detect: Add app role assignment grant to user - Enterprise App Abuse [T1528]
+# LETHAL-009: Add app role assignment grant to user - Enterprise App Abuse [T1528]
 $Import = $Hunt | Where-Object { $_.Service -eq 'Core Directory' } | Where-Object { $_.Category -eq 'UserManagement' } | Where-Object { $_.Activity -eq 'Add app role assignment grant to user' }
 $Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
 
@@ -1729,9 +1966,9 @@ if ($Count -ge 1)
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-BH
-            $WorkSheet.Cells["A:BH"].Style.HorizontalAlignment="Center"
+            Set-Format -Address $WorkSheet.Cells["A1:BI1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-BI
+            $WorkSheet.Cells["A:BI"].Style.HorizontalAlignment="Center"
             # ConditionalFormatting - ActivityDisplayName
             Add-ConditionalFormatting -Address $WorkSheet.Cells["H:J"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Add app role assignment grant to user",$J1)))' -BackgroundColor Red
             # ConditionalFormatting - Target1DisplayName
@@ -1741,7 +1978,7 @@ if ($Count -ge 1)
     }
 }
 
-# Detect: Admin Consent to Application
+# LETHAL-010: Admin Consent to Application
 $Import = $Hunt | Where-Object { $_.Service -eq 'Core Directory' } | Where-Object { $_.Category -eq 'ApplicationManagement' }  | Where-Object { $_.Activity -eq 'Consent to application' } | Where-Object { $_.Target1ModifiedProperty1Name -eq 'ConsentContext.IsAdminConsent' } | Where-Object { $_.Target1ModifiedProperty1NewValue -eq 'True' } 
 $Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
 
@@ -1764,10 +2001,10 @@ if ($Count -ge 1)
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-AH and AJ-BH
+            Set-Format -Address $WorkSheet.Cells["A1:BI1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-AH and AJ-BI
             $WorkSheet.Cells["A:AH"].Style.HorizontalAlignment="Center"
-            $WorkSheet.Cells["AJ:BH"].Style.HorizontalAlignment="Center"
+            $WorkSheet.Cells["AJ:BI"].Style.HorizontalAlignment="Center"
             # ConditionalFormatting - ActivityDisplayName
             Add-ConditionalFormatting -Address $WorkSheet.Cells["H:J"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Consent to application",$J1)))' -BackgroundColor Red
             # ConditionalFormatting - Target1ModifiedProperty1Name + Target1ModifiedProperty1NewValue
@@ -1777,7 +2014,7 @@ if ($Count -ge 1)
     }
 }
 
-# Detect: User Consent to Application [T1204] --> Potential Illicit Consent Grant attack via Azure registered application
+# LETHAL-011: User Consent to Application [T1204] --> Potential Illicit Consent Grant attack via Azure registered application
 # https://docs.datadoghq.com/security/default_rules/azure-ad-consent-to-application/
 $Import = $Hunt | Where-Object { $_.Service -eq 'Core Directory' } | Where-Object { $_.Category -eq 'ApplicationManagement' } | Where-Object { $_.Activity -eq 'Consent to application' } | Where-Object { $_.Target1ModifiedProperty1Name -eq 'ConsentContext.IsAdminConsent' } | Where-Object { $_.Target1ModifiedProperty1NewValue -eq 'False' } 
 $Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
@@ -1801,10 +2038,10 @@ if ($Count -ge 1)
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-AH and AJ-BH
+            Set-Format -Address $WorkSheet.Cells["A1:BI1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-AH and AJ-BI
             $WorkSheet.Cells["A:AH"].Style.HorizontalAlignment="Center"
-            $WorkSheet.Cells["AJ:BH"].Style.HorizontalAlignment="Center"
+            $WorkSheet.Cells["AJ:BI"].Style.HorizontalAlignment="Center"
             # ConditionalFormatting - ActivityDisplayName
             Add-ConditionalFormatting -Address $WorkSheet.Cells["H:J"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Consent to application",$J1)))' -BackgroundColor Red
             # ConditionalFormatting - Target1DisplayName
@@ -1816,7 +2053,7 @@ if ($Count -ge 1)
     }
 }
 
-# Detect: Update application – Certificates and secrets management (Enterprise Application Credential Modification)
+# LETHAL-012: Update application – Certificates and secrets management (Enterprise Application Credential Modification)
 # Note: An attacker can add a secret or certificate to an application in order to connect to Entra ID as the application and perform Graph API operations leveraging the application permissions that are assigned to it.
 $Import = $Hunt | Where-Object { $_.Service -eq 'Core Directory' } | Where-Object { $_.Category -eq 'ApplicationManagement' } | Where-Object { $_.Activity -eq 'Update application – Certificates and secrets management ' }
 $Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
@@ -1840,10 +2077,10 @@ if ($Count -ge 1)
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-AH and AJ-BH
+            Set-Format -Address $WorkSheet.Cells["A1:BI1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-AH and AJ-BI
             $WorkSheet.Cells["A:AH"].Style.HorizontalAlignment="Center"
-            $WorkSheet.Cells["AJ:BH"].Style.HorizontalAlignment="Center"
+            $WorkSheet.Cells["AJ:BI"].Style.HorizontalAlignment="Center"
             # ConditionalFormatting - ActivityDisplayName
             Add-ConditionalFormatting -Address $WorkSheet.Cells["H:J"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Update application – Certificates and secrets management",$J1)))' -BackgroundColor Red
             }
@@ -1876,7 +2113,7 @@ if (Test-Path "$OUTPUT_FOLDER\EntraAuditLogs\Analytics\CSV\Add-service-principal
 # https://learn.microsoft.com/en-us/entra/identity/hybrid/connect/how-to-connect-monitor-federation-changes
 # https://www.microsoft.com/en-us/security/blog/2024/09/26/storm-0501-ransomware-attacks-expanding-to-hybrid-cloud-environments/
 
-# Detect: Set domain authentication - Changed the domain authentication setting for your organization (Modification of Trusted Domain)
+# LETHAL-013: Set domain authentication - Changed the domain authentication setting for your organization (Modification of Trusted Domain)
 # Note: Adversaries may add new domain trusts or modify the properties of existing domain trusts to evade defenses and/or elevate privileges.
 $Import = $Hunt | Where-Object { $_.Service -eq 'Core Directory' } | Where-Object { $_.Category -eq 'DirectoryManagement' } | Where-Object { $_.Activity -eq 'Set domain authentication.' } | Where-Object { $_.Status -eq 'success' }
 $Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
@@ -1900,10 +2137,10 @@ if ($Count -ge 1)
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-G and I-BH
+            Set-Format -Address $WorkSheet.Cells["A1:BI1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-G and I-BI
             $WorkSheet.Cells["A:G"].Style.HorizontalAlignment="Center"
-            $WorkSheet.Cells["I:BH"].Style.HorizontalAlignment="Center"
+            $WorkSheet.Cells["I:BI"].Style.HorizontalAlignment="Center"
             # ConditionalFormatting - ActivityDisplayName
             Add-ConditionalFormatting -Address $WorkSheet.Cells["G:I"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Set domain authentication.",$I1)))' -BackgroundColor Red
             }
@@ -1911,7 +2148,7 @@ if ($Count -ge 1)
     }
 }
 
-# Detect: Set federation settings on domain - Changed the federation (external sharing) settings for your organization (Modification of Trusted Domain)
+# LETHAL-014: Set federation settings on domain - Changed the federation (external sharing) settings for your organization (Modification of Trusted Domain)
 # Note: Adversaries may add new domain trusts or modify the properties of existing domain trusts to evade defenses and/or elevate privileges.
 $Import = $Hunt | Where-Object { $_.Service -eq 'Core Directory' } | Where-Object { $_.Category -eq 'DirectoryManagement' } | Where-Object { $_.Activity -eq 'Set federation settings on domain.' } | Where-Object { $_.Status -eq 'success' }
 $Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
@@ -1935,10 +2172,10 @@ if ($Count -ge 1)
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:BH1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-G and I-BH
+            Set-Format -Address $WorkSheet.Cells["A1:BI1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-G and I-BI
             $WorkSheet.Cells["A:G"].Style.HorizontalAlignment="Center"
-            $WorkSheet.Cells["I:BH"].Style.HorizontalAlignment="Center"
+            $WorkSheet.Cells["I:BI"].Style.HorizontalAlignment="Center"
             # ConditionalFormatting - ActivityDisplayName
             Add-ConditionalFormatting -Address $WorkSheet.Cells["G:I"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Set federation settings on domain.",$I1)))' -BackgroundColor Red
             }
@@ -1987,7 +2224,16 @@ Write-Output "$ElapsedTime"
 # Stop logging
 Write-Host ""
 Stop-Transcript
-Start-Sleep 2
+Start-Sleep 0.5
+
+# IPinfo Logout
+& $IPinfo logout > $null
+
+# IPinfo Clear Cache (Optional)
+#& $IPinfo cache clear > $null
+
+# Cleaning up
+Clear-Variable Token
 
 # MessageBox UI
 $MessageBody = "Status: Microsoft Entra ID Audit Log Analysis completed."
@@ -2014,8 +2260,8 @@ if ($Result -eq "OK" )
 # SIG # Begin signature block
 # MIIrxQYJKoZIhvcNAQcCoIIrtjCCK7ICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUEGD0sjUMA5dqflVWd3C9PzU1
-# A6eggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUquWkRazZmEPLWOHP83ZEvEGp
+# BlyggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
 # AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
 # MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
 # MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
@@ -2217,33 +2463,33 @@ if ($Result -eq "OK" )
 # YmxpYyBDb2RlIFNpZ25pbmcgQ0EgUjM2AhEAjEGek78rzqyIBig7dhm9PDAJBgUr
 # DgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMx
 # DAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkq
-# hkiG9w0BCQQxFgQUertv3s4Gb+Dhn0mqYR4CBJ8hB00wDQYJKoZIhvcNAQEBBQAE
-# ggIAdtXcZdt3ojcyL7dYI20IagAkSfeQ3hAb3DwwYA5Mcta3PsjM6WaOj7XRBdFq
-# DMm7yFxaxEbrLIntRNMYlOMpiNHyz4nWTlJkNDjbOX054PEJmRvkyoeMO2YwvvT8
-# v1HgTZDtz35MeimCboEskFXN77zEgv2O8rjjj16ClYdwxCc43LCG5aiLvqV0/5fb
-# LkPEUn7WH9F5DMkiVng47FgTea6xdHU5Az8lyI2a3a+5MV9h6OwhaZN8A7GOzylC
-# 5Erv+uzHhpR9UKynO0SB5NS7xAVYQ7EJsXJYdAGpcmQjToIn1IPikAHKKDnxBNO4
-# c23OMB1JQBV3C33vPbnktO3zvWRJTKnlHYMucDFyLo+9yzFlKEqXwvQ+ujb/HrCw
-# Kn6nAQ+4YQrNHOZJbZpghF0Bd9uts0x92WdASPhyfNsO8SDVL/EMZZubFbAlur17
-# kZQsuvj9EFTOICiUtkK7NreiJ4eOoyeaHB0FojhOp+6jaft8S+UZdVp2RTRsDi+a
-# gFLp/ayAJ6XhpmWq5495L8ir9/HkPjDD6Xnfj06HIIJGEQqLspSzsEeGD6HkpgR4
-# oJLA69TzfM2bQghIGxD4QABhBxA4uFH2GZjdTjCkFV9nvpluTr4mvNAxkChA75HR
-# ijh9HBFdN4IVj7MkgHpxEK6+rdvuvnRqzeyD9enaMKiIjbuhggMiMIIDHgYJKoZI
+# hkiG9w0BCQQxFgQUQ1NVGOADVqQ/Qfi6BchHgyeRygIwDQYJKoZIhvcNAQEBBQAE
+# ggIAz+yjVO7LOL3WDMvtJlqPoPgA3gZNh/zfVmJFcSC4AReN9UNCXr+KROAoew1a
+# SacUgk4OdchAofjMSoTVg8IwuSlRDXmd56Lr3i+Znuo/g0eg06ypOwcKIe5M6s6C
+# FNTz6G+v+5e1KYKv+fh5l8nUpG7CZeh7rXS8D9VaUkx9uTLAMyteqkyC1+M9JegF
+# GRYEIA0zeYuh9Lf7cExVc+iy110+5KroufLzB/S4nKlznl++qT4E85iUqRJYpfx/
+# URaEPBTQ8i5oLBJ5d2JblrVbA699YDWVtSqq8R4ZbsO8ioDRdDeMYMxKNkeaTXgy
+# Cc4eYJ9xIPNe1vw6jCcqFPmYRQlCzjv2CJWGMLiSTOnqNamQ6NiOt2o/ifMwJmso
+# OlEv4BM2TUosVeeiF0j0Q5pwf2EgqQcMZw7O8beEYlSKKbPTbhGrAbN9PWaZZzwp
+# oYlmHFNfqMNxcuxDuvQ+zDwZRoYQQo7vPP2ItL9PUOxRBsCJfvLR9pycyuQ9zFLR
+# v9lAFb7ezPDz3LWcBf7VpFhnGEBhMZGvmyfnaefrErk25WAGMVmQqiFvIIhEID30
+# JkR7ehWoTIMHlMXkFnD/w5LCVDI6+33+X4HT4ECnb8n11yrRc2e0oiu2uTfyYXr4
+# M611wAvcvfoo0TMLDT07ShFcETCNPjuqlA5Igd4WQE0pb/KhggMiMIIDHgYJKoZI
 # hvcNAQkGMYIDDzCCAwsCAQEwaTBVMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2Vj
 # dGlnbyBMaW1pdGVkMSwwKgYDVQQDEyNTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1w
 # aW5nIENBIFIzNgIQOlJqLITOVeYdZfzMEtjpiTANBglghkgBZQMEAgIFAKB5MBgG
-# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI1MDEyMDA1
-# NDkyNlowPwYJKoZIhvcNAQkEMTIEMCagl1eIr72PBVfkf0e7OxUMqTYo6O0BzIcD
-# q2fWgQfX3AFeR5w2CtgCk0985+grZzANBgkqhkiG9w0BAQEFAASCAgB7Eqk4+zoj
-# pu5WJWhK37XffGMMNHzn1mKUb3i46lJfL2QKSNp6CDCmbsD0SPlrilSuUzeRI9z0
-# 5Pc2yLovECsZxW0z6APRlkLvZNEa0RtZxsd4tlncA2dSXVyNjgJucZUyt+wGTw2T
-# u8/RRn0DKv3hoxTKLzM+INiS+hKQArFHX5qHDFuFLykPEejiyd4bkHNVlWLd+uhN
-# JTV3xCClAqStueTxFZepuxtB4vbfocmee++eJIAvRIpVm4m7T6W4SEw+pk78sqkM
-# 2SB3iB61gabfFRiD9WhTrox/Fl8phjrbXvZA2o5TplpK2ajZmME/x/ya2ZEhQAKy
-# GYf+ALAv17ZqDQ+QpzumGKjvb/GV82Dat0VWwsj3nTLlk7Uby6+l/vLACYslf0Oh
-# r6cO6hyMr2l+XF6jmUAKBVZ/J0J3ylpKuxB/WfBMFtZkhERfn7XGWr69GjHELLej
-# +zpGli1AuxH7WLMT+8CGj43ICasPhQ+vkJzA+K1v5yrmkNsXFmsBR3MAUmoSNkZS
-# rJ1sQm/KJnOZa6VKo2+PnSf9PQoTMn+x6o/Ec9iqDH91uRK3Vnx9fvt1xj5k6bnW
-# cp18m4h37ex6bRTRhPLu49r8KJGudpLviWYZdM4m5AzjbrSPl34Zpc8l1Gf+zBI9
-# QU4FewjphB9CWiTFis08XeeZ8nR6cNAjtA==
+# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI1MDEyNzA1
+# NDkyMFowPwYJKoZIhvcNAQkEMTIEMBEQI47lnqVdtmSnWjJTnYMV+07uvI0KSKPD
+# cqgpIlHBD6WPnAXBKwMuW/5l0s6FiTANBgkqhkiG9w0BAQEFAASCAgBDqNDYcb45
+# 0Mv1a8s/3KIRL+xjXXfDErIDv+pn+kz5Sju77cmDsa1lLs9gQetjQ7zkbP/C/phs
+# wfnfFQGzFCB5WqH/NxwkZcnDmIv0/yBgPLYwh+GYwZV/z+9gdqk14vKD5prZC0v4
+# KxQSl+H9Tvqg1xUrFDwjEJU+tuBCcw3hTjGjxMTtnbQDjC81eY8u7AOhLbtIIgyl
+# bevZ1DthKwAZA4C48lTzcft2EjDNV1rgkap5GuwtnkIBAgcwBRil9X6i4dePJ+L9
+# vaEg3m0nRT81qXm/Bo1W6DZMsVaXy1+rjuFNDYB8ecis3Sq9a8T0oX2KgKYQanqi
+# aEJ16yg4rY5TueCRXfUEbJx2evJ3E8QWqYph39rWQ37wzEUGzH4B1HsCLKRe0xqE
+# njeVfiVjDV0M4b7duf1Sv4TohwTSfT9qQv0MpeNZGkoHpWuzsBp56ZIcBy/En/cB
+# nO2eZ/yjRRJs/H7sWqh7Ym+NzrPqlJvUIE+Y4qTPXEe5NR87kG74+Fwp2sX+11dQ
+# JxFO9phvgepCPpz9YaFQLyjFC/kL5go1K/Ii2mE1yiau2NS1L+VYi2vOxwAHFS4p
+# Cpjefb3YyzJC/FkRfM2NAG01k+JJTP70VFulN7rPW+ZmdoSzEFCTxFlR4vrAxML3
+# hbqueEiJWuKmoXJFVn+NGQdSNIhx2rvdtQ==
 # SIG # End signature block
