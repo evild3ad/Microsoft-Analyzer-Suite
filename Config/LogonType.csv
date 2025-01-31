@@ -1,0 +1,7 @@
+"Value","LogonType"
+"0","Owner"
+"1","Admin"
+"2","Delegate"
+"3","Transport Service"
+"4","Service Account"
+"6","Delegated Administrator"
