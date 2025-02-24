@@ -2,6 +2,19 @@
 
 All changes to the Microsoft-Analyzer-Suite will be documented in this file.  
 
+## [1.4.0] - 2025-02-24
+### Added
+- UAL-Analyzer: Detection of suspicious Inbox Rules via RegEx (incl. Conditional Formatting)
+- UAL-Analyzer: MoveToFolder-Blacklist.csv
+- UAL-Analyzer: UniqueTokenId and IssuedAtTime added to Hunt View &#8594; correlate with SignInLogs
+- UAL-Analyzer: RecordType / Id (Stats)
+- UAL-Analyzer: Line Charts - SharePoint (Workload), OneDrive (Workload), and FileDownloaded (SharePoint and OneDrive)
+- OAuthPermissions-Analyzer: Microsoft Graph Edition
+- OAuthPermissions-Analyzer: Detection of suspicious OAuth Apps (Anomalous ReplyUrls, Common Naming Patterns)
+
+### Fixed
+- Minor fixes and improvements
+
 ## [1.3.0] - 2025-01-27
 ### Added
 - UAL-Analyzer: UserAgent-Blacklist.csv
@@ -12,7 +25,7 @@ All changes to the Microsoft-Analyzer-Suite will be documented in this file.
 - EntraSignInLogs-Analyzer: UserAgent-Blacklist.csv
 - EntraSignInLogs-Analyzer: SignInEventTypes (Stats)
 
-## Fixed
+### Fixed
 - ReadTheDocs links of the Microsoft-Extractor-Suite documentation updated
 - Multiple minor fixes and improvements
 

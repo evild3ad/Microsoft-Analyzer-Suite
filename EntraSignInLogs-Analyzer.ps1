@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2025 Martin Willing. All rights reserved. Licensed under the MIT license.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2025-01-27
+# @date:      2025-02-24
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -28,8 +28,8 @@
 # https://github.com/BurntSushi/xsv
 #
 #
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 5.1 (5.1.19041.5369)
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 7.5.0
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5487) and PowerShell 5.1 (5.1.19041.5486)
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5487) and PowerShell 7.5.0
 #
 #
 #############################################################################################################################################################################################
@@ -42,7 +42,7 @@
 .DESCRIPTION
   EntraSignInLogs-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of Microsoft Entra ID Sign-In Logs extracted via "Microsoft Extractor Suite" by Invictus Incident Response.
 
-  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v3.0.1)
+  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v3.0.2)
 
   https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/Azure/AzureActiveDirectorysign-inlogs.html
 
@@ -52,16 +52,16 @@
   Note: The subdirectory 'EntraSignInLogs-Analyzer' is automatically created.
 
 .PARAMETER Path
-  Specifies the path to the CSV-based input file (SignInLogs-Combined.csv).
+  Specifies the path to the JSON-based input file (SignInLogs-interactiveUser-nonInteractiveUser-Combined.json).
 
 .EXAMPLE
   PS> .\EntraSignInLogs-Analyzer.ps1
 
 .EXAMPLE
-  PS> .\EntraSignInLogs-Analyzer.ps1 -Path "$env:USERPROFILE\Desktop\SignInLogs-Combined.csv"
+  PS> .\EntraSignInLogs-Analyzer.ps1 -Path "$env:USERPROFILE\Desktop\SignInLogs-interactiveUser-nonInteractiveUser-Combined.json"
 
 .EXAMPLE
-  PS> .\EntraSignInLogs-Analyzer.ps1 -Path "H:\Microsoft-Extractor-Suite\SignInLogs-Combined.csv" -OutputDir "H:\Microsoft-Analyzer-Suite"
+  PS> .\EntraSignInLogs-Analyzer.ps1 -Path "H:\Microsoft-Extractor-Suite\SignInLogs-interactiveUser-nonInteractiveUser-Combined.json" -OutputDir "H:\Microsoft-Analyzer-Suite"
 
 .NOTES
   Author - Martin Willing
@@ -220,7 +220,7 @@ if(!($Path))
         [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") | Out-Null
         $OpenFileDialog = New-Object System.Windows.Forms.OpenFileDialog
         $OpenFileDialog.InitialDirectory = $InitialDirectory
-        $OpenFileDialog.Filter = "Sign-In Logs|SignInLogs-Combined.json|All Files (*.*)|*.*"
+        $OpenFileDialog.Filter = "Sign-In Logs|SignInLogs-interactiveUser-nonInteractiveUser-Combined.json|All Files (*.*)|*.*"
         $OpenFileDialog.ShowDialog()
         $OpenFileDialog.Filename
         $OpenFileDialog.ShowHelp = $true
@@ -998,6 +998,8 @@ if (Test-Path "$($IPinfo)")
                                     $Cells = "X:Y"
                                     Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("50053",$X1)))' -BackgroundColor Red # Sign-in was blocked because it came from an IP address with malicious activity
                                     Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("90095",$X1)))' -BackgroundColor Red # Admin consent is required for the permissions requested by this application. An admin consent request may be sent to the admin.
+                                    # ConditionalFormatting - ASN
+                                    Add-ConditionalFormatting -Address $WorkSheet.Cells["AR:AR"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("13335",$AR1)))' -BackgroundColor Red # Phishing for Refresh Tokens via Cloudflare Workers (AiTM) --> AADNonInteractiveUserSignInLogs
 
                                     # Iterating over the Application-Blacklist HashTable
                                     foreach ($AppId in $ApplicationBlacklist_HashTable.Keys) 
@@ -2630,8 +2632,8 @@ if ($Result -eq "OK" )
 # SIG # Begin signature block
 # MIIrxQYJKoZIhvcNAQcCoIIrtjCCK7ICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUKqBfuS4itLFHwGrH+Hd9lOUK
-# EEqggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQU9FzcTw6HuRskndwuhdN0xVHW
+# fXOggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
 # AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
 # MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
 # MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
@@ -2833,33 +2835,33 @@ if ($Result -eq "OK" )
 # YmxpYyBDb2RlIFNpZ25pbmcgQ0EgUjM2AhEAjEGek78rzqyIBig7dhm9PDAJBgUr
 # DgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMx
 # DAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkq
-# hkiG9w0BCQQxFgQUigw3WzMWGmtXNYP5vHxAKWyK5S0wDQYJKoZIhvcNAQEBBQAE
-# ggIAVhpC5FvXZZdjZMOaIcwn/cyDKrewPtuYlJiggi/PXw7HsWULhaSBWX/wUMJF
-# zivqODMI7XToTmJYY9nM2c5gcK79UU28WBEwDzb7GSXznXL3sa90gmPGDkrr/ucI
-# CbaRTvEQjp9BQ6pDl2/5E+Fl26Nt4W2IjUeMUrFn5qdGS2wqOQAXxexk+ywkXe4l
-# N8Db2dSaDMh2n9qBcMB1fNQTMwkwiGKuIUi2sf75qYO6bghTWb9gLqJ3Kz4lST8e
-# cVwK0oKLZXSmSnnUZEmTPX6OV1bM4lbMXwSCH6lZ1ww9Xc8dsPa77l/R2yO+DrVi
-# ubjoDcuH82UN/vwbgkwGoPfB7l/OZDef3k2R4uczN+txF6ISZ1Jgao4oW8PfpP/2
-# fbK8BeQOVAR78RZujGFxxotNbtWDsmM728iXmpaMnHj0B1L4CYl+AKzBddEOq7TD
-# esOuhNGgfX3LwKLoXW0/LmMAjoj1bgCEAhEnjJK5orYy2JxpzbXLvGMiKroQBXjZ
-# CwFa0JqV1TUqcIYyEvCKlSgAySLCK5yxxrTBGJv3l4evVzuQTY47DV2vBFh/VTcH
-# 46ayHRcLZs5TvjByQmNS5azCQMVxuufkaZpCiGWojZjlz1EfMLzkSZtXT+/jFESG
-# aytRFUJWY/C/Nqd8j18cndosn+N2IPgPCr76ZC/Xai7Hs82hggMiMIIDHgYJKoZI
+# hkiG9w0BCQQxFgQUyGlmrihcO/NVRGfu4mjKv2XVZY4wDQYJKoZIhvcNAQEBBQAE
+# ggIAbmVgvkxW/FGZQZWWCIEUJA4WglagdkJgU5Yux/9Umgzn7e/wEv6GklHcAi6/
+# tqChydkfCOWD0PbbYSzKqeaIjNELJlCyS7cR3EQVqrhc22sbq6atxnUG1eSkZXHr
+# Y1Qa6MtlSpTMWlNVHQsjB25RfBuPfHmNz6GpoueVv1Mw2MpiKu6Q3lBaYuZSg3Eu
+# aA8dUC+fJBjs8tF0mqWxHZ9TfCXY3gEoC4as2eVmHah4p0MmfAB1bUeuOFy2tTwi
+# ubIF1UORRfH6h0ozbuJdfJHtTzLX8A8/P9lEtxVqTNLsycV/vkYsw5rDWDDTSypK
+# pPqztgm7fet9TrSHYtpdEs22fxm/4Q6d+gRaQoySfW3eXFsQLTwe4dUVbUyMCHZB
+# KX0lQJfv6N9G82hYWlu9DbAGzq49buHQ/8jtJsS9jnl+4V8PeVEVeJRIaBIKe2z7
+# Q35vjekBUVMqDORwPWcEACR6FuDpuIT2E0UU09K7ebhMBtWpcEnjoD7gqyM9NzRM
+# 2nmfq6mqbJBGgQy6u5sa39lwY3jt71MN/S7g6mW2zQEiiml1NQE8oS5x1WaGEkDM
+# mJhPNY3ZDs2hUqmCtab5mrK9RvrzGF4g/bZhl3v0wHewazkwGe+7D8KRG9QKisN/
+# YRDvRcSEC2sRZhtkHEUnByqYpJc5IkRWR0TlNktww1XX1iyhggMiMIIDHgYJKoZI
 # hvcNAQkGMYIDDzCCAwsCAQEwaTBVMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2Vj
 # dGlnbyBMaW1pdGVkMSwwKgYDVQQDEyNTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1w
 # aW5nIENBIFIzNgIQOlJqLITOVeYdZfzMEtjpiTANBglghkgBZQMEAgIFAKB5MBgG
-# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI1MDEyNzA1
-# NDkyM1owPwYJKoZIhvcNAQkEMTIEMPSIrhUW+e0f7HSVykwqe6E3ne9K0WaNsj5S
-# IJAISApZq6vMkGiAG5ErDB7ySPTIBjANBgkqhkiG9w0BAQEFAASCAgBrbIW9InEt
-# n6cdTOfJKtbouL68xkiOy9Z+eim5OrcD4JQRl8Ugq9YJYVPF4ViNU4n1B3BDtiqD
-# k0gWADMZ0XWRZqRBq0NYghEmnEcU4tN0E3bk/N44xFtdJXwL/4JWeMXMsWFZ0o8J
-# ULEdBUBEnGF3lawy9K42rPKTTqr7kQeO+8hBN1SCu5Ndn72R9z45IX6kxcc3FyiI
-# AhfeTeDRpiiihilO4610rZzCVbqcyWt3i2WVFshRsSw5FuBpmPI1wXPE393fhLaG
-# 748jabODbbcri1LnDsdrxGTiTTZU8dVkkyn+zuURuzf3zskMrybd3DLevP8PJqSG
-# 6AoEABSKqs2yHM/gfTob34f0aL3je6bVcStjopzD9YlXOCxx9SSqIluVO4RhvOIf
-# 4Y6+CV2ptG0vvsar1hen4ueDxnpmW+mdsJsESwOCcI8Piu0MFi52NVstMWTXmU0R
-# zKBKA5iiSzoLzH6eh2aw28afnxjKzfOg3enAECwUmV/YXWr55AIJacj5hq7EyQ5j
-# MB8DELX6xLn290SYKUDim9Ol+vpVicEIzW0tKafeQ1CtpNTfS6Nc0miXNNWtguUo
-# CjUE1jNJRZbeDcL5bk52KTuAegKtCTUw3kndMeiKRv+iMwK13uICGb8rfAQJmCEe
-# R5m+TNBu9/tsIRQg5pNyK9JPuTB6q9ZU5g==
+# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI1MDIyNDA2
+# MDA0MlowPwYJKoZIhvcNAQkEMTIEMOgd3OngxlRjw1CnEOOURMu9FQlR/jIc9QEd
+# RoUDv9ZMWEKId68BE8LXAhaHT+ug6jANBgkqhkiG9w0BAQEFAASCAgAG4N7W4VOj
+# AKJ/GnGrlP8Et03QiDL4kQ2IakxxpH25FluPtgvilmrVBNH6qGU6UF6mFB0IThOR
+# Kp89G0/vY90FxKc2kpTJP9TeQZRqijJB8Jux6UqPNiDiOgUaAkV1xTzK22J6up8V
+# TG+LGBZGsXRwDWZBN9lsb0PCyTks7Y+lF70yLIH3X3trzo5hgoVhf1yWprwD58HP
+# BeIzOgWiLVnu5KAAI+bhtVmA06EjpVw2E/GZiM5hQU1bNHg5d2CJd4uPbSCMp46w
+# CBh5furSFAODSYO/zDKimwhamb+ddnLN625BijPnfV82Xt9pxxPfJqWXI02CrdNj
+# xp5jSYz7zf4/Lh1HzzKNrNLg7bXt3UK02caNVf97OzyLxPhBCoGXb1BIjtRdU5wh
+# s3quIszTjaVQucUphr7FEhRMY9uuW928g81NRPh6sTzvuFWs5iB+AJu/NtHsuZEm
+# 445s/uTJlfQUm2fVE/+tHgpmJgo+/uwsCjUEi/JU/bbzB4OajceD63uYW6xKIuF5
+# ggti9Rl0tkK+cq/0LW0GaAtxybVDz3Gtt3OeQGBot84d5JtBGyNHjUq60tvfKZOQ
+# eRY83Jpi3YrTh1KVVM6W/0MWjTuXSHG0dhS/br0Yce/x4FHArHts4DBIkxrUw94M
+# j+Pmtu98OlMc7Rn+5YFcTcdIUmtRPnONQQ==
 # SIG # End signature block

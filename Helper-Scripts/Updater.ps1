@@ -872,7 +872,7 @@ if ($PSVersionTable.PSVersion.Major -eq "7")
     # Check if PowerShell module 'ExchangeOnlineManagement' exists
     if (Get-Module -ListAvailable -Name ExchangeOnlineManagement | Where-Object { $_.Path -notmatch "WindowsPowerShell"}) 
     {
-        # Check if multiple versions of PowerShell module 'ImportExcel' exist
+        # Check if multiple versions of PowerShell module 'ExchangeOnlineManagement' exist
         $Modules = (Get-Module -ListAvailable -Name ExchangeOnlineManagement | Where-Object { $_.Path -notmatch "WindowsPowerShell"} | Measure-Object).Count
         
         if ($Modules -eq "1")

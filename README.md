@@ -8,7 +8,7 @@ Automated Processing of Microsoft 365 Logs and Microsoft Entra ID Logs extracted
 
 ## The following Microsoft data sources are supported yet:
 
-> Output Files of Microsoft-Extractor-Suite v3.0.1 by Invictus-IR
+> Output Files of Microsoft-Extractor-Suite v3.0.2 by Invictus-IR
   * [Get-Devices](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/Azure/Devices.html) &#8594; [Devices-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/Devices%E2%80%90Analyzer)  
   * [Get-EntraAuditLogs](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/Azure/AzureActiveDirectoryAuditLog.html) &#8594; [EntraAuditLogs-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/EntraAuditLogs%E2%80%90Analyzer)  
   * [Get-EntraSignInLogs](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/Azure/AzureActiveDirectorysign-inlogs.html) &#8594; [EntraSignInLogs-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/EntraSignInLogs%E2%80%90Analyzer)  
@@ -16,7 +16,7 @@ Automated Processing of Microsoft 365 Logs and Microsoft Entra ID Logs extracted
   * [Get-MailboxPermissions](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/M365/MailboxDelegatedPermissions.html) &#8594; [MailboxPermissions-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/MailboxPermissions%E2%80%90Analyzer)  
   * [Get-MessageTraceLog](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/M365/MessageTraceLog.html) &#8594; [MTL-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/MTL%E2%80%90Analyzer)  
   * [Get-MFA](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/Azure/GetUserInfo.html#retrieves-mfa-status) &#8594; [MFA-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/MFA%E2%80%90Analyzer)
-  * [Get-OAuthPermissions](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/Azure/OAuthPermissions.html) &#8594; [OAuthPermissions-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/OAuthPermissions%E2%80%90Analyzer)  
+  * [Get-OAuthPermissionGraph](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/Azure/OAuthPermissions.html) &#8594; [OAuthPermissions-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/OAuthPermissions%E2%80%90Analyzer)  
   * [Get-RiskyDetections](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/Azure/GetUserInfo.html#retrieves-the-risky-detections) &#8594; [RiskyDetections-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/RiskyDetections%E2%80%90Analyzer)
   * [Get-RiskyUsers](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/Azure/GetUserInfo.html#retrieves-the-risky-users) &#8594; [RiskyUsers-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/RiskyUsers%E2%80%90Analyzer)  
   * [Get-UAL](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/M365/UnifiedAuditLog.html#extract-unified-audit-logs) &#8594; [UAL-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/UAL%E2%80%90Analyzer)  

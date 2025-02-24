@@ -4,7 +4,7 @@
 # @copyright: Copyright (c) 2025 Martin Willing. All rights reserved. Licensed under the MIT license.
 # @contact:   Any feedback or suggestions are always welcome and much appreciated - mwilling@lethal-forensics.com
 # @url:       https://lethal-forensics.com/
-# @date:      2025-01-27
+# @date:      2025-02-24
 #
 #
 # ██╗     ███████╗████████╗██╗  ██╗ █████╗ ██╗      ███████╗ ██████╗ ██████╗ ███████╗███╗   ██╗███████╗██╗ ██████╗███████╗
@@ -28,8 +28,8 @@
 # https://github.com/BurntSushi/xsv
 #
 #
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 5.1 (5.1.19041.5369)
-# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5371) and PowerShell 7.5.0
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5487) and PowerShell 5.1 (5.1.19041.5486)
+# Tested on Windows 10 Pro (x64) Version 22H2 (10.0.19045.5487) and PowerShell 7.5.0
 #
 #
 #############################################################################################################################################################################################
@@ -42,7 +42,7 @@
 .DESCRIPTION
   UAL-Analyzer.ps1 is a PowerShell script utilized to simplify the analysis of M365 Unified Audit Logs extracted via "Microsoft Extractor Suite" by Invictus Incident Response.
 
-  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v3.0.1)
+  https://github.com/invictus-ir/Microsoft-Extractor-Suite (Microsoft-Extractor-Suite v3.0.2)
 
   https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/M365/UnifiedAuditLog.html
 
@@ -300,6 +300,8 @@ $script:AnalysisDate = [datetime]::Now.ToUniversalTime().ToString("yyyy-MM-dd HH
 Write-Output "Analysis date: $AnalysisDate UTC"
 Write-Output ""
 
+# Blacklists
+
 # Create HashTable and import 'Application-Blacklist.csv'
 $script:ApplicationBlacklist_HashTable = [ordered]@{}
 if (Test-Path "$SCRIPT_DIR\Blacklists\Application-Blacklist.csv")
@@ -342,13 +344,17 @@ if (Test-Path "$SCRIPT_DIR\Blacklists\Country-Blacklist.csv")
     }
 }
 
-# Create HashTable and import 'MicrosoftApps.csv'
-$script:MicrosoftApps_HashTable = @{}
-if(Test-Path "$SCRIPT_DIR\Config\MicrosoftApps.csv")
+# Create HashTable and import 'MoveToFolder-Blacklist.csv'
+$script:MoveToFolderBlacklist_HashTable = [ordered]@{}
+if (Test-Path "$SCRIPT_DIR\Blacklists\MoveToFolder-Blacklist.csv")
 {
-    if([int](& $xsv count "$SCRIPT_DIR\Config\MicrosoftApps.csv") -gt 0)
+    if([int](& $xsv count "$SCRIPT_DIR\Blacklists\MoveToFolder-Blacklist.csv") -gt 0)
     {
-        Import-Csv "$SCRIPT_DIR\Config\MicrosoftApps.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $MicrosoftApps_HashTable[$_.AppId] = $_.AppDisplayName }
+        Import-Csv "$SCRIPT_DIR\Blacklists\MoveToFolder-Blacklist.csv" -Delimiter "," | ForEach-Object { $MoveToFolderBlacklist_HashTable[$_.Name] = $_.Language }
+
+        # Count Ingested Properties
+        $Count = $MoveToFolderBlacklist_HashTable.Count
+        Write-Output "[Info]  Initializing 'MoveToFolder-Blacklist.csv' Lookup Table ($Count) ..."
     }
 }
 
@@ -363,6 +369,58 @@ if (Test-Path "$SCRIPT_DIR\Blacklists\UserAgent-Blacklist.csv")
         # Count Ingested Properties
         $Count = $UserAgentBlacklist_HashTable.Count
         Write-Output "[Info]  Initializing 'UserAgent-Blacklist.csv' Lookup Table ($Count) ..."
+    }
+}
+
+# Configurations
+
+# Create HashTable and import 'LogonType.csv'
+$script:LogonType_HashTable = @{}
+if(Test-Path "$SCRIPT_DIR\Config\LogonType.csv")
+{
+    if([int](& $xsv count "$SCRIPT_DIR\Config\LogonType.csv") -gt 0)
+    {
+        Import-Csv "$SCRIPT_DIR\Config\LogonType.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $LogonType_HashTable[$_.Value] = $_.LogonType }
+    }
+}
+
+# Create HashTable and import 'MicrosoftApps.csv'
+$script:MicrosoftApps_HashTable = @{}
+if(Test-Path "$SCRIPT_DIR\Config\MicrosoftApps.csv")
+{
+    if([int](& $xsv count "$SCRIPT_DIR\Config\MicrosoftApps.csv") -gt 0)
+    {
+        Import-Csv "$SCRIPT_DIR\Config\MicrosoftApps.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $MicrosoftApps_HashTable[$_.AppId] = $_.AppDisplayName }
+    }
+}
+
+# Create HashTable and import 'Status.csv'
+$script:ErrorNumber_HashTable = @{}
+if(Test-Path "$SCRIPT_DIR\Config\Status.csv")
+{
+    if([int](& $xsv count "$SCRIPT_DIR\Config\Status.csv") -gt 0)
+    {
+        Import-Csv "$SCRIPT_DIR\Config\Status.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $ErrorNumber_HashTable[$_.ErrorCode] = $_.Status, $_.Message }
+    }
+}
+
+# Create HashTable and import 'TrustType.csv'
+$script:TrustType_HashTable = @{}
+if(Test-Path "$SCRIPT_DIR\Config\TrustType.csv")
+{
+    if([int](& $xsv count "$SCRIPT_DIR\Config\TrustType.csv") -gt 0)
+    {
+        Import-Csv "$SCRIPT_DIR\Config\TrustType.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $TrustType_HashTable[$_.Value] = $_.Description }
+    }
+}
+
+# Create HashTable and import 'UserType.csv'
+$script:UserType_HashTable = @{}
+if(Test-Path "$SCRIPT_DIR\Config\UserType.csv")
+{
+    if([int](& $xsv count "$SCRIPT_DIR\Config\UserType.csv") -gt 0)
+    {
+        Import-Csv "$SCRIPT_DIR\Config\UserType.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $UserType_HashTable[$_.Value] = $_.Member, $_.Description }
     }
 }
 
@@ -444,35 +502,11 @@ Write-Output "[Info]  Processing M365 Unified Audit Logs ($UserId) ..."
 New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV" -ItemType Directory -Force | Out-Null
 New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\XLSX" -ItemType Directory -Force | Out-Null
 
-# Get-Culture
-# Get-Date
-
-# Set-Culture -CultureInfo de-DE --> Get-Date => Dienstag, 27. Februar 2024 07:01:30
-# Set-Culture -CultureInfo en-US --> Get-Date => Tuesday, February 27, 2024 7:00:43 AM
-# Note: Restart PowerShell Console
-
-# Check Thousands Separator
-# (Get-Culture).NumberFormat.NumberGroupSeparator
-
-# Check Timestamp Format
-$Timestamp = (Import-Csv -Path "$LogFile" -Delimiter "," | Select-Object CreationDate -First 1).CreationDate
-
-# de-DE
-if ($Timestamp -match "\d{2}\.\d{2}\.\d{4} \d{2}:\d{2}:\d{2}")
-{
-    $script:TimestampFormat = "dd.MM.yyyy HH:mm:ss"
-}
-
-# en-US
-if ($Timestamp -match "\d{1,2}/\d{1,2}/\d{4} \d{1,2}:\d{2}:\d{2} (AM|PM)")
-{
-    $script:TimestampFormat = "M/d/yyyy h:mm:ss tt"
-}
-
 # Time Frame
-$StartDate = (Import-Csv -Path "$LogFile" -Delimiter "," | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}} | Sort-Object { $_.CreationDate -as [datetime] } -Descending | Select-Object -Last 1).CreationDate
-$EndDate = (Import-Csv -Path "$LogFile" -Delimiter "," | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}} | Sort-Object { $_.CreationDate -as [datetime] } -Descending | Select-Object -First 1).CreationDate
-Write-Output "[Info]  Log data from $StartDate UTC until $EndDate UTC"
+$CreationTime = Import-Csv -Path "$LogFile" -Delimiter "," | Select-Object -ExpandProperty AuditData | ConvertFrom-Json | Select-Object CreationTime | Sort-Object { $_.CreationTime -as [datetime] }
+$StartTime = $CreationTime | Select-Object -First 1 | Select-Object -ExpandProperty CreationTime | ForEach-Object {$_ -replace 'T',' '}
+$EndTime = $CreationTime | Select-Object -Last 1 | Select-Object -ExpandProperty CreationTime | ForEach-Object {$_ -replace 'T',' '}
+Write-Output "[Info]  Log data from $StartTime UTC until $EndTime UTC"
 
 # Estimated Analysis Time
 ('[Info]  Estimated Analysis Time: {0} h {1} min {2} sec' -f $TimeSpan.Hours, $TimeSpan.Minutes, $TimeSpan.Seconds)
@@ -484,7 +518,7 @@ if (Test-Path "$LogFile")
 {
     if([int](& $xsv count -d "," "$LogFile") -gt 0)
     {
-        $IMPORT = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Select-Object CreationDate,UserIds,RecordType,Operations,AuditData,ResultIndex,ResultCount,Identity,IsValid,ObjectState | Sort-Object { $_.CreationDate -as [datetime] } -Descending
+        $IMPORT = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Sort-Object { $_.CreationDate -as [datetime] } -Descending
         $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\XLSX\Untouched.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Untouched" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
@@ -504,15 +538,15 @@ if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\XLSX\1-Untouched.xlsx")
     Write-Output "[Info]  File Size (XLSX) : $Size"
 }
 
-# Custom CSV
-$Data = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Sort-Object { $_.CreationDate -as [datetime] } -Descending
+# Custom CSV (incl. removing duplicates)
+$Data = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Sort-Object Identity -Unique | Sort-Object { $_.CreationDate -as [datetime] } -Descending
 
 $Results = [Collections.Generic.List[PSObject]]::new()
 ForEach($Record in $Data)
 {
     $AuditData = $Record.AuditData | ConvertFrom-Json
-
     $ClientIP = $AuditData.ClientIP | & $IPinfo grepip -o # Remove Port Number from IPv4 (if existing)
+    $AppAccessContext = $AuditData.AppAccessContext
 
     $UserLoggedIn = $AuditData | Where-Object { $_.Operation -eq "UserLoggedIn" }
 
@@ -528,8 +562,9 @@ ForEach($Record in $Data)
     }
 
     $Line = [PSCustomObject]@{
-    "CreationDate"          = ($Record | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}}).CreationDate
+    "CreationTime"          = $AuditData | Select-Object -ExpandProperty CreationTime | ForEach-Object {$_ -replace 'T',' '}
     "UserId"                = $Record.UserIds
+    "Id"                    = $AuditData.RecordType
     "RecordType"            = $Record.RecordType
     "Operation"             = $Record.Operations
     "ObjectId"              = $AuditData.ObjectId
@@ -547,6 +582,8 @@ ForEach($Record in $Data)
     "IsCompliant"           = ($AuditData | Where-Object { $_.Operation -eq "UserLoggedIn" } | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'IsCompliant'}).Value
     "IsCompliantAndManaged" = ($AuditData | Where-Object { $_.Operation -eq "UserLoggedIn" } | Select-Object -ExpandProperty DeviceProperties | Where-Object {$_.Name -eq 'IsCompliantAndManaged'}).Value
     "Workload"              = $AuditData.Workload
+    "IssuedAtTime"          = $AppAccessContext.IssuedAtTime
+    "UniqueTokenId"         = $AppAccessContext.UniqueTokenId
     }
 
     $Results.Add($Line)
@@ -560,14 +597,14 @@ if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Custom.csv")
     if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Custom.csv") -gt 0)
     {
         $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Custom.csv" -Delimiter ","
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\XLSX\Custom.xlsx" -NoHyperLinkConversion * -NoNumberConversion * -FreezePane 2,5 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Custom View" -CellStyleSB {
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\XLSX\Custom.xlsx" -NoHyperLinkConversion * -NoNumberConversion * -FreezePane 2,6 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Custom View" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
         $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:S1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of columns A-D and F-S
-        $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
-        $WorkSheet.Cells["F:S"].Style.HorizontalAlignment="Center"
+        Set-Format -Address $WorkSheet.Cells["A1:V1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of columns A-E and G-V
+        $WorkSheet.Cells["A:E"].Style.HorizontalAlignment="Center"
+        $WorkSheet.Cells["G:V"].Style.HorizontalAlignment="Center"
         }
     }
 }
@@ -659,7 +696,7 @@ if ($Total -ge "1")
     Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Set-Mailbox",$A1)))' -BackgroundColor Red # M365 Portal
     Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("UpdateInboxRules",$A1)))' -BackgroundColor Red # Outlook client
     # ConditionalFormatting - Modified or Deleted email box rule
-    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Set-InboxRule",$A1)))' -BackgroundColor Red # PowerShell/API or M365 Portal
+    Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(SEARCH("Set-InboxRule",$A1)))' -BackgroundColor Red # PowerShell/API or M365 Portal
     Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Remove-InboxRule",$A1)))' -BackgroundColor Red # PowerShell/API or M365 Portal
     Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Enable-InboxRule",$A1)))' -BackgroundColor Red # PowerShell/API or M365 Portal
     Add-ConditionalFormatting -Address $WorkSheet.Cells["$Cells"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Disable-InboxRule",$A1)))' -BackgroundColor Red # PowerShell/API or M365 Portal
@@ -737,6 +774,38 @@ if ($Total -ge "1")
     Write-Output "[Info]  $RecordTypes RecordTypes and $Operations Operations found"
 }
 
+# RecordType / Id (Stats)
+$Total = (Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Custom.csv" -Delimiter "," | Select-Object RecordType | Measure-Object).Count
+if ($Total -ge "1")
+{
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Custom.csv" -Delimiter "," -Encoding UTF8 | Group-Object Id,RecordType | Select-Object @{Name='Id'; Expression={ $_.Values[0] }},@{Name='RecordType'; Expression={ $_.Values[1] }},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Stats\RecordType-Id.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "RecordType" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:D1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of column A and C-D
+    $WorkSheet.Cells["A:A"].Style.HorizontalAlignment="Center"
+    $WorkSheet.Cells["C:D"].Style.HorizontalAlignment="Center"
+    }
+}
+
+# RecordType / Id / Workload
+$Total = (Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Custom.csv" -Delimiter "," | Select-Object RecordType | Measure-Object).Count
+if ($Total -ge "1")
+{
+    $Stats = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Custom.csv" -Delimiter "," -Encoding UTF8 | Group-Object Id,RecordType,Workload | Select-Object @{Name='Id'; Expression={ $_.Values[0] }},@{Name='RecordType'; Expression={ $_.Values[1] }},@{Name='Workload'; Expression={ $_.Values[2] }},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+    $Stats | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Stats\RecordType-Id-Workload.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "RecordType" -CellStyleSB {
+    param($WorkSheet)
+    # BackgroundColor and FontColor for specific cells of TopRow
+    $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+    Set-Format -Address $WorkSheet.Cells["A1:E1"] -BackgroundColor $BackgroundColor -FontColor White
+    # HorizontalAlignment "Center" of column A and C-E
+    $WorkSheet.Cells["A:A"].Style.HorizontalAlignment="Center"
+    $WorkSheet.Cells["C:E"].Style.HorizontalAlignment="Center"
+    }
+}
+
 # RequestType (Stats)
 $Total = (Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Custom.csv" -Delimiter "," | Select-Object RequestType | Where-Object {$_.RequestType -ne '' } | Measure-Object).Count
 if ($Total -ge "1")
@@ -756,7 +825,7 @@ if ($Total -ge "1")
 
 # RequestTypes --> Type of Authentication (Microsoft Entra Authentication)
 # Cmsi:Cmsi              Check My Sign In (CMSI). For security reasons, user confirmation is required for this request. Indicates use of device code auth. 
-# Consent:Set            ???
+# Consent:Set            Permissions requested and confirmed by user.
 # Kmsi:kmsi              Keep Me Signed In (KMSI) prompt --> Stay signed in?
 # Login:login            ???
 # Login:reprocess        This likely indicates that the user's session has expired. When the user attempts to access the application or service again, he is prompted to reauthenticate.
@@ -811,12 +880,10 @@ if ($Total -ge "1")
 # Inbox Rules let users automate actions on incoming emails when they match specific criteria, such as containing certain words in the subject line or coming from a particular sender. 
 # These actions can include moving messages to designated folders, marking them as read, or forwarding them to external addresses. 
 
-# New-InboxRule
-# RecordType: ExchangeAdmin
-# Operation: New-InboxRule --> Create a new Inbox Rule in a mailbox
+# New-InboxRule --> Create a new Inbox Rule in a mailbox
 # https://learn.microsoft.com/en-us/powershell/module/exchange/new-inboxrule?view=exchange-ps
 # Hide Artifacts: Email Hiding Rules [T1564.008] --> https://attack.mitre.org/techniques/T1564/008/
-$Import = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeAdmin" } | Where-Object { $_.Operations -eq "New-InboxRule" } | Sort-Object { $_.CreationDate -as [datetime] } -Descending
+$Import = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeAdmin" } | Where-Object { $_.Operations -eq "New-InboxRule" } | Sort-Object Identity -Unique | Sort-Object { $_.CreationDate -as [datetime] } -Descending
 $Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
 if ($Count -gt 0)
 {
@@ -825,7 +892,7 @@ if ($Count -gt 0)
     New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX" -ItemType Directory -Force | Out-Null
 
     # CSV
-    $Import | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}},UserIds,RecordType,Operations,AuditData,ResultIndex,ResultCount,Identity,IsValid,ObjectState | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\New-InboxRule.csv" -NoTypeInformation -Encoding UTF8
+    $Import | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\New-InboxRule.csv" -NoTypeInformation -Encoding UTF8
 
     # XLSX
     if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\New-InboxRule.csv")
@@ -833,7 +900,7 @@ if ($Count -gt 0)
         if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\New-InboxRule.csv") -gt 0)
         {
             $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\New-InboxRule.csv" -Delimiter ","
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX\New-InboxRule.xlsx" -FreezePane 2,2 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "New-InboxRule" -CellStyleSB {
+            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX\New-InboxRule.xlsx" -FreezePane 2,5 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "New-InboxRule" -CellStyleSB {
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
@@ -855,43 +922,75 @@ if ($Count -gt 0)
     {
         $AuditData = $Record.AuditData | ConvertFrom-Json
         $Parameters = $AuditData.Parameters
+        $AppAccessContext = $AuditData.AppAccessContext
 
         # Parameters
         New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\TXT" -ItemType Directory -Force | Out-Null
         $Parameters | Out-File "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\TXT\New-InboxRule_Parameters.txt" -Append
 
+        # Check if 'MicrosoftApps.csv' contains AppId
+        [string]$GUID = $AuditData.AppId
+
+        if($MicrosoftApps_HashTable.ContainsKey("$GUID"))
+        {
+            $AppDisplayName = $MicrosoftApps_HashTable["$GUID"]
+        }
+        else
+        {
+            $AppDisplayName = "Third-Party Application"
+        }
+
+        # UserType
+        [int]$UserTypeValue = $AuditData.UserType
+
+        # Check if HashTable contains Value
+        if($UserType_HashTable.ContainsKey("$UserTypeValue"))
+        {
+            $UserType = $UserType_HashTable["$UserTypeValue"][0]
+        }
+
         $Line = [PSCustomObject]@{
-        "CreationDate"                 = $Record.CreationDate
-        "Id"                           = $AuditData.Id
+        "CreationTime"                 = $AuditData | Select-Object -ExpandProperty CreationTime | ForEach-Object {$_ -replace 'T',' '}
+        "UserId"                       = $AuditData.UserId
         "RecordType"                   = $Record.RecordType
         "Operation"                    = $AuditData.Operation
-        "OrganizationId"               = $AuditData.OrganizationId
-        "RecordType_AuditData"         = $AuditData.RecordType
         "ResultStatus"                 = $AuditData.ResultStatus
-        "UserKey"                      = $AuditData.UserKey
-        "UserType"                     = $AuditData.UserType
-        "Version"                      = $AuditData.Version
-        "Workload"                     = $AuditData.Workload
-        "ClientIP"                     = $AuditData.ClientIP
+        "UserType"                     = $UserType
         "ObjectId"                     = $AuditData.ObjectId
-        "UserId"                       = $AuditData.UserId
         "AppId"                        = $AuditData.AppId
-        "ClientAppId"                  = $AuditData.ClientAppId
+        "AppDisplayName"               = $AppDisplayName
         "ExternalAccess"               = $AuditData.ExternalAccess
-        "OrganizationName"             = $AuditData.OrganizationName
-        "OriginatingServer"            = $AuditData.OriginatingServer
-        "AlwaysDeleteOutlookRulesBlob" = $Parameters | Where-Object { $_.Name -eq "AlwaysDeleteOutlookRulesBlob" } | Select-Object -ExpandProperty Value
-        "DeleteMessage"                = $Parameters | Where-Object { $_.Name -eq "DeleteMessage" } | Select-Object -ExpandProperty Value # Hiding
-        "Force"                        = $Parameters | Where-Object { $_.Name -eq "Force" } | Select-Object -ExpandProperty Value
-        "From"                         = $Parameters | Where-Object { $_.Name -eq "From" } | Select-Object -ExpandProperty Value # Monitoring
-        "MoveToFolder"                 = $Parameters | Where-Object { $_.Name -eq "MoveToFolder" } | Select-Object -ExpandProperty Value # Hiding
+        "ClientIP"                     = $AuditData.ClientIP | & $IPinfo grepip -o
+
+        # Parameters
+        
+        # Hiding Artifacts / Mailbox Monitoring
         "Name"                         = $Parameters | Where-Object { $_.Name -eq "Name" } | Select-Object -ExpandProperty Value
-        "FromAddressContainsWords"     = $Parameters | Where-Object { $_.Name -eq "FromAddressContainsWords" } | Select-Object -ExpandProperty Value # Monitoring
-        "MyNameInToOrCcBox"            = $Parameters | Where-Object { $_.Name -eq "MyNameInToOrCcBox" } | Select-Object -ExpandProperty Value # Hiding
-        "SubjectContainsWords"         = $Parameters | Where-Object { $_.Name -eq "SubjectContainsWords" } | Select-Object -ExpandProperty Value # Monitoring
+        "From"                         = $Parameters | Where-Object { $_.Name -eq "From" } | Select-Object -ExpandProperty Value
         "MarkAsRead"                   = $Parameters | Where-Object { $_.Name -eq "MarkAsRead" } | Select-Object -ExpandProperty Value # Hiding
+        "DeleteMessage"                = $Parameters | Where-Object { $_.Name -eq "DeleteMessage" } | Select-Object -ExpandProperty Value # Hiding
+        "MoveToFolder"                 = $Parameters | Where-Object { $_.Name -eq "MoveToFolder" } | Select-Object -ExpandProperty Value # Hiding
+        "Force"                        = $Parameters | Where-Object { $_.Name -eq "Force" } | Select-Object -ExpandProperty Value
+        "AlwaysDeleteOutlookRulesBlob" = $Parameters | Where-Object { $_.Name -eq "AlwaysDeleteOutlookRulesBlob" } | Select-Object -ExpandProperty Value
         "StopProcessingRules"          = $Parameters | Where-Object { $_.Name -eq "StopProcessingRules" } | Select-Object -ExpandProperty Value
+        "FromAddressContainsWords"     = $Parameters | Where-Object { $_.Name -eq "FromAddressContainsWords" } | Select-Object -ExpandProperty Value # Monitoring
+        "SubjectContainsWords"         = $Parameters | Where-Object { $_.Name -eq "SubjectContainsWords" } | Select-Object -ExpandProperty Value # Monitoring
+        "BodyContainsWords"            = $Parameters | Where-Object { $_.Name -eq "BodyContainsWords" } | Select-Object -ExpandProperty Value # Monitoring
+        "MyNameInToOrCcBox"            = $Parameters | Where-Object { $_.Name -eq "MyNameInToOrCcBox" } | Select-Object -ExpandProperty Value # Monitoring
+
+        # Email Forwarding / Email Collection
+        "ForwardAsAttachmentTo"        = $Parameters | Where-Object { $_.Name -eq "ForwardAsAttachmentTo" } | Select-Object -ExpandProperty Value # Email Forwarding / Email Collection
+        "ForwardTo"                    = $Parameters | Where-Object { $_.Name -eq "ForwardTo" } | Select-Object -ExpandProperty Value # Email Forwarding / Email Collection
+        "RedirectTo"                   = $Parameters | Where-Object { $_.Name -eq "RedirectTo" } | Select-Object -ExpandProperty Value # Email Forwarding / Email Collection    
+        
+        "IssuedAtTime"                 = $AppAccessContext.IssuedAtTime
+        "UniqueTokenId"                = $AppAccessContext.UniqueTokenId
         "SessionId"                    = ($AuditData | Select-Object SessionId).SessionId
+        "Id"                           = $AuditData.Id
+        "Workload"                     = $AuditData.Workload
+        "OrganizationName"             = $AuditData.OrganizationName
+        "OrganizationId"               = $AuditData.OrganizationId
+        "OriginatingServer"            = $AuditData.OriginatingServer
         }
 
         $Results.Add($Line)
@@ -905,52 +1004,85 @@ if ($Count -gt 0)
         if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\New-InboxRule_AuditData.csv") -gt 0)
         {
             $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\New-InboxRule_AuditData.csv" -Delimiter ","
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX\New-InboxRule_AuditData.xlsx" -FreezePane 2,5 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "New-InboxRule" -CellStyleSB {
+            
+            # Inbox Rule 'Name' with only non-alphanumeric characters
+            [array]$RegEx01 = $IMPORT | Where-Object { $_.Name -match "^[^a-zA-Z\d\s:]$" } | Select-Object -ExpandProperty Name
+            $Count = $RegEx01.Count
+            if ($Count -gt 0)
+            {
+                Write-Host "[Alert] Suspicious Operation(s) detected: New-InboxRule + Inbox Rule Name w/ only non-alphanumeric characters ($Count)" -ForegroundColor Red
+            }
+
+            # Inbox Rule with a short 'Name' (5 or less characters)
+            [array]$RegEx02 = $IMPORT | Where-Object { $_.Name -match "^[a-zA-Z0-9]{1,5}$" } | Select-Object -ExpandProperty Name
+            $Count = $RegEx02.Count
+            if ($Count -gt 0)
+            {
+                Write-Host "[Alert] Suspicious Operation(s) detected: New-InboxRule + Inbox Rule Name w/ 5 or less alphanumeric characters ($Count)" -ForegroundColor Red
+            }
+
+            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX\New-InboxRule_AuditData.xlsx" -NoNumberConversion * -FreezePane 2,5 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "New-InboxRule" -CellStyleSB {
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:AE1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-AE
-            $WorkSheet.Cells["A:AE"].Style.HorizontalAlignment="Center"
+            Set-Format -Address $WorkSheet.Cells["A1:AH1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-AH
+            $WorkSheet.Cells["A:AH"].Style.HorizontalAlignment="Center"
+            
             # ConditionalFormatting - New-InboxRule
             Add-ConditionalFormatting -Address $WorkSheet.Cells["C:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("New-InboxRule",$D1)))' -BackgroundColor Red
-            # ConditionalFormatting - DeleteMessage
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["U:U"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("True",$U1)))' -BackgroundColor Red
-            # ConditionalFormatting - MoveToFolder
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["X:X"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Archive",$X1)))' -BackgroundColor Red # English
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["X:X"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Conversation History",$X1)))' -BackgroundColor Red # English
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["X:X"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Historial de conversaciones",$X1)))' -BackgroundColor Red # Spanish
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["X:X"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("RSS-подписки",$X1)))' -BackgroundColor Red # Russian
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["X:X"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("RSS-Feeds",$X1)))' -BackgroundColor Red # English
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["X:X"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("RSS Subscriptions",$X1)))' -BackgroundColor Red # English
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["X:X"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Sottoscrizioni RSS",$X1)))' -BackgroundColor Red # Italian
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["X:X"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("RSS-feeder",$X1)))' -BackgroundColor Red # Norwegian
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["X:X"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("RSS-syötteet",$X1)))' -BackgroundColor Red # Finnish
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["X:X"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Junk-E-Mail",$X1)))' -BackgroundColor Red # English
-            # ConditionalFormatting - MarkAsRead
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["AC:AC"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("True",$AC1)))' -BackgroundColor Red
+
             # ConditionalFormatting - Name
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["Y:Y"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '$Y1="."' -BackgroundColor Red
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["Y:Y"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '$Y1=";"' -BackgroundColor Red
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["Y:Y"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '$Y1="|"' -BackgroundColor Red
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["Y:Y"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '$Y1=".."' -BackgroundColor Red
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["Y:Y"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '$Y1="..."' -BackgroundColor Red
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["Y:Y"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '$Y1=".;"' -BackgroundColor Red
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["Y:Y"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '$Y1=".,"' -BackgroundColor Red
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["Y:Y"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '$Y1=".,.,"' -BackgroundColor Red
+
+            # Inbox Rule 'Name' with only non-alphanumeric characters
+            foreach ($Name in $RegEx01) 
+            {
+                $ConditionValue = 'EXACT("{0}",$L1)' -f $Name
+                Add-ConditionalFormatting -Address $WorkSheet.Cells["L:L"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+            }
+
+            # Inbox Rule with a short 'Name' (5 or less characters)
+            foreach ($Name in $RegEx02) 
+            {
+                $ConditionValue = 'EXACT("{0}",$L1)' -f $Name
+                Add-ConditionalFormatting -Address $WorkSheet.Cells["L:L"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+            }
+
+            # ConditionalFormatting - MarkAsRead
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["N:N"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("True",$N1)))' -BackgroundColor Red
+
+            # ConditionalFormatting - DeleteMessage
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["O:O"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("True",$O1)))' -BackgroundColor Red
+            
+            # Iterating over the MoveToFolder-Blacklist HashTable
+            foreach ($MoveToFolder in $MoveToFolderBlacklist_HashTable.Keys) 
+            {
+                $ConditionValue = 'NOT(ISERROR(FIND("{0}",$P1)))' -f $MoveToFolder
+                Add-ConditionalFormatting -Address $WorkSheet.Cells["P:P"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+            }
+
             # ConditionalFormatting - StopProcessingRules
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["AD:AD"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("True",$AD1)))' -BackgroundColor Red
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["S:S"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("True",$S1)))' -BackgroundColor Red
+
+            # ConditionalFormatting - ForwardAsAttachmentTo
+            $LastRow = $WorkSheet.Dimension.End.Row
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["X2:X$LastRow"] -WorkSheet $WorkSheet -RuleType ContainsText -BackgroundColor Red
+
+            # ConditionalFormatting - ForwardTo
+            $LastRow = $WorkSheet.Dimension.End.Row
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["Y2:Y$LastRow"] -WorkSheet $WorkSheet -RuleType ContainsText -BackgroundColor Red
+
+            # ConditionalFormatting - RedirectTo
+            $LastRow = $WorkSheet.Dimension.End.Row
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["Z2:Z$LastRow"] -WorkSheet $WorkSheet -RuleType ContainsText -BackgroundColor Red
             }
         }
     }
 }
 
-# Set-InboxRule
-# RecordType: ExchangeAdmin
-# Operation: Set-InboxRule --> Change an existing mailbox, often used for setting up forwarding rules
-# The Set-InboxRule cmdlet allows you to modify the rule conditions, exceptions, and actions. When you create, modify, remove, enable, or disable an Inbox rule in Exchange PowerShell, any client-side rules created by Microsoft Outlook are removed.
+# Set-InboxRule --> Change an existing Inbox Rule, often used for setting up Email Forwarding Rules
 # https://learn.microsoft.com/en-us/powershell/module/exchange/set-inboxrule?view=exchange-ps
-$Import = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeAdmin" } | Where-Object { $_.Operations -eq "Set-InboxRule" } | Sort-Object { $_.CreationDate -as [datetime] } -Descending
+$Import = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeAdmin" } | Where-Object { $_.Operations -eq "Set-InboxRule" } | Sort-Object Identity -Unique | Sort-Object { $_.CreationDate -as [datetime] } -Descending
 $Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
 if ($Count -gt 0)
 {
@@ -959,7 +1091,7 @@ if ($Count -gt 0)
     New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX" -ItemType Directory -Force | Out-Null
 
     # CSV
-    $Import | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}},UserIds,RecordType,Operations,AuditData,ResultIndex,ResultCount,Identity,IsValid,ObjectState | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Set-InboxRule.csv" -NoTypeInformation -Encoding UTF8
+    $Import | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Set-InboxRule.csv" -NoTypeInformation -Encoding UTF8
 
     # XLSX
     if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Set-InboxRule.csv")
@@ -967,7 +1099,7 @@ if ($Count -gt 0)
         if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Set-InboxRule.csv") -gt 0)
         {
             $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Set-InboxRule.csv" -Delimiter ","
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX\Set-InboxRule.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Set-InboxRule" -CellStyleSB {
+            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX\Set-InboxRule.xlsx" -FreezePane 2,5 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Set-InboxRule" -CellStyleSB {
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
@@ -976,7 +1108,7 @@ if ($Count -gt 0)
             $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
             $WorkSheet.Cells["F:J"].Style.HorizontalAlignment="Center"
             # ConditionalFormatting
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["C:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Set-InboxRule",$D1)))' -BackgroundColor Red
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["C:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(SEARCH("Set-InboxRule",$D1)))' -BackgroundColor Red
             }
         }
     }
@@ -989,43 +1121,76 @@ if ($Count -gt 0)
     {
         $AuditData = $Record.AuditData | ConvertFrom-Json
         $Parameters = $AuditData.Parameters
+        $AppAccessContext = $AuditData.AppAccessContext
 
         # Parameters
         New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\TXT" -ItemType Directory -Force | Out-Null
         $Parameters | Out-File "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\TXT\Set-InboxRule_Parameters.txt" -Append
 
+        # Check if 'MicrosoftApps.csv' contains AppId
+        [string]$GUID = $AuditData.AppId
+
+        if($MicrosoftApps_HashTable.ContainsKey("$GUID"))
+        {
+            $AppDisplayName = $MicrosoftApps_HashTable["$GUID"]
+        }
+        else
+        {
+            $AppDisplayName = "Third-Party Application"
+        }
+
+        # UserType
+        [int]$UserTypeValue = $AuditData.UserType
+
+        # Check if HashTable contains Value
+        if($UserType_HashTable.ContainsKey("$UserTypeValue"))
+        {
+            $UserType = $UserType_HashTable["$UserTypeValue"][0]
+        }
+
         $Line = [PSCustomObject]@{
-        "CreationDate"                 = $Record.CreationDate
-        "Id"                           = $AuditData.Id
+        "CreationTime"                 = $AuditData | Select-Object -ExpandProperty CreationTime | ForEach-Object {$_ -replace 'T',' '}
+        "UserId"                       = $AuditData.UserId
         "RecordType"                   = $Record.RecordType
         "Operation"                    = $AuditData.Operation
-        "OrganizationId"               = $AuditData.OrganizationId
-        "RecordType_AuditData"         = $AuditData.RecordType
         "ResultStatus"                 = $AuditData.ResultStatus
-        "UserKey"                      = $AuditData.UserKey
-        "UserType"                     = $AuditData.UserType
-        "Version"                      = $AuditData.Version
-        "Workload"                     = $AuditData.Workload
-        "ClientIP"                     = $AuditData.ClientIP
+        "UserType"                     = $UserType
         "ObjectId"                     = $AuditData.ObjectId
-        "UserId"                       = $AuditData.UserId
         "AppId"                        = $AuditData.AppId
-        "ClientAppId"                  = $AuditData.ClientAppId
+        "AppDisplayName"               = $AppDisplayName
         "ExternalAccess"               = $AuditData.ExternalAccess
-        "OrganizationName"             = $AuditData.OrganizationName
-        "OriginatingServer"            = $AuditData.OriginatingServer
-        "AlwaysDeleteOutlookRulesBlob" = $Parameters | Where-Object { $_.Name -eq "AlwaysDeleteOutlookRulesBlob" } | Select-Object -ExpandProperty Value
-        "DeleteMessage"                = $Parameters | Where-Object { $_.Name -eq "DeleteMessage" } | Select-Object -ExpandProperty Value # Hiding
-        "Force"                        = $Parameters | Where-Object { $_.Name -eq "Force" } | Select-Object -ExpandProperty Value
+        "ClientIP"                     = $AuditData.ClientIP | & $IPinfo grepip -o
+        
+        # Parameters
+
+        # Hiding Artifacts / Mailbox Monitoring
+        "Name"                         = $Parameters | Where-Object { $_.Name -eq "Name" } | Select-Object -ExpandProperty Value # Specifies a name for the Inbox rule
+        "Identity"                     = $Parameters | Where-Object { $_.Name -eq "Identity" } | Select-Object -ExpandProperty Value # Specifies the Inbox rule  
         "From"                         = $Parameters | Where-Object { $_.Name -eq "From" } | Select-Object -ExpandProperty Value # Monitoring
-        "MoveToFolder"                 = $Parameters | Where-Object { $_.Name -eq "MoveToFolder" } | Select-Object -ExpandProperty Value # Hiding
-        "Name"                         = $Parameters | Where-Object { $_.Name -eq "Name" } | Select-Object -ExpandProperty Value
-        "FromAddressContainsWords"     = $Parameters | Where-Object { $_.Name -eq "FromAddressContainsWords" } | Select-Object -ExpandProperty Value # Monitoring
-        "MyNameInToOrCcBox"            = $Parameters | Where-Object { $_.Name -eq "MyNameInToOrCcBox" } | Select-Object -ExpandProperty Value # Hiding
-        "SubjectContainsWords"         = $Parameters | Where-Object { $_.Name -eq "SubjectContainsWords" } | Select-Object -ExpandProperty Value # Monitoring
         "MarkAsRead"                   = $Parameters | Where-Object { $_.Name -eq "MarkAsRead" } | Select-Object -ExpandProperty Value # Hiding
+        "DeleteMessage"                = $Parameters | Where-Object { $_.Name -eq "DeleteMessage" } | Select-Object -ExpandProperty Value # Hiding
+        "MoveToFolder"                 = $Parameters | Where-Object { $_.Name -eq "MoveToFolder" } | Select-Object -ExpandProperty Value # Hiding
+        "Force"                        = $Parameters | Where-Object { $_.Name -eq "Force" } | Select-Object -ExpandProperty Value
+        "AlwaysDeleteOutlookRulesBlob" = $Parameters | Where-Object { $_.Name -eq "AlwaysDeleteOutlookRulesBlob" } | Select-Object -ExpandProperty Value
         "StopProcessingRules"          = $Parameters | Where-Object { $_.Name -eq "StopProcessingRules" } | Select-Object -ExpandProperty Value
+        "FromAddressContainsWords"     = $Parameters | Where-Object { $_.Name -eq "FromAddressContainsWords" } | Select-Object -ExpandProperty Value # Monitoring
+        "SubjectContainsWords"         = $Parameters | Where-Object { $_.Name -eq "SubjectContainsWords" } | Select-Object -ExpandProperty Value # Monitoring
+        "BodyContainsWords"            = $Parameters | Where-Object { $_.Name -eq "BodyContainsWords" } | Select-Object -ExpandProperty Value # Monitoring
+        "MyNameInToOrCcBox"            = $Parameters | Where-Object { $_.Name -eq "MyNameInToOrCcBox" } | Select-Object -ExpandProperty Value # Monitoring
+
+        # Email Forwarding / Email Collection
+        "ForwardAsAttachmentTo"        = $Parameters | Where-Object { $_.Name -eq "ForwardAsAttachmentTo" } | Select-Object -ExpandProperty Value # Email Forwarding / Email Collection
+        "ForwardTo"                    = $Parameters | Where-Object { $_.Name -eq "ForwardTo" } | Select-Object -ExpandProperty Value # Email Forwarding / Email Collection
+        "RedirectTo"                   = $Parameters | Where-Object { $_.Name -eq "RedirectTo" } | Select-Object -ExpandProperty Value # Email Forwarding / Email Collection
+        
+        "IssuedAtTime"                 = $AppAccessContext.IssuedAtTime
+        "UniqueTokenId"                = $AppAccessContext.UniqueTokenId
         "SessionId"                    = ($AuditData | Select-Object SessionId).SessionId
+        "Id"                           = $AuditData.Id
+        "Workload"                     = $AuditData.Workload
+        "OrganizationName"             = $AuditData.OrganizationName
+        "OrganizationId"               = $AuditData.OrganizationId
+        "OriginatingServer"            = $AuditData.OriginatingServer
         }
 
         $Results.Add($Line)
@@ -1038,37 +1203,432 @@ if ($Count -gt 0)
     {
         if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Set-InboxRule_AuditData.csv") -gt 0)
         {
-            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Set-InboxRule_AuditData.csv" -Delimiter ","
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX\Set-InboxRule_AuditData.xlsx" -FreezePane 2,2 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Set-InboxRule" -CellStyleSB {
+            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Set-InboxRule_AuditData.csv" -Delimiter "," -Encoding UTF8
+
+            # Inbox Rule 'Name' with only non-alphanumeric characters
+            [array]$RegEx01 = $IMPORT | Where-Object { $_.Name -match "^[^a-zA-Z\d\s:]$" } | Select-Object -ExpandProperty Name
+            $Count = $RegEx01.Count
+            if ($Count -gt 0)
+            {
+                Write-Host "[Alert] Suspicious Operation(s) detected: Set-InboxRule + Inbox Rule Name w/ only non-alphanumeric characters ($Count)" -ForegroundColor Red
+            }
+
+            # Inbox Rule with a short 'Name' (5 or less characters)
+            [array]$RegEx02 = $IMPORT | Where-Object { $_.Name -match "^[a-zA-Z0-9]{1,5}$" } | Select-Object -ExpandProperty Name
+            $Count = $RegEx02.Count
+            if ($Count -gt 0)
+            {
+                Write-Host "[Alert] Suspicious Operation(s) detected: Set-InboxRule + Inbox Rule Name w/ 5 or less alphanumeric characters ($Count)" -ForegroundColor Red
+            }
+
+            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX\Set-InboxRule_AuditData.xlsx" -NoNumberConversion * -FreezePane 2,5 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Set-InboxRule" -CellStyleSB {
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:AE1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-AE
-            $WorkSheet.Cells["A:AE"].Style.HorizontalAlignment="Center"
+            Set-Format -Address $WorkSheet.Cells["A1:AI1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-AI
+            $WorkSheet.Cells["A:AI"].Style.HorizontalAlignment="Center"
             # ConditionalFormatting - Set-InboxRule
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["C:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Set-InboxRule",$D1)))' -BackgroundColor Red
-            # ConditionalFormatting - DeleteMessage
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["U:U"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("True",$U1)))' -BackgroundColor Red
-            # ConditionalFormatting - MoveToFolder
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["X:X"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Archive",$X1)))' -BackgroundColor Red
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["X:X"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("RSS-подписки",$X1)))' -BackgroundColor Red
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["X:X"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("RSS-Feeds",$X1)))' -BackgroundColor Red
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["X:X"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("RSS Subscriptions",$X1)))' -BackgroundColor Red # English
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["X:X"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Sottoscrizioni RSS",$X1)))' -BackgroundColor Red # Italian
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["X:X"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Junk-E-Mail",$X1)))' -BackgroundColor Red
-            # ConditionalFormatting - MarkAsRead
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["AC:AC"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("True",$AC1)))' -BackgroundColor Red
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["C:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(SEARCH("Set-InboxRule",$D1)))' -BackgroundColor Red
+            
             # ConditionalFormatting - Name
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["Y:Y"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '$Y1="."' -BackgroundColor Red
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["Y:Y"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '$Y1=";"' -BackgroundColor Red
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["Y:Y"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '$Y1="|"' -BackgroundColor Red
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["Y:Y"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '$Y1=".."' -BackgroundColor Red
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["Y:Y"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '$Y1="..."' -BackgroundColor Red
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["Y:Y"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '$Y1=".;"' -BackgroundColor Red
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["Y:Y"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '$Y1=".,.,"' -BackgroundColor Red
+
+            # Inbox Rule 'Name' with only non-alphanumeric characters
+            foreach ($Name in $RegEx01) 
+            {
+                $ConditionValue = 'EXACT("{0}",$L1)' -f $Name
+                Add-ConditionalFormatting -Address $WorkSheet.Cells["L:L"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+            }
+
+            # Inbox Rule with a short 'Name' (5 or less characters)
+            foreach ($Name in $RegEx02) 
+            {
+                $ConditionValue = 'EXACT("{0}",$L1)' -f $Name
+                Add-ConditionalFormatting -Address $WorkSheet.Cells["L:L"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+            }
+
+            # ConditionalFormatting - MarkAsRead
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["O:O"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("True",$O1)))' -BackgroundColor Red
+            
+            # ConditionalFormatting - DeleteMessage
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["P:P"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("True",$P1)))' -BackgroundColor Red
+            
+            # Iterating over the MoveToFolder-Blacklist HashTable
+            foreach ($MoveToFolder in $MoveToFolderBlacklist_HashTable.Keys) 
+            {
+                $ConditionValue = 'NOT(ISERROR(FIND("{0}",$Q1)))' -f $MoveToFolder
+                Add-ConditionalFormatting -Address $WorkSheet.Cells["Q:Q"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+            }
+
             # ConditionalFormatting - StopProcessingRules
-            Add-ConditionalFormatting -Address $WorkSheet.Cells["AD:AD"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("True",$AD1)))' -BackgroundColor Red
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["T:T"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("True",$T1)))' -BackgroundColor Red
+
+            # ConditionalFormatting - ForwardAsAttachmentTo
+            $LastRow = $WorkSheet.Dimension.End.Row
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["Y2:Y$LastRow"] -WorkSheet $WorkSheet -RuleType ContainsText -BackgroundColor Red
+
+            # ConditionalFormatting - ForwardTo
+            $LastRow = $WorkSheet.Dimension.End.Row
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["Z2:Z$LastRow"] -WorkSheet $WorkSheet -RuleType ContainsText -BackgroundColor Red
+
+            # ConditionalFormatting - RedirectTo
+            $LastRow = $WorkSheet.Dimension.End.Row
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["AA2:AA$LastRow"] -WorkSheet $WorkSheet -RuleType ContainsText -BackgroundColor Red
+
+            }
+        }
+    }
+}
+
+# Remove-InboxRule --> Remove an existing Inbox Rule in a mailbox
+# https://learn.microsoft.com/en-us/powershell/module/exchange/remove-inboxrule?view=exchange-ps
+$Import = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeAdmin" } | Where-Object { $_.Operations -eq "Remove-InboxRule" } | Sort-Object Identity -Unique | Sort-Object { $_.CreationDate -as [datetime] } -Descending
+$Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
+if ($Count -gt 0)
+{
+    Write-Host "[Alert] Suspicious Operation(s) detected: Remove-InboxRule ($Count)" -ForegroundColor Red
+    New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV" -ItemType Directory -Force | Out-Null
+    New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX" -ItemType Directory -Force | Out-Null
+
+    # CSV
+    $Import | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Remove-InboxRule.csv" -NoTypeInformation -Encoding UTF8
+    
+    # XLSX
+    if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Remove-InboxRule.csv")
+    {
+        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Remove-InboxRule.csv") -gt 0)
+        {
+            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Remove-InboxRule.csv" -Delimiter ","
+            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX\Remove-InboxRule.xlsx" -FreezePane 2,5 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Remove-InboxRule" -CellStyleSB {
+            param($WorkSheet)
+            # BackgroundColor and FontColor for specific cells of TopRow
+            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+            Set-Format -Address $WorkSheet.Cells["A1:J1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-D and F-J
+            $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
+            $WorkSheet.Cells["F:J"].Style.HorizontalAlignment="Center"
+            # ConditionalFormatting
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["C:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Remove-InboxRule",$D1)))' -BackgroundColor Red
+            }
+        }
+    }
+
+    # AuditData
+
+    # CSV
+    $Results = [Collections.Generic.List[PSObject]]::new()
+    ForEach($Record in $Import)
+    {
+        $AuditData = $Record.AuditData | ConvertFrom-Json
+        $Parameters = $AuditData.Parameters
+        $AppAccessContext = $AuditData.AppAccessContext # Contains the 'IssuedAtTime' and the 'UniqueTokenId' for the application context for the user or service principal that performed the action.
+
+        # Check if 'MicrosoftApps.csv' contains AppId
+        [string]$GUID = $AuditData.AppId
+
+        if($MicrosoftApps_HashTable.ContainsKey("$GUID"))
+        {
+            $AppDisplayName = $MicrosoftApps_HashTable["$GUID"]
+        }
+        else
+        {
+            $AppDisplayName = "Third-Party Application"
+        }
+
+        # UserType
+        [int]$UserTypeValue = $AuditData.UserType
+
+        # Check if HashTable contains Value
+        if($UserType_HashTable.ContainsKey("$UserTypeValue"))
+        {
+            $UserType = $UserType_HashTable["$UserTypeValue"][0]
+        }
+
+        $Line = [PSCustomObject]@{
+        "CreationTime"                 = $AuditData | Select-Object -ExpandProperty CreationTime | ForEach-Object {$_ -replace 'T',' '}
+        "UserId"                       = $AuditData.UserId
+        "RecordType"                   = $Record.RecordType
+        "Operation"                    = $AuditData.Operation
+        "ResultStatus"                 = $AuditData.ResultStatus # Indicates whether the action was successful or not. For Exchange admin activity, the value is either True or False.
+        "UserType"                     = $UserType
+        "ObjectId"                     = $AuditData.ObjectId
+        "AppId"                        = $AuditData.AppId
+        "AppDisplayName"               = $AppDisplayName
+        "ExternalAccess"               = $AuditData.ExternalAccess # This is true if the logon user's domain is different from the mailbox owner's domain.
+        "ClientIP"                     = $AuditData.ClientIP | & $IPinfo grepip -o # Remove Port Number
+        "Mailbox"                      = $Parameters | Where-Object { $_.Name -eq "Mailbox" } | Select-Object -ExpandProperty Value # Specifies the mailbox that contains the Inbox rule
+        "Identity"                     = $Parameters | Where-Object { $_.Name -eq "Identity" } | Select-Object -ExpandProperty Value # Specifies the Inbox rule
+        "Confirm"                      = $Parameters | Where-Object { $_.Name -eq "Confirm" } | Select-Object -ExpandProperty Value # Show or hide the confirmation prompt
+        "Force"                        = $Parameters | Where-Object { $_.Name -eq "Force" } | Select-Object -ExpandProperty Value # Hides warning or confirmation messages
+        "AlwaysDeleteOutlookRulesBlob" = $Parameters | Where-Object { $_.Name -eq "AlwaysDeleteOutlookRulesBlob" } | Select-Object -ExpandProperty Value # Hides warning message
+        "IssuedAtTime"                 = $AppAccessContext.IssuedAtTime # Indicates when the authentication for this Microsoft Entra token occurred.
+        "UniqueTokenId"                = $AppAccessContext.UniqueTokenId # Contains the unique identifier for the token passed during sign-in. This identifier can be used to correlate the token request with the sign-in.
+        "SessionId"                    = ($AuditData | Select-Object SessionId).SessionId
+        "Id"                           = $AuditData.Id
+        "RequestId"                    = ($AuditData | Select-Object RequestId).RequestId
+        "Workload"                     = $AuditData.Workload
+        "OrganizationName"             = $AuditData.OrganizationName # The name of the tenant.
+        "OrganizationId"               = $AuditData.OrganizationId # The GUID of the tenant.
+        "OriginatingServer"            = $AuditData.OriginatingServer # This is from where the operation originated.
+        }
+
+        $Results.Add($Line)
+    }
+
+    $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Remove-InboxRule_AuditData.csv" -NoTypeInformation -Encoding UTF8
+
+    # XLSX
+    if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Remove-InboxRule_AuditData.csv")
+    {
+        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Remove-InboxRule_AuditData.csv") -gt 0)
+        {
+            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Remove-InboxRule_AuditData.csv" -Delimiter ","
+            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX\Remove-InboxRule_AuditData.xlsx" -NoNumberConversion * -FreezePane 2,5 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Remove-InboxRule" -CellStyleSB {
+            param($WorkSheet)
+            # BackgroundColor and FontColor for specific cells of TopRow
+            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+            Set-Format -Address $WorkSheet.Cells["A1:Y1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-Y
+            $WorkSheet.Cells["A:Y"].Style.HorizontalAlignment="Center"
+            # ConditionalFormatting - Set-InboxRule
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["C:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Remove-InboxRule",$D1)))' -BackgroundColor Red
+            }
+        }
+    }
+}
+
+# https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-schema
+# https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-schema#exchange-mailbox-schema
+
+# Enable-InboxRule --> Enable an existing Inbox Rule in a mailbox
+# https://learn.microsoft.com/en-us/powershell/module/exchange/enable-inboxrule?view=exchange-ps
+$Import = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeAdmin" } | Where-Object { $_.Operations -eq "Enable-InboxRule" } | Sort-Object Identity -Unique | Sort-Object { $_.CreationDate -as [datetime] } -Descending
+$Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
+if ($Count -gt 0)
+{
+    Write-Host "[Alert] Suspicious Operation(s) detected: Enable-InboxRule ($Count)" -ForegroundColor Red
+    New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV" -ItemType Directory -Force | Out-Null
+    New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX" -ItemType Directory -Force | Out-Null
+
+    # CSV
+    $Import | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Enable-InboxRule.csv" -NoTypeInformation -Encoding UTF8
+    
+    # XLSX
+    if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Enable-InboxRule.csv")
+    {
+        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Enable-InboxRule.csv") -gt 0)
+        {
+            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Enable-InboxRule.csv" -Delimiter ","
+            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX\Enable-InboxRule.xlsx" -FreezePane 2,5 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Enable-InboxRule" -CellStyleSB {
+            param($WorkSheet)
+            # BackgroundColor and FontColor for specific cells of TopRow
+            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+            Set-Format -Address $WorkSheet.Cells["A1:J1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-D and F-J
+            $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
+            $WorkSheet.Cells["F:J"].Style.HorizontalAlignment="Center"
+            # ConditionalFormatting
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["C:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Enable-InboxRule",$D1)))' -BackgroundColor Red
+            }
+        }
+    }
+
+    # AuditData
+
+    # CSV
+    $Results = [Collections.Generic.List[PSObject]]::new()
+    ForEach($Record in $Import)
+    {
+        $AuditData = $Record.AuditData | ConvertFrom-Json
+        $Parameters = $AuditData.Parameters
+        $AppAccessContext = $AuditData.AppAccessContext
+
+        # Check if 'MicrosoftApps.csv' contains AppId
+        [string]$GUID = $AuditData.AppId
+
+        if($MicrosoftApps_HashTable.ContainsKey("$GUID"))
+        {
+            $AppDisplayName = $MicrosoftApps_HashTable["$GUID"]
+        }
+        else
+        {
+            $AppDisplayName = "Third-Party Application"
+        }
+
+        # UserType
+        [int]$UserTypeValue = $AuditData.UserType
+
+        # Check if HashTable contains Value
+        if($UserType_HashTable.ContainsKey("$UserTypeValue"))
+        {
+            $UserType = $UserType_HashTable["$UserTypeValue"][0]
+        }
+
+        $Line = [PSCustomObject]@{
+        "CreationTime"                 = $AuditData | Select-Object -ExpandProperty CreationTime | ForEach-Object {$_ -replace 'T',' '}
+        "UserId"                       = $AuditData.UserId
+        "RecordType"                   = $Record.RecordType
+        "Operation"                    = $AuditData.Operation
+        "ResultStatus"                 = $AuditData.ResultStatus
+        "UserType"                     = $UserType
+        "ObjectId"                     = $AuditData.ObjectId
+        "AppId"                        = $AuditData.AppId
+        "AppDisplayName"               = $AppDisplayName
+        "ExternalAccess"               = $AuditData.ExternalAccess
+        "ClientIP"                     = $AuditData.ClientIP | & $IPinfo grepip -o
+        "Mailbox"                      = $Parameters | Where-Object { $_.Name -eq "Mailbox" } | Select-Object -ExpandProperty Value
+        "Identity"                     = $Parameters | Where-Object { $_.Name -eq "Identity" } | Select-Object -ExpandProperty Value
+        "Confirm"                      = $Parameters | Where-Object { $_.Name -eq "Confirm" } | Select-Object -ExpandProperty Value
+        "Force"                        = $Parameters | Where-Object { $_.Name -eq "Force" } | Select-Object -ExpandProperty Value
+        "AlwaysDeleteOutlookRulesBlob" = $Parameters | Where-Object { $_.Name -eq "AlwaysDeleteOutlookRulesBlob" } | Select-Object -ExpandProperty Value
+        "IssuedAtTime"                 = $AppAccessContext.IssuedAtTime
+        "UniqueTokenId"                = $AppAccessContext.UniqueTokenId
+        "SessionId"                    = ($AuditData | Select-Object SessionId).SessionId
+        "Id"                           = $AuditData.Id
+        "RequestId"                    = ($AuditData | Select-Object RequestId).RequestId
+        "Workload"                     = $AuditData.Workload
+        "OrganizationName"             = $AuditData.OrganizationName
+        "OrganizationId"               = $AuditData.OrganizationId
+        "OriginatingServer"            = $AuditData.OriginatingServer
+        }
+
+        $Results.Add($Line)
+    }
+
+    $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Enable-InboxRule_AuditData.csv" -NoTypeInformation -Encoding UTF8
+
+    # XLSX
+    if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Enable-InboxRule_AuditData.csv")
+    {
+        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Enable-InboxRule_AuditData.csv") -gt 0)
+        {
+            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Enable-InboxRule_AuditData.csv" -Delimiter ","
+            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX\Enable-InboxRule_AuditData.xlsx" -NoNumberConversion * -FreezePane 2,5 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Enable-InboxRule" -CellStyleSB {
+            param($WorkSheet)
+            # BackgroundColor and FontColor for specific cells of TopRow
+            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+            Set-Format -Address $WorkSheet.Cells["A1:Y1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-Y
+            $WorkSheet.Cells["A:Y"].Style.HorizontalAlignment="Center"
+            # ConditionalFormatting - Set-InboxRule
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["C:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Enable-InboxRule",$D1)))' -BackgroundColor Red
+            }
+        }
+    }
+}
+
+# Disable-InboxRule --> Disable an existing Inbox Rule in a mailbox
+# https://learn.microsoft.com/en-us/powershell/module/exchange/disable-inboxrule?view=exchange-ps
+$Import = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeAdmin" } | Where-Object { $_.Operations -eq "Disable-InboxRule" } | Sort-Object Identity -Unique | Sort-Object { $_.CreationDate -as [datetime] } -Descending
+$Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
+if ($Count -gt 0)
+{
+    Write-Host "[Alert] Suspicious Operation(s) detected: Disable-InboxRule ($Count)" -ForegroundColor Red
+    New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV" -ItemType Directory -Force | Out-Null
+    New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX" -ItemType Directory -Force | Out-Null
+
+    # CSV
+    $Import | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Disable-InboxRule.csv" -NoTypeInformation -Encoding UTF8
+    
+    # XLSX
+    if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Disable-InboxRule.csv")
+    {
+        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Disable-InboxRule.csv") -gt 0)
+        {
+            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Disable-InboxRule.csv" -Delimiter ","
+            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX\Disable-InboxRule.xlsx" -FreezePane 2,5 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Disable-InboxRule" -CellStyleSB {
+            param($WorkSheet)
+            # BackgroundColor and FontColor for specific cells of TopRow
+            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+            Set-Format -Address $WorkSheet.Cells["A1:J1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-D and F-J
+            $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
+            $WorkSheet.Cells["F:J"].Style.HorizontalAlignment="Center"
+            # ConditionalFormatting
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["C:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Disable-InboxRule",$D1)))' -BackgroundColor Red
+            }
+        }
+    }
+
+    # AuditData
+
+    # CSV
+    $Results = [Collections.Generic.List[PSObject]]::new()
+    ForEach($Record in $Import)
+    {
+        $AuditData = $Record.AuditData | ConvertFrom-Json
+        $Parameters = $AuditData.Parameters
+        $AppAccessContext = $AuditData.AppAccessContext
+
+        # Check if 'MicrosoftApps.csv' contains AppId
+        [string]$GUID = $AuditData.AppId
+
+        if($MicrosoftApps_HashTable.ContainsKey("$GUID"))
+        {
+            $AppDisplayName = $MicrosoftApps_HashTable["$GUID"]
+        }
+        else
+        {
+            $AppDisplayName = "Third-Party Application"
+        }
+
+        # UserType
+        [int]$UserTypeValue = $AuditData.UserType
+
+        # Check if HashTable contains Value
+        if($UserType_HashTable.ContainsKey("$UserTypeValue"))
+        {
+            $UserType = $UserType_HashTable["$UserTypeValue"][0]
+        }
+
+        $Line = [PSCustomObject]@{
+        "CreationTime"                 = $AuditData | Select-Object -ExpandProperty CreationTime | ForEach-Object {$_ -replace 'T',' '}
+        "UserId"                       = $AuditData.UserId
+        "RecordType"                   = $Record.RecordType
+        "Operation"                    = $AuditData.Operation
+        "ResultStatus"                 = $AuditData.ResultStatus
+        "UserType"                     = $UserType
+        "ObjectId"                     = $AuditData.ObjectId
+        "AppId"                        = $AuditData.AppId
+        "AppDisplayName"               = $AppDisplayName
+        "ExternalAccess"               = $AuditData.ExternalAccess
+        "ClientIP"                     = $AuditData.ClientIP | & $IPinfo grepip -o
+        "Mailbox"                      = $Parameters | Where-Object { $_.Name -eq "Mailbox" } | Select-Object -ExpandProperty Value
+        "Identity"                     = $Parameters | Where-Object { $_.Name -eq "Identity" } | Select-Object -ExpandProperty Value
+        "Confirm"                      = $Parameters | Where-Object { $_.Name -eq "Confirm" } | Select-Object -ExpandProperty Value
+        "Force"                        = $Parameters | Where-Object { $_.Name -eq "Force" } | Select-Object -ExpandProperty Value
+        "AlwaysDeleteOutlookRulesBlob" = $Parameters | Where-Object { $_.Name -eq "AlwaysDeleteOutlookRulesBlob" } | Select-Object -ExpandProperty Value
+        "IssuedAtTime"                 = $AppAccessContext.IssuedAtTime
+        "UniqueTokenId"                = $AppAccessContext.UniqueTokenId
+        "SessionId"                    = ($AuditData | Select-Object SessionId).SessionId
+        "Id"                           = $AuditData.Id
+        "RequestId"                    = ($AuditData | Select-Object RequestId).RequestId
+        "Workload"                     = $AuditData.Workload
+        "OrganizationName"             = $AuditData.OrganizationName
+        "OrganizationId"               = $AuditData.OrganizationId
+        "OriginatingServer"            = $AuditData.OriginatingServer
+        }
+
+        $Results.Add($Line)
+    }
+
+    $Results | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Disable-InboxRule_AuditData.csv" -NoTypeInformation -Encoding UTF8
+
+    # XLSX
+    if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Disable-InboxRule_AuditData.csv")
+    {
+        if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Disable-InboxRule_AuditData.csv") -gt 0)
+        {
+            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Disable-InboxRule_AuditData.csv" -Delimiter ","
+            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX\Disable-InboxRule_AuditData.xlsx" -NoNumberConversion * -FreezePane 2,5 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Disable-InboxRule" -CellStyleSB {
+            param($WorkSheet)
+            # BackgroundColor and FontColor for specific cells of TopRow
+            $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+            Set-Format -Address $WorkSheet.Cells["A1:Y1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-Y
+            $WorkSheet.Cells["A:Y"].Style.HorizontalAlignment="Center"
+            # ConditionalFormatting - Set-InboxRule
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["C:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("Disable-InboxRule",$D1)))' -BackgroundColor Red
             }
         }
     }
@@ -1112,7 +1672,7 @@ if ($Count -gt 0)
     New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX" -ItemType Directory -Force | Out-Null
 
     # CSV
-    $Records | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}},UserIds,RecordType,Operations,AuditData,ResultIndex,ResultCount,Identity,IsValid,ObjectState | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\UpdateInboxRules.csv" -NoTypeInformation -Encoding UTF8
+    $Records | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\UpdateInboxRules.csv" -NoTypeInformation -Encoding UTF8
 
     # XLSX
     if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\UpdateInboxRules.csv")
@@ -1120,7 +1680,7 @@ if ($Count -gt 0)
         if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\UpdateInboxRules.csv") -gt 0)
         {
             $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\UpdateInboxRules.csv" -Delimiter ","
-            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX\UpdateInboxRules.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "UpdateInboxRules" -CellStyleSB {
+            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX\UpdateInboxRules.xlsx" -FreezePane 2,5 -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "UpdateInboxRules" -CellStyleSB {
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
@@ -1128,6 +1688,8 @@ if ($Count -gt 0)
             # HorizontalAlignment "Center" of columns A-D and F-J
             $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
             $WorkSheet.Cells["F:J"].Style.HorizontalAlignment="Center"
+            # ConditionalFormatting
+            Add-ConditionalFormatting -Address $WorkSheet.Cells["C:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("UpdateInboxRules",$D1)))' -BackgroundColor Red
             }
         }
     }
@@ -1230,7 +1792,7 @@ if ($Count -gt 0)
         {
             if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\UpdateInboxRules-RedirectToRecipientsAction.csv") -gt 0)
             {
-                $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\UpdateInboxRules-RedirectToRecipientsAction.csv" -Delimiter "," | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}},UserIds,RecordType,Operations,AuditData,ResultIndex,ResultCount,Identity,IsValid,ObjectState | Sort-Object Identity -Unique | Sort-Object { $_.CreationDate -as [datetime] } -Descending
+                $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\UpdateInboxRules-RedirectToRecipientsAction.csv" -Delimiter "," | Sort-Object Identity -Unique | Sort-Object { $_.CreationDate -as [datetime] } -Descending
                 $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX\UpdateInboxRules-RedirectToRecipientsAction.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "RedirectToRecipientsAction" -CellStyleSB {
                 param($WorkSheet)
                 # BackgroundColor and FontColor for specific cells of TopRow
@@ -1254,7 +1816,7 @@ if ($Count -gt 0)
             $ServerRule = ($OperationProperties | Where-Object {$_.Name -eq 'ServerRule'}).Value | ConvertFrom-Json
 
             $Line = [PSCustomObject]@{
-            "CreationDate"          = ($Record | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}}).CreationDate
+            "CreationTime"          = $AuditData | Select-Object -ExpandProperty CreationTime | ForEach-Object {$_ -replace 'T',' '}
             "Id"                    = $AuditData.Id
             "MailboxGuid"           = $AuditData.MailboxGuid
             "UserId"                = $Record.UserIds
@@ -1301,9 +1863,6 @@ if ($Count -gt 0)
             }
         }
     }
-
-    # Whitelist???
-    # Name: CI-Out-of-Office Manager - https://appsource.microsoft.com/en-us/product/office/WA200005043?tab=Overview
 
     # RuleOperation --> Inbox Rules [T1564.008]
 
@@ -1453,7 +2012,7 @@ if ($Count -gt 0)
     New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX" -ItemType Directory -Force | Out-Null
 
     # CSV
-    $Import | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}},UserIds,RecordType,Operations,AuditData,ResultIndex,ResultCount,Identity,IsValid,ObjectState | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Set-Mailbox.csv" -NoTypeInformation -Encoding UTF8
+    $Import | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Set-Mailbox.csv" -NoTypeInformation -Encoding UTF8
 
     # XLSX
     if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Set-Mailbox.csv")
@@ -1484,7 +2043,7 @@ if ($Count -gt 0)
         $Parameters = $AuditData.Parameters
 
         $Line = [PSCustomObject]@{
-        "CreationDate"               = $Record.CreationDate
+        "CreationTime"               = $AuditData | Select-Object -ExpandProperty CreationTime | ForEach-Object {$_ -replace 'T',' '}
         "IssuedAtTime"               = $AppAccessContext.IssuedAtTime
         "RecordType"                 = $Record.RecordType
         "Operation"                  = $Record.Operations
@@ -1579,7 +2138,7 @@ if ($Count -gt 0)
     New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX" -ItemType Directory -Force | Out-Null
 
     # CSV
-    $Import | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}},UserIds,RecordType,Operations,AuditData,ResultIndex,ResultCount,Identity,IsValid,ObjectState | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Set-MailboxJunkEmailConfiguration.csv" -NoTypeInformation -Encoding UTF8
+    $Import | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Set-MailboxJunkEmailConfiguration.csv" -NoTypeInformation -Encoding UTF8
     
     # XLSX
     if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Set-MailboxJunkEmailConfiguration.csv")
@@ -1610,7 +2169,7 @@ if ($Count -gt 0)
         $Parameters = $AuditData.Parameters
 
         $Line = [PSCustomObject]@{
-        "CreationDate"                = $Record.CreationDate
+        "CreationTime"                = $AuditData | Select-Object -ExpandProperty CreationTime | ForEach-Object {$_ -replace 'T',' '}
         "IssuedAtTime"                = $AppAccessContext.IssuedAtTime
         "RecordType"                  = $Record.RecordType
         "Operation"                   = $Record.Operations
@@ -1678,16 +2237,6 @@ if ($Count -gt 0)
     New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV" -ItemType Directory -Force | Out-Null
     New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX" -ItemType Directory -Force | Out-Null
 
-    # Create HashTable and import 'UserType.csv'
-    $UserType_HashTable = @{}
-    if(Test-Path "$SCRIPT_DIR\Config\UserType.csv")
-    {
-        if([int](& $xsv count "$SCRIPT_DIR\Config\UserType.csv") -gt 0)
-        {
-            Import-Csv "$SCRIPT_DIR\Config\UserType.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $UserType_HashTable[$_.Value] = $_.Member, $_.Description }
-        }
-    }
-
     # AuditData
     
     # CSV
@@ -1708,7 +2257,7 @@ if ($Count -gt 0)
         }
 
         $Line = [PSCustomObject]@{
-        "CreationTime"                = ($Record | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}}).CreationDate
+        "CreationTime"                = $AuditData | Select-Object -ExpandProperty CreationTime | ForEach-Object {$_ -replace 'T',' '}
         "Id"                          = $AuditData.Id
         "Workload"                    = $AuditData.Workload
         "RecordType"                  = $Record.RecordType
@@ -1782,7 +2331,7 @@ if ($Count -gt 0)
         $Parameters = $AuditData.Parameters
 
         $Line = [PSCustomObject]@{
-        "CreationTime"                = ($Record | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}}).CreationDate
+        "CreationTime"                = $AuditData | Select-Object -ExpandProperty CreationTime | ForEach-Object {$_ -replace 'T',' '}
         "Id"                          = $AuditData.Id
         "Workload"                    = $AuditData.Workload
         "RecordType"                  = $Record.RecordType
@@ -1861,7 +2410,7 @@ if ($Count -gt 0)
     New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX" -ItemType Directory -Force | Out-Null
 
     # CSV
-    $Import | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}},UserIds,RecordType,Operations,AuditData,ResultIndex,ResultCount,Identity,IsValid,ObjectState | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\New-InboundConnector.csv" -NoTypeInformation -Encoding UTF8
+    $Import | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\New-InboundConnector.csv" -NoTypeInformation -Encoding UTF8
 
     # XLSX
     if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\New-InboundConnector.csv")
@@ -1905,7 +2454,7 @@ if ($Count -gt 0)
     New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX" -ItemType Directory -Force | Out-Null
 
     # CSV
-    $Import | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}},UserIds,RecordType,Operations,AuditData,ResultIndex,ResultCount,Identity,IsValid,ObjectState | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Add-service-principal.csv" -NoTypeInformation -Encoding UTF8
+    $Import | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Add-service-principal.csv" -NoTypeInformation -Encoding UTF8
     
     # XLSX
     if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Add-service-principal.csv")
@@ -1937,7 +2486,7 @@ if ($Count -gt 0)
         $ExtendedProperties = $AuditData.ExtendedProperties
 
         $Line = [PSCustomObject]@{
-        "CreationDate"                  = $Record.CreationDate
+        "CreationTime"                  = $AuditData | Select-Object -ExpandProperty CreationTime | ForEach-Object {$_ -replace 'T',' '}
         "Id"                            = $AuditData.Id
         "RecordType"                    = $Record.RecordType
         "Operation"                     = $AuditData.Operation
@@ -1994,7 +2543,7 @@ if ($Count -gt 0)
     New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX" -ItemType Directory -Force | Out-Null
 
     # CSV
-    $Import | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}},UserIds,RecordType,Operations,AuditData,ResultIndex,ResultCount,Identity,IsValid,ObjectState | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Add-delegated-permissions-grant.csv" -NoTypeInformation -Encoding UTF8
+    $Import | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Add-delegated-permissions-grant.csv" -NoTypeInformation -Encoding UTF8
     
     # XLSX
     if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Add-delegated-permissions-grant.csv")
@@ -2028,7 +2577,7 @@ if ($Count -gt 0)
         $Target = $AuditData.Target
 
         $Line = [PSCustomObject]@{
-        "CreationDate"                  = $Record.CreationDate
+        "CreationTime"                  = $AuditData | Select-Object -ExpandProperty CreationTime | ForEach-Object {$_ -replace 'T',' '}
         "Id"                            = $AuditData.Id
         "RecordType"                    = $Record.RecordType
         "Operation"                     = $AuditData.Operation
@@ -2093,7 +2642,7 @@ if ($Count -gt 0)
     New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX" -ItemType Directory -Force | Out-Null
 
     # CSV
-    $Import | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}},UserIds,RecordType,Operations,AuditData,ResultIndex,ResultCount,Identity,IsValid,ObjectState | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Add-app-role-assignment-grant-to-user.csv" -NoTypeInformation -Encoding UTF8
+    $Import | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Add-app-role-assignment-grant-to-user.csv" -NoTypeInformation -Encoding UTF8
     
     # XLSX
     if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Add-app-role-assignment-grant-to-user.csv")
@@ -2127,7 +2676,7 @@ if ($Count -gt 0)
         $Target = $AuditData.Target
 
         $Line = [PSCustomObject]@{
-        "CreationDate"                  = $Record.CreationDate
+        "CreationTime"                  = $AuditData | Select-Object -ExpandProperty CreationTime | ForEach-Object {$_ -replace 'T',' '}
         "Id"                            = $AuditData.Id
         "RecordType"                    = $Record.RecordType
         "Operation"                     = $AuditData.Operation
@@ -2143,7 +2692,7 @@ if ($Count -gt 0)
         "User-Agent"                    = $ExtendedProperties | Where-Object { $_.Name -eq "additionalDetails" } | Select-Object -ExpandProperty Value | ForEach-Object{($_ -split ",")[0]} | ForEach-Object{($_ -split ":")[1]} | ForEach-Object {$_ -replace '"',''}
         "AppId"                         = $ExtendedProperties | Where-Object { $_.Name -eq "additionalDetails" } | Select-Object -ExpandProperty Value | ForEach-Object{($_ -split ",")[1]} | ForEach-Object{($_ -split ":")[1]} | ForEach-Object {$_ -replace '"',''} | ForEach-Object {$_ -replace '}',''}
         "ExtendedAuditEventCategory"    = $ExtendedProperties | Where-Object { $_.Name -eq "extendedAuditEventCategory" } | Select-Object -ExpandProperty Value
-        "LastModifiedDateTime"          = ($ModifiedProperties | Where-Object { $_.Name -eq "AppRoleAssignment.LastModifiedDateTime" } | Select-Object @{Name="LastModifiedDateTime";Expression={([DateTime]::ParseExact($_.NewValue, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}}).LastModifiedDateTime
+        "LastModifiedDateTime"          = ($ModifiedProperties | Where-Object { $_.Name -eq "AppRoleAssignment.LastModifiedDateTime" }).LastModifiedDateTime
         "TargetId"                      = $ModifiedProperties | Where-Object { $_.Name -eq "TargetId.ServicePrincipalNames" } | Select-Object -ExpandProperty NewValue
         "ActorContextId"                = $AuditData.ActorContextId
         "InterSystemsId"                = $AuditData.InterSystemsId
@@ -2195,7 +2744,7 @@ if ($Count -gt 0)
     New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX" -ItemType Directory -Force | Out-Null
 
     # CSV
-    $Import | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}},UserIds,RecordType,Operations,AuditData,ResultIndex,ResultCount,Identity,IsValid,ObjectState | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Consent-to-application.csv" -NoTypeInformation -Encoding UTF8
+    $Import | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Consent-to-application.csv" -NoTypeInformation -Encoding UTF8
     
     # XLSX
     if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\Consent-to-application.csv")
@@ -2229,7 +2778,7 @@ if ($Count -gt 0)
         $Target = $AuditData.Target
 
         $Line = [PSCustomObject]@{
-        "CreationDate"                  = $Record.CreationDate
+        "CreationTime"                  = $AuditData | Select-Object -ExpandProperty CreationTime | ForEach-Object {$_ -replace 'T',' '}
         "Id"                            = $AuditData.Id
         "RecordType"                    = $Record.RecordType
         "Operation"                     = $AuditData.Operation
@@ -2301,7 +2850,7 @@ if ($Count -gt 0)
     New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX" -ItemType Directory -Force | Out-Null
 
     # CSV
-    $Import | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}},UserIds,RecordType,Operations,AuditData,ResultIndex,ResultCount,Identity,IsValid,ObjectState | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\HygieneTenantEvents.csv" -NoTypeInformation -Encoding UTF8
+    $Import | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\HygieneTenantEvents.csv" -NoTypeInformation -Encoding UTF8
 
     # XLSX
     if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\HygieneTenantEvents.csv")
@@ -2332,7 +2881,7 @@ if ($Count -gt 0)
         $AuditData = $Record.AuditData | ConvertFrom-Json
 
         $Line = [PSCustomObject]@{
-        "CreationDate"                       = $Record.CreationDate
+        "CreationTime"                       = $AuditData | Select-Object -ExpandProperty CreationTime | ForEach-Object {$_ -replace 'T',' '}
         "Id"                                 = $AuditData.Id
         "RecordType"                         = $Record.RecordType
         "Operation"                          = $AuditData.Operation
@@ -2806,7 +3355,7 @@ if (Test-Path "$($IPinfo)")
                                         }
 
                                         $Line = [PSCustomObject]@{
-                                            "CreationDate"          = $Record.CreationDate # UTC
+                                            "CreationTime"          = $Record.CreationTime # UTC
                                             "UserId"                = $Record.UserId
                                             "RecordType"            = $Record.RecordType
                                             "Operation"             = $Record.Operation
@@ -2833,6 +3382,8 @@ if (Test-Path "$($IPinfo)")
                                             "IsCompliant"           = $Record.IsCompliant
                                             "IsCompliantAndManaged" = $Record.IsCompliantAndManaged
                                             "Workload"              = $Record.Workload
+                                            "IssuedAtTime"          = $Record.IssuedAtTime
+                                            "UniqueTokenId"         = $Record.UniqueTokenId
                                         }
 
                                         $Results.Add($Line)
@@ -2847,15 +3398,15 @@ if (Test-Path "$($IPinfo)")
                             {
                                 if([int](& $xsv count "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv") -gt 0)
                                 {
-                                    $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," | Sort-Object { $_.CreationDate -as [datetime] } -Descending
+                                    $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," | Sort-Object { $_.CreationTime -as [datetime] } -Descending
                                     $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\XLSX\Hunt.xlsx" -NoHyperLinkConversion * -NoNumberConversion * -FreezePane 2,5 -BoldTopRow -AutoSize -AutoFilter -IncludePivotTable -PivotTableName "PivotTable" -WorkSheetname "Hunt" -CellStyleSB {
                                     param($WorkSheet)
                                     # BackgroundColor and FontColor for specific cells of TopRow
                                     $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                                    Set-Format -Address $WorkSheet.Cells["A1:AH1"] -BackgroundColor $BackgroundColor -FontColor White
-                                    # HorizontalAlignment "Center" of columns A-D and F-AH
+                                    Set-Format -Address $WorkSheet.Cells["A1:AC1"] -BackgroundColor $BackgroundColor -FontColor White
+                                    # HorizontalAlignment "Center" of columns A-D and F-AC
                                     $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
-                                    $WorkSheet.Cells["F:AH"].Style.HorizontalAlignment="Center"
+                                    $WorkSheet.Cells["F:AC"].Style.HorizontalAlignment="Center"
 
                                     # Iterating over the Application-Blacklist HashTable
                                     foreach ($AppId in $ApplicationBlacklist_HashTable.Keys) 
@@ -2993,7 +3544,7 @@ if (Test-Path "$($IPinfo)")
                                         }
 
                                         $Line = [PSCustomObject]@{
-                                            "CreationDate"          = $Record.CreationDate # UTC
+                                            "CreationTime"          = $Record.CreationTime # UTC
                                             "UserId"                = $Record.UserId
                                             "RecordType"            = $Record.RecordType
                                             "Operation"             = $Record.Operation
@@ -3027,6 +3578,8 @@ if (Test-Path "$($IPinfo)")
                                             "IsCompliant"           = $Record.IsCompliant
                                             "IsCompliantAndManaged" = $Record.IsCompliantAndManaged
                                             "Workload"              = $Record.Workload
+                                            "IssuedAtTime"          = $Record.IssuedAtTime
+                                            "UniqueTokenId"         = $Record.UniqueTokenId
                                         }
 
                                         $Results.Add($Line)
@@ -3041,15 +3594,15 @@ if (Test-Path "$($IPinfo)")
                             {
                                 if([int](& $xsv count "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv") -gt 0)
                                 {
-                                    $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," | Sort-Object { $_.CreationDate -as [datetime] } -Descending
+                                    $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," | Sort-Object { $_.CreationTime -as [datetime] } -Descending
                                     $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\XLSX\Hunt.xlsx" -NoHyperLinkConversion * -NoNumberConversion * -FreezePane 2,5 -BoldTopRow -AutoSize -AutoFilter -IncludePivotTable -PivotTableName "PivotTable" -WorkSheetname "Hunt" -CellStyleSB {
                                     param($WorkSheet)
                                     # BackgroundColor and FontColor for specific cells of TopRow
                                     $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                                    Set-Format -Address $WorkSheet.Cells["A1:AH1"] -BackgroundColor $BackgroundColor -FontColor White
-                                    # HorizontalAlignment "Center" of columns A-D and F-AH
+                                    Set-Format -Address $WorkSheet.Cells["A1:AJ1"] -BackgroundColor $BackgroundColor -FontColor White
+                                    # HorizontalAlignment "Center" of columns A-D and F-AJ
                                     $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
-                                    $WorkSheet.Cells["F:AH"].Style.HorizontalAlignment="Center"
+                                    $WorkSheet.Cells["F:AJ"].Style.HorizontalAlignment="Center"
 
                                     # Iterating over the Application-Blacklist HashTable
                                     foreach ($AppId in $ApplicationBlacklist_HashTable.Keys) 
@@ -3251,20 +3804,21 @@ if (Test-Path "$($IPinfo)")
 
                         # Line Charts
                         New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Stats\LineCharts" -ItemType Directory -Force | Out-Null
+                        $Data = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Select-Object -ExpandProperty AuditData | ConvertFrom-Json | Select-Object @{Name="CreationTime";Expression={($_.CreationTime | ForEach-Object{($_ -split "T")[0]})}},Operation | Sort-Object { $_.CreationTime -as [datetime] }
 
                         # Operations
-                        $Import = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd"))}},Operation | Group-Object{($_.CreationDate)} | Select-Object Count,@{Name='CreationDate'; Expression={ $_.Values[0] }} | Sort-Object { $_.CreationDate -as [datetime] }
-                        $ChartDefinition = New-ExcelChartDefinition -XRange CreationDate -YRange Count -Title "Operations" -ChartType Line -NoLegend -Width 1200
+                        $Import = $Data | Group-Object{($_.CreationTime)} | Select-Object @{Name='CreationTime'; Expression={ $_.Values[0] }},Count | Sort-Object { $_.CreationTime -as [datetime] }
+                        $ChartDefinition = New-ExcelChartDefinition -XRange CreationTime -YRange Count -Title "Operations" -ChartType Line -NoLegend -Width 1200
                         $Import | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Stats\LineCharts\Operations.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
 
                         # UserLoggedIn
-                        $Import = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "AzureActiveDirectoryStsLogon" } | Where-Object { $_.Operation -eq "UserLoggedIn" } | Select-Object CreationDate,Operation | Group-Object{($_.CreationDate -split "\s+")[0]} | Select-Object Count,@{Name='CreationDate'; Expression={ $_.Values[0] }} | Sort-Object { $_.CreationDate -as [datetime] }
-                        $ChartDefinition = New-ExcelChartDefinition -XRange CreationDate -YRange Count -Title "UserLoggedIn" -ChartType Line -NoLegend -Width 1200
+                        $Import = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "AzureActiveDirectoryStsLogon" } | Where-Object { $_.Operation -eq "UserLoggedIn" } | Select-Object CreationTime,Operation | Group-Object{($_.CreationTime -split "\s+")[0]} | Select-Object @{Name='CreationTime'; Expression={ $_.Values[0] }},Count | Sort-Object { $_.CreationTime -as [datetime] }
+                        $ChartDefinition = New-ExcelChartDefinition -XRange CreationTime -YRange Count -Title "UserLoggedIn" -ChartType Line -NoLegend -Width 1200
                         $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Stats\LineCharts\UserLoggedIn.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
                         
                         # UserLoginFailed
-                        $Import = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "AzureActiveDirectoryStsLogon" } | Where-Object { $_.Operation -eq "UserLoginFailed" } | Select-Object CreationDate,Operation | Group-Object{($_.CreationDate -split "\s+")[0]} | Select-Object Count,@{Name='CreationDate'; Expression={ $_.Values[0] }} | Sort-Object { $_.CreationDate -as [datetime] }
-                        $ChartDefinition = New-ExcelChartDefinition -XRange CreationDate -YRange Count -Title "UserLoginFailed" -ChartType Line -NoLegend -Width 1200
+                        $Import = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "AzureActiveDirectoryStsLogon" } | Where-Object { $_.Operation -eq "UserLoginFailed" } | Select-Object CreationTime,Operation | Group-Object{($_.CreationTime -split "\s+")[0]} | Select-Object @{Name='CreationTime'; Expression={ $_.Values[0] }},Count | Sort-Object { $_.CreationTime -as [datetime] }
+                        $ChartDefinition = New-ExcelChartDefinition -XRange CreationTime -YRange Count -Title "UserLoginFailed" -ChartType Line -NoLegend -Width 1200
                         $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Stats\LineCharts\UserLoginFailed.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
 
                         # Suspicious Operations
@@ -3276,7 +3830,7 @@ if (Test-Path "$($IPinfo)")
                                 # RecordType: AzureActiveDirectoryStsLogon --> Secure Token Service (STS) logon events in Azure Active Directory.
                                 # Operation: UserLoginFailed --> This property contains the Azure Active Directory STS (AADSTS) error code.
                                 $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "AzureActiveDirectoryStsLogon" } | Where-Object { $_.Operation -eq "UserLoginFailed" }
-                                $Count = ($Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 10 | Measure-Object).Count
+                                $Count = ($Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 10 | Measure-Object).Count
 
                                 if ($Count -ge 1)
                                 {
@@ -3285,8 +3839,8 @@ if (Test-Path "$($IPinfo)")
                                     New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX" -ItemType Directory -Force | Out-Null
 
                                     # CSV
-                                    $Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 10 | Select-Object Name,Count | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\AzureActiveDirectoryStsLogon-UserLoginFailed-Overview.csv" -NoTypeInformation -Encoding UTF8
-                                    $Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 10 | Select-Object -Expand Group | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\AzureActiveDirectoryStsLogon-UserLoginFailed.csv" -NoTypeInformation -Encoding UTF8
+                                    $Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 10 | Select-Object Name,Count | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\AzureActiveDirectoryStsLogon-UserLoginFailed-Overview.csv" -NoTypeInformation -Encoding UTF8
+                                    $Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 10 | Select-Object -Expand Group | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\AzureActiveDirectoryStsLogon-UserLoginFailed.csv" -NoTypeInformation -Encoding UTF8
 
                                     # AzureActiveDirectoryStsLogon-UserLoginFailed-Overview.xlsx
                                     if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\AzureActiveDirectoryStsLogon-UserLoginFailed-Overview.csv")
@@ -3310,17 +3864,25 @@ if (Test-Path "$($IPinfo)")
                                     {
                                         if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\AzureActiveDirectoryStsLogon-UserLoginFailed.csv") -gt 0)
                                         {
-                                            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\AzureActiveDirectoryStsLogon-UserLoginFailed.csv" -Delimiter "," | Select-Object CreationDate,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",EU,Location,ASN,OrgName,"Postal Code",Timezone,Workload
+                                            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\CSV\AzureActiveDirectoryStsLogon-UserLoginFailed.csv" -Delimiter "," | Select-Object CreationTime,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",ASN,OrgName,Timezone,Workload
                                             $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Operations\XLSX\AzureActiveDirectoryStsLogon-UserLoginFailed.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "UserLoginFailed" -CellStyleSB {
                                             param($WorkSheet)
                                             # BackgroundColor and FontColor for specific cells of TopRow
                                             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                                            Set-Format -Address $WorkSheet.Cells["A1:R1"] -BackgroundColor $BackgroundColor -FontColor White
-                                            # HorizontalAlignment "Center" of columns A-R
-                                            $WorkSheet.Cells["A:R"].Style.HorizontalAlignment="Center"
+                                            Set-Format -Address $WorkSheet.Cells["A1:O1"] -BackgroundColor $BackgroundColor -FontColor White
+                                            # HorizontalAlignment "Center" of columns A-O
+                                            $WorkSheet.Cells["A:O"].Style.HorizontalAlignment="Center"
                                             # ConditionalFormatting
                                             Add-ConditionalFormatting -Address $WorkSheet.Cells["C:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("AzureActiveDirectoryStsLogon",$C1)))' -BackgroundColor Red
                                             Add-ConditionalFormatting -Address $WorkSheet.Cells["D:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("UserLoginFailed",$D1)))' -BackgroundColor Red
+                                            
+                                            # Iterating over the ASN-Blacklist HashTable
+                                            foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
+                                            {
+                                                $ConditionValue = 'NOT(ISERROR(FIND("{0}",$L1)))' -f $ASN
+                                                Add-ConditionalFormatting -Address $WorkSheet.Cells["L:L"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                            }
+                                            
                                             }
                                         }
                                     }
@@ -3336,8 +3898,8 @@ if (Test-Path "$($IPinfo)")
 
                         # MoveToDeletedItems - Moved messages to 'Deleted Items' folder
                         # Description: A message was deleted and moved to the Deleted Items folder.
-                        $Records = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeItemGroup" } | Where-Object { $_.Operations -eq "MoveToDeletedItems" } | Sort-Object { $_.CreationDate -as [datetime] } -Descending
-                        $Count = ($Records | Select-Object CreationDate).Count
+                        $Records = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeItemGroup" } | Where-Object { $_.Operations -eq "MoveToDeletedItems" } | Sort-Object { $_.CreationTime -as [datetime] } -Descending
+                        $Count = ($Records | Select-Object CreationTime).Count
                         $MoveToDeletedItems = '{0:N0}' -f $Count
 
                         if ($Count -gt 0)
@@ -3345,16 +3907,6 @@ if (Test-Path "$($IPinfo)")
                             Write-Host "[Info]  $MoveToDeletedItems messages were moved to Deleted Items folder: MoveToDeletedItems"
                             New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV" -ItemType Directory -Force | Out-Null
                             New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\XLSX" -ItemType Directory -Force | Out-Null
-
-                            # Create HashTable and import 'UserType.csv'
-                            $UserType_HashTable = @{}
-                            if(Test-Path "$SCRIPT_DIR\Config\UserType.csv")
-                            {
-                                if([int](& $xsv count "$SCRIPT_DIR\Config\UserType.csv") -gt 0)
-                                {
-                                    Import-Csv "$SCRIPT_DIR\Config\UserType.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $UserType_HashTable[$_.Value] = $_.Member, $_.Description }
-                                }
-                            }
 
                             # CSV
                             $Results = [Collections.Generic.List[PSObject]]::new()
@@ -3366,7 +3918,7 @@ if (Test-Path "$($IPinfo)")
                                 $DestFolder    = $AuditData.DestFolder
                                 $Folder        = $AuditData.Folder
 
-                                # UserType (Value --> Member Name)
+                                # UserType
                                 [int]$UserTypeValue = $AuditData.UserType
 
                                 # Check if HashTable contains Value
@@ -3376,7 +3928,7 @@ if (Test-Path "$($IPinfo)")
                                 }
                                         
                                 $Line = [PSCustomObject]@{
-                                "CreationTime"          = ($Record | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}}).CreationDate
+                                "CreationTime"          = $AuditData | Select-Object -ExpandProperty CreationTime | ForEach-Object {$_ -replace 'T',' '}
                                 "Id"                    = $AuditData.Id
                                 "Workload"              = $AuditData.Workload
                                 "RecordType"            = $Record.RecordType
@@ -3444,8 +3996,9 @@ if (Test-Path "$($IPinfo)")
                         New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\XLSX\LineCharts" -ItemType Directory -Force | Out-Null
 
                         # Messages moved to Deleted Items folder per day (MoveToDeletedItems)
-                        $Import = Import-Csv -Path "$LogFile" -Delimiter "," | Where-Object { $_.RecordType -eq "ExchangeItemGroup" } | Where-Object { $_.Operations -eq "MoveToDeletedItems" } | Select-Object @{Name="CreationTime";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd"))}} | Group-Object{($_.CreationTime -split "\s+")[0]} | Select-Object Count,@{Name='CreationTime'; Expression={ $_.Values[0] }} | Sort-Object { $_.CreationTime -as [datetime] }
-                        $Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
+                        $AuditData = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Select-Object -ExpandProperty AuditData | ConvertFrom-Json
+                        $Import = $AuditData | Where-Object { $_.Operation -eq "MoveToDeletedItems" } | Select-Object @{Name="CreationTime";Expression={($_.CreationTime | ForEach-Object{($_ -split "T")[0]})}} | Group-Object{($_.CreationTime)} | Select-Object @{Name='CreationTime'; Expression={ $_.Values[0] }},Count | Sort-Object { $_.CreationTime -as [datetime] }
+                        $Count = ($Import | Measure-Object).Count
                         if ($Count -gt 0)
                         {
                             $ChartDefinition = New-ExcelChartDefinition -XRange CreationTime -YRange Count -Title "MoveToDeletedItems" -ChartType Line -NoLegend -Width 1200
@@ -3462,8 +4015,8 @@ if (Test-Path "$($IPinfo)")
                         # SoftDelete - Deleted messages from 'Deleted Items' folder
                         # Description: A message was permanently deleted or deleted from the Deleted Items folder. These items are moved to the 'Recoverable Items' folder.
                         # Note: Messages are also moved to the 'Recoverable Items' folder when a user selects it and presses Shift+Delete.
-                        $Records = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeItemGroup" } | Where-Object { $_.Operations -eq "SoftDelete" } | Sort-Object { $_.CreationDate -as [datetime] } -Descending
-                        $Count = ($Records | Select-Object CreationDate).Count
+                        $Records = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeItemGroup" } | Where-Object { $_.Operations -eq "SoftDelete" } | Sort-Object { $_.CreationTime -as [datetime] } -Descending
+                        $Count = ($Records | Select-Object CreationTime).Count
                         $SoftDelete = '{0:N0}' -f $Count
 
                         if ($Count -gt 0)
@@ -3471,16 +4024,6 @@ if (Test-Path "$($IPinfo)")
                             Write-Host "[Info]  $SoftDelete messages were deleted from Deleted Items folder: SoftDelete (AggregatedItems)"
                             New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV" -ItemType Directory -Force | Out-Null
                             New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\XLSX" -ItemType Directory -Force | Out-Null
-
-                            # Create HashTable and import 'UserType.csv'
-                            $UserType_HashTable = @{}
-                            if(Test-Path "$SCRIPT_DIR\Config\UserType.csv")
-                            {
-                                if([int](& $xsv count "$SCRIPT_DIR\Config\UserType.csv") -gt 0)
-                                {
-                                    Import-Csv "$SCRIPT_DIR\Config\UserType.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $UserType_HashTable[$_.Value] = $_.Member, $_.Description }
-                                }
-                            }
 
                             # CSV
                             $Results = [Collections.Generic.List[PSObject]]::new()
@@ -3502,7 +4045,7 @@ if (Test-Path "$($IPinfo)")
                                 }
                                         
                                 $Line = [PSCustomObject]@{
-                                "CreationTime"          = ($Record | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}}).CreationDate
+                                "CreationTime"          = $AuditData | Select-Object -ExpandProperty CreationTime | ForEach-Object {$_ -replace 'T',' '}
                                 "Id"                    = $AuditData.Id
                                 "Workload"              = $AuditData.Workload
                                 "RecordType"            = $Record.RecordType
@@ -3552,7 +4095,7 @@ if (Test-Path "$($IPinfo)")
                             if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\SoftDelete.csv") -gt 0)
                             {
                                 $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\SoftDelete.csv" -Delimiter "," -Encoding UTF8 | Sort-Object { $_.CreationTime -as [datetime] } -Descending
-                                $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\XLSX\SoftDelete.xlsx" -NoNumberConversion * -FreezePane 2,7 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "SoftDelete" -CellStyleSB {
+                                $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\XLSX\SoftDelete.xlsx" -NoNumberConversion * -NoHyperLinkConversion * -FreezePane 2,7 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "SoftDelete" -CellStyleSB {
                                 param($WorkSheet)
                                 # BackgroundColor and FontColor for specific cells of TopRow
                                 $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
@@ -3579,7 +4122,8 @@ if (Test-Path "$($IPinfo)")
                         New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\XLSX\LineCharts" -ItemType Directory -Force | Out-Null
 
                         # Deleted messages from Deleted Items folder per day (SoftDelete --> AggregatedItems)
-                        $Import = Import-Csv -Path "$LogFile" -Delimiter "," | Where-Object { $_.RecordType -eq "ExchangeItemGroup" } | Where-Object { $_.Operations -eq "SoftDelete" } | Select-Object @{Name="CreationTime";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd"))}} | Group-Object{($_.CreationTime -split "\s+")[0]} | Select-Object Count,@{Name='CreationTime'; Expression={ $_.Values[0] }} | Sort-Object { $_.CreationTime -as [datetime] }
+                        $AuditData = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Select-Object -ExpandProperty AuditData | ConvertFrom-Json
+                        $Import = $AuditData | Where-Object { $_.Operation -eq "SoftDelete" } | Select-Object @{Name="CreationTime";Expression={($_.CreationTime | ForEach-Object{($_ -split "T")[0]})}} | Group-Object{($_.CreationTime)} | Select-Object @{Name='CreationTime'; Expression={ $_.Values[0] }},Count | Sort-Object { $_.CreationTime -as [datetime] }
                         $Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
                         if ($Count -gt 0)
                         {
@@ -3608,8 +4152,8 @@ if (Test-Path "$($IPinfo)")
 
                         # HardDelete - Purged items from the mailbox (messages and calendar items)
                         # Description: An item was purged from the 'Recoverable Items' folder (permanently deleted from the mailbox).
-                        $Records = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeItemGroup" } | Where-Object { $_.Operations -eq "HardDelete" } | Sort-Object { $_.CreationDate -as [datetime] } -Descending
-                        $Count = ($Records | Select-Object CreationDate).Count
+                        $Records = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeItemGroup" } | Where-Object { $_.Operations -eq "HardDelete" } | Sort-Object { $_.CreationTime -as [datetime] } -Descending
+                        $Count = ($Records | Select-Object CreationTime).Count
                         $HardDelete = '{0:N0}' -f $Count
 
                         if ($Count -gt 0)
@@ -3617,16 +4161,6 @@ if (Test-Path "$($IPinfo)")
                             Write-Host "[Info]  $HardDelete items were purged from the mailbox: HardDelete"
                             New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV" -ItemType Directory -Force | Out-Null
                             New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\XLSX" -ItemType Directory -Force | Out-Null
-
-                            # Create HashTable and import 'UserType.csv'
-                            $UserType_HashTable = @{}
-                            if(Test-Path "$SCRIPT_DIR\Config\UserType.csv")
-                            {
-                                if([int](& $xsv count "$SCRIPT_DIR\Config\UserType.csv") -gt 0)
-                                {
-                                    Import-Csv "$SCRIPT_DIR\Config\UserType.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $UserType_HashTable[$_.Value] = $_.Member, $_.Description }
-                                }
-                            }
 
                             # CSV
                             $Results = [Collections.Generic.List[PSObject]]::new()
@@ -3647,7 +4181,7 @@ if (Test-Path "$($IPinfo)")
                                 }
                                         
                                 $Line = [PSCustomObject]@{
-                                "CreationTime"          = ($Record | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}}).CreationDate
+                                "CreationTime"          = $AuditData | Select-Object -ExpandProperty CreationTime | ForEach-Object {$_ -replace 'T',' '}
                                 "Id"                    = $AuditData.Id
                                 "Workload"              = $AuditData.Workload
                                 "RecordType"            = $Record.RecordType
@@ -3712,8 +4246,10 @@ if (Test-Path "$($IPinfo)")
                         New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\XLSX\LineCharts" -ItemType Directory -Force | Out-Null
 
                         # Purged items from the mailbox (messages and calendar items) per day (HardDelete)
-                        $Import = Import-Csv -Path "$LogFile" -Delimiter "," | Where-Object { $_.RecordType -eq "ExchangeItemGroup" } | Where-Object { $_.Operations -eq "HardDelete" } | Select-Object @{Name="CreationTime";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd"))}} | Group-Object{($_.CreationTime -split "\s+")[0]} | Select-Object Count,@{Name='CreationTime'; Expression={ $_.Values[0] }} | Sort-Object { $_.CreationTime -as [datetime] }
-                        $Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
+                        $AuditData = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Select-Object -ExpandProperty AuditData | ConvertFrom-Json
+                        $Import = $AuditData | Where-Object { $_.Operation -eq "HardDelete" } | Select-Object @{Name="CreationTime";Expression={($_.CreationTime | ForEach-Object{($_ -split "T")[0]})}} | Group-Object{($_.CreationTime)} | Select-Object @{Name='CreationTime'; Expression={ $_.Values[0] }},Count | Sort-Object { $_.CreationTime -as [datetime] }
+                        
+                        $Count = ($Import | Measure-Object).Count
                         if ($Count -gt 0)
                         {
                             $ChartDefinition = New-ExcelChartDefinition -XRange CreationTime -YRange Count -Title "HardDelete" -ChartType Line -NoLegend -Width 1200
@@ -3729,8 +4265,8 @@ if (Test-Path "$($IPinfo)")
 
                         # Send - Sent message
                         # Description: A message was sent, replied to or forwarded.
-                        $Records = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeItem" } | Where-Object { $_.Operations -eq "Send" } | Sort-Object { $_.CreationDate -as [datetime] } -Descending
-                        $Count = ($Records | Select-Object CreationDate).Count
+                        $Records = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeItem" } | Where-Object { $_.Operations -eq "Send" } | Sort-Object { $_.CreationTime -as [datetime] } -Descending
+                        $Count = ($Records | Select-Object CreationTime).Count
                         $Send = '{0:N0}' -f $Count
 
                         if ($Count -gt 0)
@@ -3738,26 +4274,6 @@ if (Test-Path "$($IPinfo)")
                             Write-Host "[Info]  $Send messages were sent, replied to or forwarded: Send"
                             New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV" -ItemType Directory -Force | Out-Null
                             New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\XLSX" -ItemType Directory -Force | Out-Null
-
-                            # Create HashTable and import 'UserType.csv'
-                            $UserType_HashTable = @{}
-                            if(Test-Path "$SCRIPT_DIR\Config\UserType.csv")
-                            {
-                                if([int](& $xsv count "$SCRIPT_DIR\Config\UserType.csv") -gt 0)
-                                {
-                                    Import-Csv "$SCRIPT_DIR\Config\UserType.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $UserType_HashTable[$_.Value] = $_.Member, $_.Description }
-                                }
-                            }
-
-                            # Create HashTable and import 'LogonType.csv'
-                            $LogonType_HashTable = @{}
-                            if(Test-Path "$SCRIPT_DIR\Config\LogonType.csv")
-                            {
-                                if([int](& $xsv count "$SCRIPT_DIR\Config\LogonType.csv") -gt 0)
-                                {
-                                    Import-Csv "$SCRIPT_DIR\Config\LogonType.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $LogonType_HashTable[$_.Value] = $_.LogonType }
-                                }
-                            }
 
                             # CSV
                             $Results = [Collections.Generic.List[PSObject]]::new()
@@ -3786,7 +4302,7 @@ if (Test-Path "$($IPinfo)")
                                 }
                                         
                                 $Line = [PSCustomObject]@{
-                                "CreationTime"          = ($Record | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}}).CreationDate
+                                "CreationTime"          = $AuditData | Select-Object -ExpandProperty CreationTime | ForEach-Object {$_ -replace 'T',' '}
                                 "Id"                    = $AuditData.Id
                                 "Workload"              = $AuditData.Workload
                                 "RecordType"            = $Record.RecordType
@@ -3855,8 +4371,8 @@ if (Test-Path "$($IPinfo)")
 
                         # SendAs - Sent message using Send As permissions
                         # Description: A message was sent using the SendAs permission. This means that another user sent the message as though it came from the mailbox owner.
-                        $Records = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeItem" } | Where-Object { $_.Operations -eq "SendAs" } | Sort-Object { $_.CreationDate -as [datetime] } -Descending
-                        $Count = ($Records | Select-Object CreationDate).Count
+                        $Records = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeItem" } | Where-Object { $_.Operations -eq "SendAs" } | Sort-Object { $_.CreationTime -as [datetime] } -Descending
+                        $Count = ($Records | Select-Object CreationTime).Count
                         $SendAs = '{0:N0}' -f $Count
 
                         if ($Count -gt 0)
@@ -3864,26 +4380,6 @@ if (Test-Path "$($IPinfo)")
                             Write-Host "[Info]  $SendAs messages were sent using SendAs permisisons: SendAs"
                             New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV" -ItemType Directory -Force | Out-Null
                             New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\XLSX" -ItemType Directory -Force | Out-Null
-
-                            # Create HashTable and import 'UserType.csv'
-                            $UserType_HashTable = @{}
-                            if(Test-Path "$SCRIPT_DIR\Config\UserType.csv")
-                            {
-                                if([int](& $xsv count "$SCRIPT_DIR\Config\UserType.csv") -gt 0)
-                                {
-                                    Import-Csv "$SCRIPT_DIR\Config\UserType.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $UserType_HashTable[$_.Value] = $_.Member, $_.Description }
-                                }
-                            }
-
-                            # Create HashTable and import 'LogonType.csv'
-                            $LogonType_HashTable = @{}
-                            if(Test-Path "$SCRIPT_DIR\Config\LogonType.csv")
-                            {
-                                if([int](& $xsv count "$SCRIPT_DIR\Config\LogonType.csv") -gt 0)
-                                {
-                                    Import-Csv "$SCRIPT_DIR\Config\LogonType.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $LogonType_HashTable[$_.Value] = $_.LogonType }
-                                }
-                            }
 
                             # CSV
                             $Results = [Collections.Generic.List[PSObject]]::new()
@@ -3912,7 +4408,7 @@ if (Test-Path "$($IPinfo)")
                                 }
                                         
                                 $Line = [PSCustomObject]@{
-                                "CreationTime"          = ($Record | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}}).CreationDate
+                                "CreationTime"          = $AuditData | Select-Object -ExpandProperty CreationTime | ForEach-Object {$_ -replace 'T',' '}
                                 "Id"                    = $AuditData.Id
                                 "Workload"              = $AuditData.Workload
                                 "RecordType"            = $Record.RecordType
@@ -3984,8 +4480,8 @@ if (Test-Path "$($IPinfo)")
 
                         # SendOnBehalf - Sent message using Send On Behalf permissions
                         # Description: A message was sent using the SendOnBehalf permission. This means that another user sent the message on behalf of the mailbox owner. The message indicates to the recipient whom the message was sent on behalf of and who actually sent the message.
-                        $Records = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeItem" } | Where-Object { $_.Operations -eq "SendOnBehalf" } | Sort-Object { $_.CreationDate -as [datetime] } -Descending
-                        $Count = ($Records | Select-Object CreationDate).Count
+                        $Records = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeItem" } | Where-Object { $_.Operations -eq "SendOnBehalf" } | Sort-Object { $_.CreationTime -as [datetime] } -Descending
+                        $Count = ($Records | Select-Object CreationTime).Count
                         $SendOnBehalf = '{0:N0}' -f $Count
 
                         if ($Count -gt 0)
@@ -3993,26 +4489,6 @@ if (Test-Path "$($IPinfo)")
                             Write-Host "[Info]  $SendOnBehalf messages were sent using SendOnBehalf permisisons: SendOnBehalf"
                             New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV" -ItemType Directory -Force | Out-Null
                             New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\XLSX" -ItemType Directory -Force | Out-Null
-
-                            # Create HashTable and import 'UserType.csv'
-                            $UserType_HashTable = @{}
-                            if(Test-Path "$SCRIPT_DIR\Config\UserType.csv")
-                            {
-                                if([int](& $xsv count "$SCRIPT_DIR\Config\UserType.csv") -gt 0)
-                                {
-                                    Import-Csv "$SCRIPT_DIR\Config\UserType.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $UserType_HashTable[$_.Value] = $_.Member, $_.Description }
-                                }
-                            }
-
-                            # Create HashTable and import 'LogonType.csv'
-                            $LogonType_HashTable = @{}
-                            if(Test-Path "$SCRIPT_DIR\Config\LogonType.csv")
-                            {
-                                if([int](& $xsv count "$SCRIPT_DIR\Config\LogonType.csv") -gt 0)
-                                {
-                                    Import-Csv "$SCRIPT_DIR\Config\LogonType.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $LogonType_HashTable[$_.Value] = $_.LogonType }
-                                }
-                            }
 
                             # CSV
                             $Results = [Collections.Generic.List[PSObject]]::new()
@@ -4041,7 +4517,7 @@ if (Test-Path "$($IPinfo)")
                                 }
 
                                 $Line = [PSCustomObject]@{
-                                "CreationTime"                  = ($Record | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}}).CreationDate
+                                "CreationTime"          = $AuditData | Select-Object -ExpandProperty CreationTime | ForEach-Object {$_ -replace 'T',' '}
                                 "Id"                            = $AuditData.Id
                                 "Workload"                      = $AuditData.Workload
                                 "RecordType"                    = $Record.RecordType
@@ -4118,7 +4594,7 @@ if (Test-Path "$($IPinfo)")
                                 # RecordType: ExchangeItemGroup --> Events from an Exchange mailbox audit log for actions that can be performed on multiple items, such as moving or deleted one or more email messages.
                                 # Operation: MoveToDeletedItems --> A message was deleted and moved to the Deleted Items folder.
                                 $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeItemGroup" } | Where-Object { $_.OrgName -ne "Zscaler Switzerland GmbH" } | Where-Object { $_.Operation -eq "MoveToDeletedItems" }
-                                $Count = ($Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 50 | Measure-Object).Count
+                                $Count = ($Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 50 | Measure-Object).Count
 
                                 if ($Count -ge 1)
                                 {
@@ -4127,8 +4603,8 @@ if (Test-Path "$($IPinfo)")
                                     New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\XLSX" -ItemType Directory -Force | Out-Null
 
                                     # CSV
-                                    $Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 50 | Select-Object Name,Count | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItemGroup-MoveToDeletedItems-Overview.csv" -NoTypeInformation -Encoding UTF8
-                                    $Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 50 | Select-Object -Expand Group | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItemGroup-MoveToDeletedItems.csv" -NoTypeInformation -Encoding UTF8
+                                    $Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 50 | Select-Object Name,Count | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItemGroup-MoveToDeletedItems-Overview.csv" -NoTypeInformation -Encoding UTF8
+                                    $Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 50 | Select-Object -Expand Group | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItemGroup-MoveToDeletedItems.csv" -NoTypeInformation -Encoding UTF8
 
                                     # ExchangeItemGroup-MoveToDeletedItems-Overview.xlsx
                                     if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItemGroup-MoveToDeletedItems-Overview.csv")
@@ -4152,14 +4628,14 @@ if (Test-Path "$($IPinfo)")
                                     {
                                         if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItemGroup-MoveToDeletedItems.csv") -gt 0)
                                         {
-                                            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItemGroup-MoveToDeletedItems.csv" -Delimiter "," | Select-Object CreationDate,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",EU,Location,ASN,OrgName,"Postal Code",Timezone,Workload
-                                            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\XLSX\ExchangeItemGroup-MoveToDeletedItems.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "MoveToDeletedItems" -CellStyleSB {
+                                            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItemGroup-MoveToDeletedItems.csv" -Delimiter "," | Select-Object CreationTime,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",ASN,OrgName,Timezone,Workload
+                                            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\XLSX\ExchangeItemGroup-MoveToDeletedItems.xlsx" -NoNumberConversion * -NoHyperLinkConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "MoveToDeletedItems" -CellStyleSB {
                                             param($WorkSheet)
                                             # BackgroundColor and FontColor for specific cells of TopRow
                                             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                                            Set-Format -Address $WorkSheet.Cells["A1:R1"] -BackgroundColor $BackgroundColor -FontColor White
-                                            # HorizontalAlignment "Center" of columns A-R
-                                            $WorkSheet.Cells["A:R"].Style.HorizontalAlignment="Center"
+                                            Set-Format -Address $WorkSheet.Cells["A1:O1"] -BackgroundColor $BackgroundColor -FontColor White
+                                            # HorizontalAlignment "Center" of columns A-O
+                                            $WorkSheet.Cells["A:O"].Style.HorizontalAlignment="Center"
                                             # ConditionalFormatting
                                             Add-ConditionalFormatting -Address $WorkSheet.Cells["C:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("ExchangeItemGroup",$C1)))' -BackgroundColor Red
                                             Add-ConditionalFormatting -Address $WorkSheet.Cells["D:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("MoveToDeletedItems",$D1)))' -BackgroundColor Red
@@ -4172,7 +4648,7 @@ if (Test-Path "$($IPinfo)")
                                 # RecordType: ExchangeItemGroup --> Events from an Exchange mailbox audit log for actions that can be performed on multiple items, such as moving or deleted one or more email messages.
                                 # Operation: SoftDelete --> A message was permanently deleted or deleted from the Deleted Items folder. Soft-deleted items are moved to the Recoverable Items folder.
                                 $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeItemGroup" } | Where-Object { $_.OrgName -ne "Zscaler Switzerland GmbH" } | Where-Object { $_.Operation -eq "SoftDelete" }
-                                $Count = ($Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 50 | Measure-Object).Count
+                                $Count = ($Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 50 | Measure-Object).Count
                                 
                                 if ($Count -ge 1)
                                 {
@@ -4181,8 +4657,8 @@ if (Test-Path "$($IPinfo)")
                                     New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\XLSX" -ItemType Directory -Force | Out-Null
 
                                     # CSV
-                                    $Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 50 | Select-Object Name,Count | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItemGroup-SoftDelete-Overview.csv" -NoTypeInformation -Encoding UTF8
-                                    $Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 50 | Select-Object -Expand Group | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItemGroup-SoftDelete.csv" -NoTypeInformation -Encoding UTF8
+                                    $Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 50 | Select-Object Name,Count | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItemGroup-SoftDelete-Overview.csv" -NoTypeInformation -Encoding UTF8
+                                    $Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 50 | Select-Object -Expand Group | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItemGroup-SoftDelete.csv" -NoTypeInformation -Encoding UTF8
 
                                     # ExchangeItemGroup-SoftDelete-Overview.xlsx
                                     if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItemGroup-SoftDelete-Overview.csv")
@@ -4206,14 +4682,14 @@ if (Test-Path "$($IPinfo)")
                                     {
                                         if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItemGroup-SoftDelete.csv") -gt 0)
                                         {
-                                            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItemGroup-SoftDelete.csv" -Delimiter "," | Select-Object CreationDate,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",EU,Location,ASN,OrgName,"Postal Code",Timezone,Workload
+                                            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItemGroup-SoftDelete.csv" -Delimiter "," | Select-Object CreationTime,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",ASN,OrgName,Timezone,Workload
                                             $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\XLSX\ExchangeItemGroup-SoftDelete.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "SoftDelete" -CellStyleSB {
                                             param($WorkSheet)
                                             # BackgroundColor and FontColor for specific cells of TopRow
                                             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                                            Set-Format -Address $WorkSheet.Cells["A1:R1"] -BackgroundColor $BackgroundColor -FontColor White
-                                            # HorizontalAlignment "Center" of columns A-R
-                                            $WorkSheet.Cells["A:R"].Style.HorizontalAlignment="Center"
+                                            Set-Format -Address $WorkSheet.Cells["A1:O1"] -BackgroundColor $BackgroundColor -FontColor White
+                                            # HorizontalAlignment "Center" of columns A-O
+                                            $WorkSheet.Cells["A:O"].Style.HorizontalAlignment="Center"
                                             # ConditionalFormatting
                                             Add-ConditionalFormatting -Address $WorkSheet.Cells["C:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("ExchangeItemGroup",$C1)))' -BackgroundColor Red
                                             Add-ConditionalFormatting -Address $WorkSheet.Cells["D:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("SoftDelete",$D1)))' -BackgroundColor Red
@@ -4226,7 +4702,7 @@ if (Test-Path "$($IPinfo)")
                                 # RecordType: ExchangeItemGroup --> Events from an Exchange mailbox audit log for actions that can be performed on multiple items, such as moving or deleted one or more email messages.
                                 # Operation: HardDelete --> A message was purged from the Recoverable Items folder.
                                 $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeItemGroup" } | Where-Object { $_.OrgName -ne "Zscaler Switzerland GmbH" } | Where-Object { $_.Operation -eq "HardDelete" }
-                                $Count = ($Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 50 | Measure-Object).Count
+                                $Count = ($Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 50 | Measure-Object).Count
 
                                 if ($Count -ge 1)
                                 {
@@ -4235,8 +4711,8 @@ if (Test-Path "$($IPinfo)")
                                     New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\XLSX" -ItemType Directory -Force | Out-Null
 
                                     # CSV
-                                    $Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 50 | Select-Object Name,Count | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItemGroup-HardDelete-Overview.csv" -NoTypeInformation -Encoding UTF8
-                                    $Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 50 | Select-Object -Expand Group | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItemGroup-HardDelete.csv" -NoTypeInformation -Encoding UTF8
+                                    $Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 50 | Select-Object Name,Count | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItemGroup-HardDelete-Overview.csv" -NoTypeInformation -Encoding UTF8
+                                    $Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 50 | Select-Object -Expand Group | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItemGroup-HardDelete.csv" -NoTypeInformation -Encoding UTF8
 
                                     # ExchangeItemGroup-HardDelete-Overview.xlsx
                                     if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItemGroup-HardDelete-Overview.csv")
@@ -4260,17 +4736,25 @@ if (Test-Path "$($IPinfo)")
                                     {
                                         if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItemGroup-HardDelete.csv") -gt 0)
                                         {
-                                            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItemGroup-HardDelete.csv" -Delimiter "," | Select-Object CreationDate,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",EU,Location,ASN,OrgName,"Postal Code",Timezone,Workload
+                                            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItemGroup-HardDelete.csv" -Delimiter "," | Select-Object CreationTime,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",ASN,OrgName,Timezone,Workload
                                             $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\XLSX\ExchangeItemGroup-HardDelete.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "HardDelete" -CellStyleSB {
                                             param($WorkSheet)
                                             # BackgroundColor and FontColor for specific cells of TopRow
                                             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                                            Set-Format -Address $WorkSheet.Cells["A1:R1"] -BackgroundColor $BackgroundColor -FontColor White
-                                            # HorizontalAlignment "Center" of columns A-R
-                                            $WorkSheet.Cells["A:R"].Style.HorizontalAlignment="Center"
+                                            Set-Format -Address $WorkSheet.Cells["A1:O1"] -BackgroundColor $BackgroundColor -FontColor White
+                                            # HorizontalAlignment "Center" of columns A-O
+                                            $WorkSheet.Cells["A:O"].Style.HorizontalAlignment="Center"
                                             # ConditionalFormatting
                                             Add-ConditionalFormatting -Address $WorkSheet.Cells["C:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("ExchangeItemGroup",$C1)))' -BackgroundColor Red
                                             Add-ConditionalFormatting -Address $WorkSheet.Cells["D:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("HardDelete",$D1)))' -BackgroundColor Red
+                                            
+                                            # Iterating over the ASN-Blacklist HashTable
+                                            foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
+                                            {
+                                                $ConditionValue = 'NOT(ISERROR(FIND("{0}",$L1)))' -f $ASN
+                                                Add-ConditionalFormatting -Address $WorkSheet.Cells["L:L"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                            }
+
                                             }
                                         }
                                     }
@@ -4279,7 +4763,7 @@ if (Test-Path "$($IPinfo)")
                                     # RecordType: ExchangeItem --> Events from an Exchange mailbox audit log for actions that are performed on a single item, such as creating or receiving an email message.
                                     # Operation: HardDelete --> A message was purged from the Recoverable Items folder.
                                     $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeItem" } | Where-Object { $_.OrgName -ne "Zscaler Switzerland GmbH" } | Where-Object { $_.Operation -eq "HardDelete" }
-                                    $Count = ($Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 50 | Measure-Object).Count
+                                    $Count = ($Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 50 | Measure-Object).Count
 
                                     if ($Count -ge 1)
                                     {
@@ -4288,8 +4772,8 @@ if (Test-Path "$($IPinfo)")
                                         New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\XLSX" -ItemType Directory -Force | Out-Null
 
                                         # CSV
-                                        $Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 50 | Select-Object Name,Count | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItem-HardDelete-Overview.csv" -NoTypeInformation -Encoding UTF8
-                                        $Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 50 | Select-Object -Expand Group | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItem-HardDelete.csv" -NoTypeInformation -Encoding UTF8
+                                        $Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 50 | Select-Object Name,Count | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItem-HardDelete-Overview.csv" -NoTypeInformation -Encoding UTF8
+                                        $Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 50 | Select-Object -Expand Group | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItem-HardDelete.csv" -NoTypeInformation -Encoding UTF8
 
                                         # ExchangeItem-HardDelete-Overview.xlsx
                                         if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItem-HardDelete-Overview.csv")
@@ -4313,7 +4797,7 @@ if (Test-Path "$($IPinfo)")
                                         {
                                             if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItem-HardDelete.csv") -gt 0)
                                             {
-                                                $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItem-HardDelete.csv" -Delimiter "," | Select-Object CreationDate,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",EU,Location,ASN,OrgName,"Postal Code",Timezone,Workload
+                                                $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItem-HardDelete.csv" -Delimiter "," | Select-Object CreationTime,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",EU,Location,ASN,OrgName,"Postal Code",Timezone,Workload
                                                 $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\XLSX\ExchangeItem-HardDelete.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "HardDelete" -CellStyleSB {
                                                 param($WorkSheet)
                                                 # BackgroundColor and FontColor for specific cells of TopRow
@@ -4333,7 +4817,7 @@ if (Test-Path "$($IPinfo)")
                                     # RecordType: ExchangeItem --> 	Events from an Exchange mailbox audit log for actions that are performed on a single item, such as creating or receiving an email message.
                                     # Operation: SendAs --> A message was sent using the SendAs permission. This permission allows another user to send the message as though it came from the mailbox owner.
                                     $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeItem" } | Where-Object { $_.OrgName -ne "Zscaler Switzerland GmbH" } | Where-Object { $_.Operation -eq "SendAs" }
-                                    $Count = ($Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 10 | Measure-Object).Count
+                                    $Count = ($Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 10 | Measure-Object).Count
 
                                     if ($Count -ge 1)
                                     {
@@ -4342,8 +4826,8 @@ if (Test-Path "$($IPinfo)")
                                         New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\XLSX" -ItemType Directory -Force | Out-Null
 
                                         # CSV
-                                        $Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 10 | Select-Object Name,Count | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItem-SendAs-Overview.csv" -NoTypeInformation -Encoding UTF8
-                                        $Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 10 | Select-Object -Expand Group | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItem-SendAs.csv" -NoTypeInformation -Encoding UTF8
+                                        $Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 10 | Select-Object Name,Count | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItem-SendAs-Overview.csv" -NoTypeInformation -Encoding UTF8
+                                        $Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 10 | Select-Object -Expand Group | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItem-SendAs.csv" -NoTypeInformation -Encoding UTF8
                                         
                                         # ExchangeItem-SendAs-Overview.xlsx
                                         if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItem-SendAs-Overview.csv")
@@ -4367,7 +4851,7 @@ if (Test-Path "$($IPinfo)")
                                         {
                                             if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItem-SendAs.csv") -gt 0)
                                             {
-                                                $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItem-SendAs.csv" -Delimiter "," | Select-Object CreationDate,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",EU,Location,ASN,OrgName,"Postal Code",Timezone,Workload
+                                                $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItem-SendAs.csv" -Delimiter "," | Select-Object CreationTime,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",EU,Location,ASN,OrgName,"Postal Code",Timezone,Workload
                                                 $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\XLSX\ExchangeItem-SendAs.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "SendAs" -CellStyleSB {
                                                 param($WorkSheet)
                                                 # BackgroundColor and FontColor for specific cells of TopRow
@@ -4386,7 +4870,7 @@ if (Test-Path "$($IPinfo)")
                                         # RecordType: ExchangeItem --> 	Events from an Exchange mailbox audit log for actions that are performed on a single item, such as creating or receiving an email message.
                                         # Operation: Update --> A message or any of its properties was changed.
                                         $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "ExchangeItem" } | Where-Object { $_.OrgName -ne "Zscaler Switzerland GmbH" } | Where-Object { $_.Operation -eq "Update" }
-                                        $Count = ($Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 20 | Measure-Object).Count
+                                        $Count = ($Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 20 | Measure-Object).Count
 
                                         if ($Count -ge 1)
                                         {
@@ -4395,8 +4879,8 @@ if (Test-Path "$($IPinfo)")
                                             New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\XLSX" -ItemType Directory -Force | Out-Null
 
                                             # CSV
-                                            $Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 20 | Select-Object Name,Count | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItem-Update-Overview.csv" -NoTypeInformation -Encoding UTF8
-                                            $Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 20 | Select-Object -Expand Group | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItem-Update.csv" -NoTypeInformation -Encoding UTF8
+                                            $Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 20 | Select-Object Name,Count | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItem-Update-Overview.csv" -NoTypeInformation -Encoding UTF8
+                                            $Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 20 | Select-Object -Expand Group | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItem-Update.csv" -NoTypeInformation -Encoding UTF8
                                             
                                             # ExchangeItem-Update-Overview.xlsx
                                             if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItem-Update-Overview.csv")
@@ -4420,7 +4904,7 @@ if (Test-Path "$($IPinfo)")
                                             {
                                                 if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItem-Update.csv") -gt 0)
                                                 {
-                                                    $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItem-Update.csv" -Delimiter "," | Select-Object CreationDate,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",EU,Location,ASN,OrgName,"Postal Code",Timezone,Workload
+                                                    $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\CSV\ExchangeItem-Update.csv" -Delimiter "," | Select-Object CreationTime,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",EU,Location,ASN,OrgName,"Postal Code",Timezone,Workload
                                                     $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-Mailbox-Actions\XLSX\ExchangeItem-Update.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Update" -CellStyleSB {
                                                     param($WorkSheet)
                                                     # BackgroundColor and FontColor for specific cells of TopRow
@@ -4454,7 +4938,7 @@ if (Test-Path "$($IPinfo)")
                                 # RecordType: SharePointSharingOperation --> SharePoint sharing events.
                                 # Operation: SharingInvitationCreated --> A user in your organization tried to share a resource (likely a site) with an external user. This results in an external sharing invitation sent to the target user. No access to the resource is granted at this point.
                                 $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "SharePointSharingOperation" } | Where-Object { $_.Operation -eq "SharingInvitationCreated" }
-                                $Count = ($Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 10 | Measure-Object).Count
+                                $Count = ($Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 10 | Measure-Object).Count
 
                                 if ($Count -ge 1)
                                 {
@@ -4463,8 +4947,8 @@ if (Test-Path "$($IPinfo)")
                                     New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\XLSX" -ItemType Directory -Force | Out-Null
 
                                     # CSV
-                                    $Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 10 | Select-Object Name,Count | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-SharingInvitationCreated-Overview.csv" -NoTypeInformation -Encoding UTF8
-                                    $Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 10 | Select-Object -Expand Group | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-SharingInvitationCreated.csv" -NoTypeInformation -Encoding UTF8
+                                    $Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 10 | Select-Object Name,Count | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-SharingInvitationCreated-Overview.csv" -NoTypeInformation -Encoding UTF8
+                                    $Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 10 | Select-Object -Expand Group | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-SharingInvitationCreated.csv" -NoTypeInformation -Encoding UTF8
                                             
                                     # SharePointSharingOperation-SharingInvitationCreated-Overview.xlsx
                                     if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-SharingInvitationCreated-Overview.csv")
@@ -4488,7 +4972,7 @@ if (Test-Path "$($IPinfo)")
                                     {
                                         if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-SharingInvitationCreated.csv") -gt 0)
                                         {
-                                            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-SharingInvitationCreated.csv" -Delimiter "," | Select-Object CreationDate,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",EU,Location,ASN,OrgName,"Postal Code",Timezone,Workload
+                                            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-SharingInvitationCreated.csv" -Delimiter "," | Select-Object CreationTime,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",EU,Location,ASN,OrgName,"Postal Code",Timezone,Workload
                                             $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\XLSX\SharePointSharingOperation-SharingInvitationCreated.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "SharingInvitationCreated" -CellStyleSB {
                                             param($WorkSheet)
                                             # BackgroundColor and FontColor for specific cells of TopRow
@@ -4499,6 +4983,14 @@ if (Test-Path "$($IPinfo)")
                                             # ConditionalFormatting
                                             Add-ConditionalFormatting -Address $WorkSheet.Cells["C:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("SharePointSharingOperation",$C1)))' -BackgroundColor Yellow
                                             Add-ConditionalFormatting -Address $WorkSheet.Cells["D:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("SharingInvitationCreated",$D1)))' -BackgroundColor Yellow
+                                            
+                                            # Iterating over the ASN-Blacklist HashTable
+                                            foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
+                                            {
+                                                $ConditionValue = 'NOT(ISERROR(FIND("{0}",$L1)))' -f $ASN
+                                                Add-ConditionalFormatting -Address $WorkSheet.Cells["L:L"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                            }
+                                            
                                             }
                                         }
                                     }
@@ -4507,8 +4999,8 @@ if (Test-Path "$($IPinfo)")
                                 # Suspicious SharePoint Action(s) detected: 50+ users were added to a specific people link on a single day
                                 # RecordType: SharePointSharingOperation --> SharePoint sharing events.
                                 # Operation: AddedToSecureLink -->  A user was added to a specific people link. Use the TargetUserOrGroupName field in this event to identify the user added to the corresponding specific people link. This target user may be someone who is external to your organization.
-                                $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "SharePointSharingOperation" } | Where-Object { $_.Operation -eq "AddedToSecureLink" } | Sort-Object { $_.CreationDate -as [datetime] } -Descending
-                                $Count = ($Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 50 | Measure-Object).Count
+                                $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "SharePointSharingOperation" } | Where-Object { $_.Operation -eq "AddedToSecureLink" } | Sort-Object { $_.CreationTime -as [datetime] } -Descending
+                                $Count = ($Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 50 | Measure-Object).Count
 
                                 if ($Count -ge 1)
                                 {
@@ -4517,8 +5009,8 @@ if (Test-Path "$($IPinfo)")
                                     New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\XLSX" -ItemType Directory -Force | Out-Null
 
                                     # CSV
-                                    $Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 50 | Select-Object Name,Count | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-AddedToSecureLink-Overview.csv" -NoTypeInformation -Encoding UTF8
-                                    $Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 50 | Select-Object -Expand Group | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-AddedToSecureLink.csv" -NoTypeInformation -Encoding UTF8
+                                    $Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 50 | Select-Object Name,Count | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-AddedToSecureLink-Overview.csv" -NoTypeInformation -Encoding UTF8
+                                    $Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 50 | Select-Object -Expand Group | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-AddedToSecureLink.csv" -NoTypeInformation -Encoding UTF8
                                       
                                     # SharePointSharingOperation-AddedToSecureLink-Overview.xlsx
                                     if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-AddedToSecureLink-Overview.csv")
@@ -4542,17 +5034,25 @@ if (Test-Path "$($IPinfo)")
                                     {
                                         if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-AddedToSecureLink.csv") -gt 0)
                                         {
-                                            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-AddedToSecureLink.csv" -Delimiter "," | Select-Object CreationDate,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",EU,Location,ASN,OrgName,"Postal Code",Timezone,Workload
-                                            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\XLSX\SharePointSharingOperation-AddedToSecureLink.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "AddedToSecureLink" -CellStyleSB {
+                                            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-AddedToSecureLink.csv" -Delimiter "," | Select-Object CreationTime,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",ASN,OrgName,Timezone,Workload,UniqueTokenId
+                                            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\XLSX\SharePointSharingOperation-AddedToSecureLink.xlsx" -NoNumberConversion * -NoHyperLinkConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "AddedToSecureLink" -CellStyleSB {
                                             param($WorkSheet)
                                             # BackgroundColor and FontColor for specific cells of TopRow
                                             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                                            Set-Format -Address $WorkSheet.Cells["A1:R1"] -BackgroundColor $BackgroundColor -FontColor White
-                                            # HorizontalAlignment "Center" of columns A-R
-                                            $WorkSheet.Cells["A:R"].Style.HorizontalAlignment="Center"
+                                            Set-Format -Address $WorkSheet.Cells["A1:P1"] -BackgroundColor $BackgroundColor -FontColor White
+                                            # HorizontalAlignment "Center" of columns A-P
+                                            $WorkSheet.Cells["A:P"].Style.HorizontalAlignment="Center"
                                             # ConditionalFormatting
                                             Add-ConditionalFormatting -Address $WorkSheet.Cells["C:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("SharePointSharingOperation",$C1)))' -BackgroundColor Yellow
                                             Add-ConditionalFormatting -Address $WorkSheet.Cells["D:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("AddedToSecureLink",$D1)))' -BackgroundColor Yellow
+                                            
+                                            # Iterating over the ASN-Blacklist HashTable
+                                            foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
+                                            {
+                                                $ConditionValue = 'NOT(ISERROR(FIND("{0}",$L1)))' -f $ASN
+                                                Add-ConditionalFormatting -Address $WorkSheet.Cells["L:L"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                            }
+
                                             }
                                         }
                                     }
@@ -4561,7 +5061,7 @@ if (Test-Path "$($IPinfo)")
                                 # Suspicious SharePoint Action(s) detected: A user has created a 'specific people link' to share a resource with a specific person. This target user may be someone who is external to your organization.
                                 # RecordType: SharePointSharingOperation --> SharePoint sharing events.
                                 # Operation: SecureLinkCreated --> A user has created a 'specific people link' to share a resource with a specific person. This target user may be someone who is external to your organization. The person that the resource is shared with is identified in the audit record for the AddedToSecureLink event. The time stamps for these two events are nearly identical.
-                                $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "SharePointSharingOperation" } | Where-Object { $_.Operation -eq "SecureLinkCreated" } | Sort-Object { $_.CreationDate -as [datetime] } -Descending
+                                $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "SharePointSharingOperation" } | Where-Object { $_.Operation -eq "SecureLinkCreated" } | Sort-Object { $_.CreationTime -as [datetime] } -Descending
                                 $Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
 
                                 if ($Count -gt 0)
@@ -4578,18 +5078,26 @@ if (Test-Path "$($IPinfo)")
                                     {
                                         if([int](& $xsv count "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-SecureLinkCreated.csv") -gt 0)
                                         {
-                                            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-SecureLinkCreated.csv" -Delimiter "," | Select-Object CreationDate,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",EU,Location,ASN,OrgName,"Postal Code",Timezone,Workload
-                                            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\XLSX\SharePointSharingOperation-SecureLinkCreated.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "SecureLinkCreated" -CellStyleSB {
+                                            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-SecureLinkCreated.csv" -Delimiter "," | Select-Object CreationTime,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",ASN,OrgName,Timezone,Workload,UniqueTokenId
+                                            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\XLSX\SharePointSharingOperation-SecureLinkCreated.xlsx" -NoNumberConversion * -NoHyperLinkConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "SecureLinkCreated" -CellStyleSB {
                                             param($WorkSheet)
                                             # BackgroundColor and FontColor for specific cells of TopRow
                                             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                                            Set-Format -Address $WorkSheet.Cells["A1:R1"] -BackgroundColor $BackgroundColor -FontColor White
-                                            # HorizontalAlignment "Center" of columns A-D and F-R
+                                            Set-Format -Address $WorkSheet.Cells["A1:P1"] -BackgroundColor $BackgroundColor -FontColor White
+                                            # HorizontalAlignment "Center" of columns A-D and F-P
                                             $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
-                                            $WorkSheet.Cells["F:R"].Style.HorizontalAlignment="Center"
+                                            $WorkSheet.Cells["F:P"].Style.HorizontalAlignment="Center"
                                             # ConditionalFormatting
                                             Add-ConditionalFormatting -Address $WorkSheet.Cells["C:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("SharePointSharingOperation",$C1)))' -BackgroundColor Red
                                             Add-ConditionalFormatting -Address $WorkSheet.Cells["D:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("SecureLinkCreated",$D1)))' -BackgroundColor Red
+                                            
+                                            # Iterating over the ASN-Blacklist HashTable
+                                            foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
+                                            {
+                                                $ConditionValue = 'NOT(ISERROR(FIND("{0}",$L1)))' -f $ASN
+                                                Add-ConditionalFormatting -Address $WorkSheet.Cells["L:L"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                            }
+
                                             }
                                         }
                                     }
@@ -4598,8 +5106,8 @@ if (Test-Path "$($IPinfo)")
                                 # Suspicious SharePoint Action(s) detected: A user has 5+ updated a 'specific people link' to share a resource with a specific person. This target user may be someone who is external to your organization.
                                 # RecordType: SharePointSharingOperation --> SharePoint sharing events.
                                 # Operation: SecureLinkUpdated --> For a SharePoint Item.
-                                $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "SharePointSharingOperation" } | Where-Object { $_.Operation -eq "SecureLinkUpdated" } | Sort-Object { $_.CreationDate -as [datetime] } -Descending
-                                $Count = ($Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 5 | Measure-Object).Count
+                                $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "SharePointSharingOperation" } | Where-Object { $_.Operation -eq "SecureLinkUpdated" } | Sort-Object { $_.CreationTime -as [datetime] } -Descending
+                                $Count = ($Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 5 | Measure-Object).Count
 
                                 if ($Count -ge 1)
                                 {
@@ -4608,8 +5116,8 @@ if (Test-Path "$($IPinfo)")
                                     New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\XLSX" -ItemType Directory -Force | Out-Null
 
                                     # CSV
-                                    $Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 5 | Select-Object Name,Count | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-SecureLinkUpdated-Overview.csv" -NoTypeInformation -Encoding UTF8
-                                    $Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 5 | Select-Object -Expand Group | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-SecureLinkUpdated.csv" -NoTypeInformation -Encoding UTF8
+                                    $Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 5 | Select-Object Name,Count | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-SecureLinkUpdated-Overview.csv" -NoTypeInformation -Encoding UTF8
+                                    $Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 5 | Select-Object -Expand Group | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-SecureLinkUpdated.csv" -NoTypeInformation -Encoding UTF8
                                     
                                     # SharePointSharingOperation-SecureLinkUpdated-Overview.xlsx
                                     if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-SecureLinkUpdated-Overview.csv")
@@ -4633,17 +5141,25 @@ if (Test-Path "$($IPinfo)")
                                     {
                                         if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-SecureLinkUpdated.csv") -gt 0)
                                         {
-                                            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-SecureLinkUpdated.csv" -Delimiter "," | Select-Object CreationDate,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",EU,Location,ASN,OrgName,"Postal Code",Timezone,Workload
+                                            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-SecureLinkUpdated.csv" -Delimiter "," | Select-Object CreationTime,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",ASN,OrgName,Timezone,Workload,UniqueTokenId
                                             $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\XLSX\SharePointSharingOperation-SecureLinkUpdated.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "SecureLinkUpdated" -CellStyleSB {
                                             param($WorkSheet)
                                             # BackgroundColor and FontColor for specific cells of TopRow
                                             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                                            Set-Format -Address $WorkSheet.Cells["A1:R1"] -BackgroundColor $BackgroundColor -FontColor White
-                                            # HorizontalAlignment "Center" of columns A-R
-                                            $WorkSheet.Cells["A:R"].Style.HorizontalAlignment="Center"
+                                            Set-Format -Address $WorkSheet.Cells["A1:P1"] -BackgroundColor $BackgroundColor -FontColor White
+                                            # HorizontalAlignment "Center" of columns A-P
+                                            $WorkSheet.Cells["A:P"].Style.HorizontalAlignment="Center"
                                             # ConditionalFormatting
                                             Add-ConditionalFormatting -Address $WorkSheet.Cells["C:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("SharePointSharingOperation",$C1)))' -BackgroundColor Yellow
                                             Add-ConditionalFormatting -Address $WorkSheet.Cells["D:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("SecureLinkUpdated",$D1)))' -BackgroundColor Yellow
+                                            
+                                            # Iterating over the ASN-Blacklist HashTable
+                                            foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
+                                            {
+                                                $ConditionValue = 'NOT(ISERROR(FIND("{0}",$L1)))' -f $ASN
+                                                Add-ConditionalFormatting -Address $WorkSheet.Cells["L:L"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                            }
+                                            
                                             }
                                         }
                                     }
@@ -4652,8 +5168,8 @@ if (Test-Path "$($IPinfo)")
                                 # Suspicious SharePoint Action(s) detected: A user shared 10+ a file, folder, or site in SharePoint for Business with a user in your organization's directory
                                 # RecordType: SharePointSharingOperation --> SharePoint sharing events.
                                 # Operation: SharingSet --> User (member or guest) shared a file, folder, or site in SharePoint or OneDrive for Business with a user in your organization's directory. The value in the Detail column for this activity identifies the name of the user the resource was shared with and whether this user is a member or a guest. This activity is often accompanied by a second event that describes how the user was granted access to the resource. For example, adding the user to a group that has access to the resource.
-                                $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "SharePointSharingOperation" } | Where-Object { $_.Operation -eq "SharingSet" } | Sort-Object { $_.CreationDate -as [datetime] } -Descending
-                                $Count = ($Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 10 | Measure-Object).Count
+                                $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "SharePointSharingOperation" } | Where-Object { $_.Operation -eq "SharingSet" } | Sort-Object { $_.CreationTime -as [datetime] } -Descending
+                                $Count = ($Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 10 | Measure-Object).Count
 
                                 if ($Count -ge 1)
                                 {
@@ -4662,8 +5178,8 @@ if (Test-Path "$($IPinfo)")
                                     New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\XLSX" -ItemType Directory -Force | Out-Null
 
                                     # CSV
-                                    $Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 5 | Select-Object Name,Count | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-SharingSet-Overview.csv" -NoTypeInformation -Encoding UTF8
-                                    $Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 5 | Select-Object -Expand Group | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-SharingSet.csv" -NoTypeInformation -Encoding UTF8
+                                    $Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 5 | Select-Object Name,Count | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-SharingSet-Overview.csv" -NoTypeInformation -Encoding UTF8
+                                    $Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 5 | Select-Object -Expand Group | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-SharingSet.csv" -NoTypeInformation -Encoding UTF8
                                     
                                     # SharePointSharingOperation-SharingSet-Overview.xlsx
                                     if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-SharingSet-Overview.csv")
@@ -4687,17 +5203,25 @@ if (Test-Path "$($IPinfo)")
                                     {
                                         if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-SharingSet.csv") -gt 0)
                                         {
-                                            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-SharingSet.csv" -Delimiter "," | Select-Object CreationDate,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",EU,Location,ASN,OrgName,"Postal Code",Timezone,Workload
-                                            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\XLSX\SharePointSharingOperation-SharingSet.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "SharingSet" -CellStyleSB {
+                                            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointSharingOperation-SharingSet.csv" -Delimiter "," | Select-Object CreationTime,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",ASN,OrgName,Timezone,Workload,UniqueTokenId
+                                            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\XLSX\SharePointSharingOperation-SharingSet.xlsx" -NoNumberConversion * -NoHyperLinkConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "SharingSet" -CellStyleSB {
                                             param($WorkSheet)
                                             # BackgroundColor and FontColor for specific cells of TopRow
                                             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                                            Set-Format -Address $WorkSheet.Cells["A1:R1"] -BackgroundColor $BackgroundColor -FontColor White
-                                            # HorizontalAlignment "Center" of columns A-R
-                                            $WorkSheet.Cells["A:R"].Style.HorizontalAlignment="Center"
+                                            Set-Format -Address $WorkSheet.Cells["A1:P1"] -BackgroundColor $BackgroundColor -FontColor White
+                                            # HorizontalAlignment "Center" of columns A-P
+                                            $WorkSheet.Cells["A:P"].Style.HorizontalAlignment="Center"
                                             # ConditionalFormatting
                                             Add-ConditionalFormatting -Address $WorkSheet.Cells["C:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("SharePointSharingOperation",$C1)))' -BackgroundColor Yellow
                                             Add-ConditionalFormatting -Address $WorkSheet.Cells["D:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("SharingSet",$D1)))' -BackgroundColor Yellow
+                                            
+                                            # Iterating over the ASN-Blacklist HashTable
+                                            foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
+                                            {
+                                                $ConditionValue = 'NOT(ISERROR(FIND("{0}",$L1)))' -f $ASN
+                                                Add-ConditionalFormatting -Address $WorkSheet.Cells["L:L"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                            }
+
                                             }
                                         }
                                     }
@@ -4708,7 +5232,7 @@ if (Test-Path "$($IPinfo)")
                                 # Suspicious SharePoint Action(s) detected: A user in your organization possibly uploaded a suspicious document on a site
                                 # RecordType: SharePointFileOperation --> SharePoint file operation events.
                                 # Operation: FileUploaded --> User uploads a document to a folder on a SharePoint or OneDrive for Business site.
-                                $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "SharePointFileOperation" } | Where-Object { $_.Operation -eq "FileUploaded" } | Sort-Object { $_.CreationDate -as [datetime] } -Descending
+                                $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "SharePointFileOperation" } | Where-Object { $_.Operation -eq "FileUploaded" } | Sort-Object { $_.CreationTime -as [datetime] } -Descending
                                 $Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
 
                                 if ($Count -gt 0)
@@ -4725,18 +5249,26 @@ if (Test-Path "$($IPinfo)")
                                     {
                                         if([int](& $xsv count "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointFileOperation-FileUploaded.csv") -gt 0)
                                         {
-                                            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointFileOperation-FileUploaded.csv" -Delimiter "," | Select-Object CreationDate,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",EU,Location,ASN,OrgName,"Postal Code",Timezone,Workload
-                                            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\XLSX\SharePointFileOperation-FileUploaded.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "FileUploaded" -CellStyleSB {
+                                            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointFileOperation-FileUploaded.csv" -Delimiter "," | Select-Object CreationTime,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",ASN,OrgName,Timezone,Workload,UniqueTokenId
+                                            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\XLSX\SharePointFileOperation-FileUploaded.xlsx" -NoNumberConversion * -NoHyperLinkConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "FileUploaded" -CellStyleSB {
                                             param($WorkSheet)
                                             # BackgroundColor and FontColor for specific cells of TopRow
                                             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                                            Set-Format -Address $WorkSheet.Cells["A1:R1"] -BackgroundColor $BackgroundColor -FontColor White
-                                            # HorizontalAlignment "Center" of columns A-D and F-R
+                                            Set-Format -Address $WorkSheet.Cells["A1:P1"] -BackgroundColor $BackgroundColor -FontColor White
+                                            # HorizontalAlignment "Center" of columns A-D and F-P
                                             $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
-                                            $WorkSheet.Cells["F:R"].Style.HorizontalAlignment="Center"
+                                            $WorkSheet.Cells["F:P"].Style.HorizontalAlignment="Center"
                                             # ConditionalFormatting
                                             Add-ConditionalFormatting -Address $WorkSheet.Cells["C:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("SharePointFileOperation",$C1)))' -BackgroundColor Yellow
                                             Add-ConditionalFormatting -Address $WorkSheet.Cells["D:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("FileUploaded",$D1)))' -BackgroundColor Yellow
+                                            
+                                            # Iterating over the ASN-Blacklist HashTable
+                                            foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
+                                            {
+                                                $ConditionValue = 'NOT(ISERROR(FIND("{0}",$L1)))' -f $ASN
+                                                Add-ConditionalFormatting -Address $WorkSheet.Cells["L:L"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                            }
+
                                             }
                                         }
                                     }
@@ -4745,8 +5277,8 @@ if (Test-Path "$($IPinfo)")
                                 # Suspicious SharePoint Action(s) detected: 50+ files were downloaded from a SharePoint or OneDrive for Business site on a single day. Possible Data Exfiltration.
                                 # RecordType: SharePointFileOperation --> SharePoint file operation events.
                                 # Operation: FileDownloaded --> User downloads a document from a SharePoint or OneDrive for Business site
-                                $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "SharePointFileOperation" } | Where-Object { $_.Operation -eq "FileDownloaded" } | Sort-Object { $_.CreationDate -as [datetime] } -Descending
-                                $Count = ($Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 50 | Measure-Object).Count
+                                $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "SharePointFileOperation" } | Where-Object { $_.Operation -eq "FileDownloaded" } | Sort-Object { $_.CreationTime -as [datetime] } -Descending
+                                $Count = ($Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 50 | Measure-Object).Count
 
                                 if ($Count -ge 1)
                                 {
@@ -4755,8 +5287,8 @@ if (Test-Path "$($IPinfo)")
                                     New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\XLSX" -ItemType Directory -Force | Out-Null
 
                                     # CSV
-                                    $Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 50 | Select-Object Name,Count | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointFileOperation-FileDownloaded-Overview.csv" -NoTypeInformation -Encoding UTF8
-                                    $Import | Group-Object{($_.CreationDate -split "\s+")[0]} | Where-Object Count -ge 50 | Select-Object -Expand Group | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointFileOperation-FileDownloaded.csv" -NoTypeInformation -Encoding UTF8
+                                    $Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 50 | Select-Object Name,Count | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointFileOperation-FileDownloaded-Overview.csv" -NoTypeInformation -Encoding UTF8
+                                    $Import | Group-Object{($_.CreationTime -split "\s+")[0]} | Where-Object Count -ge 50 | Select-Object -Expand Group | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointFileOperation-FileDownloaded.csv" -NoTypeInformation -Encoding UTF8
                                     
                                     # SharePointFileOperation-FileDownloaded-Overview.xlsx
                                     if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointFileOperation-FileDownloaded-Overview.csv")
@@ -4780,7 +5312,7 @@ if (Test-Path "$($IPinfo)")
                                     {
                                         if([int](& $xsv count -d "," "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointFileOperation-FileDownloaded.csv") -gt 0)
                                         {
-                                            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointFileOperation-FileDownloaded.csv" -Delimiter "," | Select-Object CreationDate,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",EU,Location,ASN,OrgName,"Postal Code",Timezone,Workload
+                                            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointFileOperation-FileDownloaded.csv" -Delimiter "," | Select-Object CreationTime,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",EU,Location,ASN,OrgName,"Postal Code",Timezone,Workload
                                             $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\XLSX\SharePointFileOperation-FileDownloaded.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "FileDownloaded" -CellStyleSB {
                                             param($WorkSheet)
                                             # BackgroundColor and FontColor for specific cells of TopRow
@@ -4788,9 +5320,20 @@ if (Test-Path "$($IPinfo)")
                                             Set-Format -Address $WorkSheet.Cells["A1:R1"] -BackgroundColor $BackgroundColor -FontColor White
                                             # HorizontalAlignment "Center" of columns A-R
                                             $WorkSheet.Cells["A:R"].Style.HorizontalAlignment="Center"
-                                            # ConditionalFormatting
+                                            # ConditionalFormatting - RecordType
                                             Add-ConditionalFormatting -Address $WorkSheet.Cells["C:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("SharePointFileOperation",$C1)))' -BackgroundColor Yellow
+                                            # ConditionalFormatting - Operation
                                             Add-ConditionalFormatting -Address $WorkSheet.Cells["D:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("FileDownloaded",$D1)))' -BackgroundColor Yellow
+                                            # ConditionalFormatting - UserAgent
+                                            Add-ConditionalFormatting -Address $WorkSheet.Cells["G:G"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("OneDriveMpc-Transform_Zip",$G1)))' -BackgroundColor Red # Downloading a folder (as ZIP file) --> Data Exfiltration
+                                            
+                                            # Iterating over the ASN-Blacklist HashTable
+                                            foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
+                                            {
+                                                $ConditionValue = 'NOT(ISERROR(FIND("{0}",$L1)))' -f $ASN
+                                                Add-ConditionalFormatting -Address $WorkSheet.Cells["L:L"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                            }
+                                            
                                             }
                                         }
                                     }
@@ -4799,7 +5342,7 @@ if (Test-Path "$($IPinfo)")
                                 # Suspicious SharePoint Action(s) detected: A user in your organization continually accesses a file for an extended period (up to 3 hours)
                                 # RecordType: SharePointFileOperation --> SharePoint file operation events.
                                 # Operation: FileAccessedExtended --> This is related to the 'Accessed file' (FileAccessed) activity. A FileAccessedExtended event is logged when the same person continually accesses a file for an extended period (up to 3 hours).
-                                $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "SharePointFileOperation" } | Where-Object { $_.Operation -eq "FileAccessedExtended" } | Sort-Object { $_.CreationDate -as [datetime] } -Descending
+                                $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "SharePointFileOperation" } | Where-Object { $_.Operation -eq "FileAccessedExtended" } | Sort-Object { $_.CreationTime -as [datetime] } -Descending
                                 $Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
 
                                 if ($Count -gt 0)
@@ -4816,21 +5359,64 @@ if (Test-Path "$($IPinfo)")
                                     {
                                         if([int](& $xsv count "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointFileOperation-FileAccessedExtended.csv") -gt 0)
                                         {
-                                            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointFileOperation-FileAccessedExtended.csv" -Delimiter "," | Select-Object CreationDate,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",EU,Location,ASN,OrgName,"Postal Code",Timezone,Workload
-                                            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\XLSX\SharePointFileOperation-FileAccessedExtended.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "FileAccessedExtended" -CellStyleSB {
+                                            $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\CSV\SharePointFileOperation-FileAccessedExtended.csv" -Delimiter "," | Select-Object CreationTime,UserId,RecordType,Operation,ObjectId,ClientIP,UserAgent,City,Region,Country,"Country Name",ASN,OrgName,Timezone,Workload,UniqueTokenId
+                                            $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\XLSX\SharePointFileOperation-FileAccessedExtended.xlsx" -NoNumberConversion * -NoHyperLinkConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "FileAccessedExtended" -CellStyleSB {
                                             param($WorkSheet)
                                             # BackgroundColor and FontColor for specific cells of TopRow
                                             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-                                            Set-Format -Address $WorkSheet.Cells["A1:R1"] -BackgroundColor $BackgroundColor -FontColor White
-                                            # HorizontalAlignment "Center" of columns A-D and F-R
+                                            Set-Format -Address $WorkSheet.Cells["A1:P1"] -BackgroundColor $BackgroundColor -FontColor White
+                                            # HorizontalAlignment "Center" of columns A-D and F-P
                                             $WorkSheet.Cells["A:D"].Style.HorizontalAlignment="Center"
-                                            $WorkSheet.Cells["F:R"].Style.HorizontalAlignment="Center"
+                                            $WorkSheet.Cells["F:P"].Style.HorizontalAlignment="Center"
                                             # ConditionalFormatting
                                             Add-ConditionalFormatting -Address $WorkSheet.Cells["C:C"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("SharePointFileOperation",$C1)))' -BackgroundColor Yellow
                                             Add-ConditionalFormatting -Address $WorkSheet.Cells["D:D"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("FileAccessedExtended",$D1)))' -BackgroundColor Yellow
+                                            
+                                            # Iterating over the ASN-Blacklist HashTable
+                                            foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
+                                            {
+                                                $ConditionValue = 'NOT(ISERROR(FIND("{0}",$L1)))' -f $ASN
+                                                Add-ConditionalFormatting -Address $WorkSheet.Cells["L:L"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                            }
+
                                             }
                                         }
                                     }
+                                }
+
+                                # Line Charts
+
+                                # Import Data
+                                $AuditData = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Sort-Object Identity -Unique | Select-Object -ExpandProperty AuditData | ConvertFrom-Json
+
+                                # SharePoint (Workload)
+                                $Import = $AuditData | Where-Object { $_.Workload -eq "SharePoint" } | Select-Object @{Name="CreationTime";Expression={($_.CreationTime | ForEach-Object{($_ -split "T")[0]})}} | Group-Object{($_.CreationTime)} | Select-Object @{Name='CreationTime'; Expression={ $_.Values[0] }},Count | Sort-Object { $_.CreationTime -as [datetime] }
+                                $Count = ($Import | Measure-Object).Count
+                                if ($Count -gt 0)
+                                {
+                                    New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\XLSX\LineCharts" -ItemType Directory -Force | Out-Null 
+                                    $ChartDefinition = New-ExcelChartDefinition -XRange CreationTime -YRange Count -Title "SharePoint" -ChartType Line -NoLegend -Width 1200
+                                    $Import | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\XLSX\LineCharts\SharePoint.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
+                                }
+
+                                # OneDrive (Workload)
+                                $Import = $AuditData | Where-Object { $_.Workload -eq "OneDrive" } | Select-Object @{Name="CreationTime";Expression={($_.CreationTime | ForEach-Object{($_ -split "T")[0]})}} | Group-Object{($_.CreationTime)} | Select-Object @{Name='CreationTime'; Expression={ $_.Values[0] }},Count | Sort-Object { $_.CreationTime -as [datetime] }
+                                $Count = ($Import | Measure-Object).Count
+                                if ($Count -gt 0)
+                                {
+                                    New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\XLSX\LineCharts" -ItemType Directory -Force | Out-Null 
+                                    $ChartDefinition = New-ExcelChartDefinition -XRange CreationTime -YRange Count -Title "OneDrive" -ChartType Line -NoLegend -Width 1200
+                                    $Import | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\XLSX\LineCharts\OneDrive.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
+                                }
+
+                                # FileDownloaded (SharePoint and OneDrive)
+                                $Import = $AuditData | Where-Object { $_.Workload -eq "SharePoint" -or $_.Workload -eq "OneDrive" } | Where-Object { $_.Operation -eq "FileDownloaded" } | Select-Object @{Name="CreationTime";Expression={($_.CreationTime | ForEach-Object{($_ -split "T")[0]})}} | Group-Object{($_.CreationTime)} | Select-Object @{Name='CreationTime'; Expression={ $_.Values[0] }},Count | Sort-Object { $_.CreationTime -as [datetime] }
+                                $Count = ($Import | Measure-Object).Count
+                                if ($Count -gt 0)
+                                {
+                                    New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\XLSX\LineCharts" -ItemType Directory -Force | Out-Null 
+                                    $ChartDefinition = New-ExcelChartDefinition -XRange CreationTime -YRange Count -Title "FileDownloaded" -ChartType Line -NoLegend -Width 1200
+                                    $Import | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Suspicious-SharePoint-Actions\XLSX\LineCharts\FileDownloaded.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
                                 }
                             }
                         }
@@ -4869,40 +5455,10 @@ $StartTime_Analytics = (Get-Date)
 $UserLoggedInRecords = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "AzureActiveDirectoryStsLogon" } | Where-Object { $_.Operations -eq "UserLoggedIn" }
 
 # AuditData
-$AuditData = $UserLoggedInRecords | Select-Object -ExpandProperty AuditData | ConvertFrom-Json | Sort-Object { $_.CreationDate -as [datetime] } -Descending
+$AuditData = $UserLoggedInRecords | Select-Object -ExpandProperty AuditData | ConvertFrom-Json | Sort-Object { $_.CreationTime -as [datetime] } -Descending
 
 New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV" -ItemType Directory -Force | Out-Null
 New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\XLSX" -ItemType Directory -Force | Out-Null
-
-# Create HashTable and import 'Status.csv'
-$ErrorNumber_HashTable = @{}
-if(Test-Path "$SCRIPT_DIR\Config\Status.csv")
-{
-    if([int](& $xsv count "$SCRIPT_DIR\Config\Status.csv") -gt 0)
-    {
-        Import-Csv "$SCRIPT_DIR\Config\Status.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $ErrorNumber_HashTable[$_.ErrorCode] = $_.Status, $_.Message }
-    }
-}
-
-# Create HashTable and import 'TrustType.csv'
-$TrustType_HashTable = @{}
-if(Test-Path "$SCRIPT_DIR\Config\TrustType.csv")
-{
-    if([int](& $xsv count "$SCRIPT_DIR\Config\TrustType.csv") -gt 0)
-    {
-        Import-Csv "$SCRIPT_DIR\Config\TrustType.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $TrustType_HashTable[$_.Value] = $_.Description }
-    }
-}
-
-# Create HashTable and import 'UserType.csv'
-$UserType_HashTable = @{}
-if(Test-Path "$SCRIPT_DIR\Config\UserType.csv")
-{
-    if([int](& $xsv count "$SCRIPT_DIR\Config\UserType.csv") -gt 0)
-    {
-        Import-Csv "$SCRIPT_DIR\Config\UserType.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $UserType_HashTable[$_.Value] = $_.Member, $_.Description }
-    }
-}
 
 # IPinfo Subscription: Free
 if ($PrivacyDetection -eq "False")
@@ -4911,8 +5467,8 @@ if ($PrivacyDetection -eq "False")
     $Results = [Collections.Generic.List[PSObject]]::new()
     ForEach($Record in $UserLoggedInRecords)
     {
-
         $AuditData = ConvertFrom-Json $Record.AuditData
+        $AppAccessContext = $AuditData.AppAccessContext
 
         # ErrorNumber
         [int]$ErrorNumber = $AuditData.ErrorNumber
@@ -4974,8 +5530,8 @@ if ($PrivacyDetection -eq "False")
             $Region      = $IPinfo_HashTable["$ClientIP"][1]
             $Country     = $IPinfo_HashTable["$ClientIP"][2]
             $CountryName = $IPinfo_HashTable["$ClientIP"][3]
-            $ASN         = $IPinfo_HashTable["$ClientIP"][6]
-            $OrgName     = $IPinfo_HashTable["$ClientIP"][7]
+            $ASN         = $IPinfo_HashTable["$ClientIP"][5] | ForEach-Object {$_ -replace "^AS"}
+            $OrgName     = $IPinfo_HashTable["$ClientIP"][6]
         }
         else
         {
@@ -5010,7 +5566,7 @@ if ($PrivacyDetection -eq "False")
         }
 
         $Line = [PSCustomObject]@{
-            CreationTime       = ($Record | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}}).CreationDate # The date and time in Coordinated Universal Time (UTC) when the audit log record was generated.
+            CreationTime       = $AuditData | Select-Object -ExpandProperty CreationTime | ForEach-Object {$_ -replace 'T',' '} # The date and time in Coordinated Universal Time (UTC) when the audit log record was generated.
             Id                 = $AuditData.Id # Unique identifier of an audit record.
             UserId             = $AuditData.UserId # The UPN (User Principal Name) of the user who performed the action (specified in the Operation property) that resulted in the record being logged.
             UserType           = $UserType # The type of user that performed the operation.
@@ -5072,6 +5628,10 @@ if ($PrivacyDetection -eq "False")
             InterSystemsId     = $AuditData.InterSystemsId # The GUID that track the actions across components within the Office 365 service.
             ErrorNumber        = $ErrorNumber # Microsoft Entra authentication and authorization error code
             Message            = $Message # Error Code Message
+
+            # AppAccessContext
+            IssuedAtTime       = $AppAccessContext.IssuedAtTime # Indicates when the authentication for this Microsoft Entra token occurred.
+            UniqueTokenId      = $AppAccessContext.UniqueTokenId # Contains the unique identifier for the token passed during sign-in. This identifier can be used to correlate the token request with the sign-in.
         }
 
         $Results.Add($Line)
@@ -5089,9 +5649,9 @@ if ($PrivacyDetection -eq "False")
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:AC1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-AC
-            $WorkSheet.Cells["A:AC"].Style.HorizontalAlignment="Center"
+            Set-Format -Address $WorkSheet.Cells["A1:AF1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-AF
+            $WorkSheet.Cells["A:AF"].Style.HorizontalAlignment="Center"
 
             # Iterating over the Application-Blacklist HashTable - ObjectId
             foreach ($AppId in $ApplicationBlacklist_HashTable.Keys) 
@@ -5115,8 +5675,8 @@ if ($PrivacyDetection -eq "False")
                 $ConditionValue = 'NOT(ISERROR(FIND("{0}",$P1)))' -f $ASN
                 Add-ConditionalFormatting -Address $WorkSheet.Cells["P:P"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
 
-                $ConditionValue = '=AND(NOT(ISERROR(FIND("{0}",$P1))),$Z1<>"")' -f $ASN
-                Add-ConditionalFormatting -Address $WorkSheet.Cells["Z:Z"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red # Colorize also the corresponding SessionId
+                $ConditionValue = '=AND(NOT(ISERROR(FIND("{0}",$P1))),$AA1<>"")' -f $ASN
+                Add-ConditionalFormatting -Address $WorkSheet.Cells["AA:AA"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red # Colorize also the corresponding SessionId
             }
 
             # Iterating over the Country-Blacklist HashTable
@@ -5157,6 +5717,7 @@ if ($PrivacyDetection -eq "True")
     {
 
         $AuditData = ConvertFrom-Json $Record.AuditData
+        $AppAccessContext = $AuditData.AppAccessContext
 
         # ErrorNumber
         [int]$ErrorNumber = $AuditData.ErrorNumber
@@ -5272,7 +5833,7 @@ if ($PrivacyDetection -eq "True")
         }
 
         $Line = [PSCustomObject]@{
-            CreationTime       = ($Record | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}}).CreationDate # The date and time in Coordinated Universal Time (UTC) when the audit log record was generated.
+            CreationTime       = $AuditData | Select-Object -ExpandProperty CreationTime | ForEach-Object {$_ -replace 'T',' '} # The date and time in Coordinated Universal Time (UTC) when the audit log record was generated.
             Id                 = $AuditData.Id # Unique identifier of an audit record.
             UserId             = $AuditData.UserId # The UPN (User Principal Name) of the user who performed the action (specified in the Operation property) that resulted in the record being logged.
             UserType           = $UserType # The type of user that performed the operation.
@@ -5343,6 +5904,10 @@ if ($PrivacyDetection -eq "True")
             InterSystemsId     = $AuditData.InterSystemsId # The GUID that track the actions across components within the Office 365 service.
             ErrorNumber        = $ErrorNumber # Microsoft Entra authentication and authorization error code
             Message            = $Message # Error Code Message
+
+            # AppAccessContext
+            IssuedAtTime       = $AppAccessContext.IssuedAtTime # Indicates when the authentication for this Microsoft Entra token occurred.
+            UniqueTokenId      = $AppAccessContext.UniqueTokenId # Contains the unique identifier for the token passed during sign-in. This identifier can be used to correlate the token request with the sign-in.
         }
 
         $Results.Add($Line)
@@ -5428,40 +5993,10 @@ if ($PrivacyDetection -eq "True")
 $UserLoginFailedRecords = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "AzureActiveDirectoryStsLogon" } | Where-Object { $_.Operations -eq "UserLoginFailed" }
 
 # AuditData
-$AuditData = $UserLoginFailedRecords | Select-Object -ExpandProperty AuditData | ConvertFrom-Json | Sort-Object { $_.CreationDate -as [datetime] } -Descending
+$AuditData = $UserLoginFailedRecords | Select-Object -ExpandProperty AuditData | ConvertFrom-Json | Sort-Object { $_.CreationTime -as [datetime] } -Descending
 
 New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV" -ItemType Directory -Force | Out-Null
 New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\XLSX" -ItemType Directory -Force | Out-Null
-
-# Create HashTable and import 'Status.csv'
-$ErrorNumber_HashTable = @{}
-if(Test-Path "$SCRIPT_DIR\Config\Status.csv")
-{
-    if([int](& $xsv count "$SCRIPT_DIR\Config\Status.csv") -gt 0)
-    {
-        Import-Csv "$SCRIPT_DIR\Config\Status.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $ErrorNumber_HashTable[$_.ErrorCode] = $_.Status, $_.Message }
-    }
-}
-
-# Create HashTable and import 'TrustType.csv'
-$TrustType_HashTable = @{}
-if(Test-Path "$SCRIPT_DIR\Config\TrustType.csv")
-{
-    if([int](& $xsv count "$SCRIPT_DIR\Config\TrustType.csv") -gt 0)
-    {
-        Import-Csv "$SCRIPT_DIR\Config\TrustType.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $TrustType_HashTable[$_.Value] = $_.Description }
-    }
-}
-
-# Create HashTable and import 'UserType.csv'
-$UserType_HashTable = @{}
-if(Test-Path "$SCRIPT_DIR\Config\UserType.csv")
-{
-    if([int](& $xsv count "$SCRIPT_DIR\Config\UserType.csv") -gt 0)
-    {
-        Import-Csv "$SCRIPT_DIR\Config\UserType.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $UserType_HashTable[$_.Value] = $_.Member, $_.Description }
-    }
-}
 
 # IPinfo Subscription: Free
 if ($PrivacyDetection -eq "False")
@@ -5569,7 +6104,7 @@ if ($PrivacyDetection -eq "False")
         }
 
         $Line = [PSCustomObject]@{
-            CreationTime       = ($Record | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}}).CreationDate # The date and time in Coordinated Universal Time (UTC) when the audit log record was generated.
+            CreationTime       = $AuditData | Select-Object -ExpandProperty CreationTime | ForEach-Object {$_ -replace 'T',' '} # The date and time in Coordinated Universal Time (UTC) when the audit log record was generated.
             Id                 = $AuditData.Id # Unique identifier of an audit record.
             UserId             = $AuditData.UserId # The UPN (User Principal Name) of the user who performed the action (specified in the Operation property) that resulted in the record being logged.
             UserType           = $UserType # The type of user that performed the operation.
@@ -5649,9 +6184,9 @@ if ($PrivacyDetection -eq "False")
             param($WorkSheet)
             # BackgroundColor and FontColor for specific cells of TopRow
             $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-            Set-Format -Address $WorkSheet.Cells["A1:AD1"] -BackgroundColor $BackgroundColor -FontColor White
-            # HorizontalAlignment "Center" of columns A-AD
-            $WorkSheet.Cells["A:AD"].Style.HorizontalAlignment="Center"
+            Set-Format -Address $WorkSheet.Cells["A1:AE1"] -BackgroundColor $BackgroundColor -FontColor White
+            # HorizontalAlignment "Center" of columns A-AE
+            $WorkSheet.Cells["A:AE"].Style.HorizontalAlignment="Center"
 
             # Iterating over the Application-Blacklist HashTable - ObjectId
             foreach ($AppId in $ApplicationBlacklist_HashTable.Keys) 
@@ -5828,7 +6363,7 @@ if ($PrivacyDetection -eq "True")
         }
 
         $Line = [PSCustomObject]@{
-            CreationTime       = ($Record | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd HH:mm:ss"))}}).CreationDate # The date and time in Coordinated Universal Time (UTC) when the audit log record was generated.
+            CreationTime       = $AuditData | Select-Object -ExpandProperty CreationTime | ForEach-Object {$_ -replace 'T',' '} # The date and time in Coordinated Universal Time (UTC) when the audit log record was generated.
             Id                 = $AuditData.Id # Unique identifier of an audit record.
             UserId             = $AuditData.UserId # The UPN (User Principal Name) of the user who performed the action (specified in the Operation property) that resulted in the record being logged.
             UserType           = $UserType # The type of user that performed the operation.
@@ -6036,7 +6571,7 @@ if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv")
 {
     if([int](& $xsv count "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv") -gt 0)
     {
-        $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.ClientInfoString -match "Client=WebServices;eM Client" } | Sort-Object { $_.CreationTime -as [datetime] } -Descending
+        $Import = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.ClientInfoString -match "Client=WebServices;eM Client" } | Sort-Object { $_.CreationTime -as [datetime] } -Descending
         $Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
 
         if ($Count -gt 0)
@@ -6055,7 +6590,8 @@ if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoggedIn.csv")
     {
         Write-Output "[Info]  Hunting for Session Cookie Theft ..."
 
-        $UserLoggedIn = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoggedIn.csv" -Delimiter ","
+        $Hunt = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," -Encoding UTF8
+        $UserLoggedIn = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoggedIn.csv" -Delimiter "," -Encoding UTF8
         $SessionIds = $UserLoggedIn | Select-Object -ExpandProperty SessionId -Unique
         
         $Total = ($SessionIds | Measure-Object).Count
@@ -6085,15 +6621,16 @@ if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoggedIn.csv")
 
             $Line = [PSCustomObject]@{
             "SessionId"        = $SessionId
-            "ClientIP"         = ($Data | Select-Object ClientIP -Unique | Measure-Object).Count # Unique Count per SessionId (Location)
-            "Country"          = ($Data | Select-Object Country -Unique | Measure-Object).Count # Unique Count per SessionId (Location)
-            "City"             = ($Data | Select-Object City -Unique | Measure-Object).Count # Unique Count per SessionId (Location)
-            "ASN"              = ($Data | Select-Object ASN -Unique | Measure-Object).Count # Unique Count per SessionId (Location)
-            "OS"               = ($Data | Select-Object OS -Unique | Measure-Object).Count # Unique Count per SessionId (Device Properties)
-            "BrowserType"      = ($Data | Where-Object { $_.BrowserType -ne "" }| Select-Object BrowserType -Unique | Measure-Object).Count # Unique Count per SessionId (Device Properties)
-            "UserAgent"        = ($Data | Where-Object { $_.UserAgent -ne "" } | Select-Object UserAgent -Unique | Measure-Object).Count # Unique Count per SessionId (Device Properties)
-            "DeviceProperties" = $DeviceProperties # Unique Count of 'DeviceProperties' per SessionId (Device Properties)
-            "UserLoggedIn"     = ($Data | Where-Object { $_.Operation -eq "UserLoggedIn" } | Measure-Object).Count # Count of 'UserLoggedIn' operations per SessionId
+            "ClientIP"         = ($Data | Select-Object ClientIP -Unique | Measure-Object).Count # Unique Count per SessionId (Location) --> Filtered on known bad ObjectIds
+            "Country"          = ($Data | Select-Object Country -Unique | Measure-Object).Count # Unique Count per SessionId (Location) --> Filtered on known bad ObjectIds
+            "City"             = ($Data | Select-Object City -Unique | Measure-Object).Count # Unique Count per SessionId (Location) --> Filtered on known bad ObjectIds
+            "ASN"              = ($Data | Select-Object ASN -Unique | Measure-Object).Count # Unique Count per SessionId (Location) --> Filtered on known bad ObjectIds
+            "OS"               = ($Data | Select-Object OS -Unique | Measure-Object).Count # Unique Count per SessionId (Device Properties) --> Filtered on known bad ObjectIds
+            "BrowserType"      = ($Data | Where-Object { $_.BrowserType -ne "" } | Select-Object BrowserType -Unique | Measure-Object).Count # Unique Count per SessionId (Device Properties) --> Filtered on known bad ObjectIds
+            "UserAgent"        = ($Data | Where-Object { $_.UserAgent -ne "" } | Select-Object UserAgent -Unique | Measure-Object).Count # Unique Count per SessionId (Device Properties) --> Filtered on known bad ObjectIds
+            "DeviceProperties" = $DeviceProperties # Unique Count of 'DeviceProperties' per SessionId (Device Properties) --> Filtered on known bad ObjectIds
+            "UserLoggedIn"     = ($Data | Where-Object { $_.Operation -eq "UserLoggedIn" } | Measure-Object).Count # Count of 'UserLoggedIn' operations per SessionId --> Filtered on known bad ObjectIds
+            "UniqueTokenId"    = ($Hunt | Where-Object { $_.SessionId -eq "$SessionId" } | Where-Object { $_.UniqueTokenId -ne "" } | Select-Object UniqueTokenId -Unique | Measure-Object).Count # Unique Count of 'UniqueTokenId' per SessionId (AppAccessContext)
             }
 
             $Results.Add($Line)
@@ -6113,9 +6650,9 @@ if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Suspicious-SessionIds.csv")
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
         $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
-        Set-Format -Address $WorkSheet.Cells["A1:J1"] -BackgroundColor $BackgroundColor -FontColor White
-        # HorizontalAlignment "Center" of column A-J
-        $WorkSheet.Cells["A:J"].Style.HorizontalAlignment="Center"
+        Set-Format -Address $WorkSheet.Cells["A1:K1"] -BackgroundColor $BackgroundColor -FontColor White
+        # HorizontalAlignment "Center" of column A-K
+        $WorkSheet.Cells["A:K"].Style.HorizontalAlignment="Center"
         # ConditionalFormatting - Different IP addresses (and User-Agents) or missing Device Properties indicate Session Cookie Theft
         $LastRow = $WorkSheet.Dimension.End.Row
         Add-ConditionalFormatting -Address $WorkSheet.Cells["B2:B$LastRow"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '=$B2>=2' -BackgroundColor Red # ClientIP
@@ -6151,10 +6688,10 @@ if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv")
         $Results = [Collections.Generic.List[PSObject]]::new()
         ForEach($SessionId in $SessionIds)
         {
-            $Session = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.SessionId -eq "$SessionId" } | Select-Object CreationDate | Sort-Object { $_.CreationDate -as [datetime] } -Descending
+            $Session = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\Hunt.csv" -Delimiter "," | Where-Object { $_.SessionId -eq "$SessionId" } | Select-Object CreationTime | Sort-Object { $_.CreationTime -as [datetime] } -Descending
 
-            $StartDate  = ($Session | Select-Object -Last 1).CreationDate
-            $EndDate    = ($Session | Select-Object -First 1).CreationDate
+            $StartDate  = ($Session | Select-Object -Last 1).CreationTime
+            $EndDate    = ($Session | Select-Object -First 1).CreationTime
             $Difference = New-TimeSpan -Start $StartDate -End $EndDate
 
             $Line = [PSCustomObject]@{
@@ -6399,7 +6936,7 @@ $StartTime_MailItemsAccessed = (Get-Date)
 # RecordType: ExchangeItem (RecordType: 2) --> Events from an Exchange mailbox audit log for actions that are performed on a single item, such as creating or receiving an email message.
 # RecordType: ExchangeItemAggregated (RecordType: 50) --> Events related to the MailItemsAccessed mailbox auditing action.
 # Operation: MailItemsAccessed --> An operation in the UAL that indicates when a mail item or folder has been accessed or viewed by a user or application.
-$MailboxItemRecords = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.Operations -eq "MailItemsAccessed" } | Sort-Object { $_.CreationDate -as [datetime] } -Descending
+$MailboxItemRecords = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Sort-Object Identifier -Unique | Where-Object { $_.Operations -eq "MailItemsAccessed" } | Sort-Object { $_.CreationDate -as [datetime] } -Descending
 $Count = [string]::Format('{0:N0}',($MailboxItemRecords | Measure-Object).Count)
 if ($Count -gt 0)
 {
@@ -6582,7 +7119,7 @@ if ($Count -gt 0)
     $Total = ($MailItemsAccessed | Select-Object Folder | Measure-Object).Count
     if ($Total -ge "1")
     {
-        $Stats = $MailItemsAccessed | Group-Object Folder | Select-Object @{Name='Folder'; Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+        $Stats = $MailItemsAccessed | Group-Object Folder | Select-Object @{Name='Folder'; Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
         $Stats | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\Stats\AggregatedFolders.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "AggregatedFolders" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
@@ -6597,7 +7134,7 @@ if ($Count -gt 0)
     $Total = ($MailItemsAccessed | ForEach-Object {($_.Folder -split "`r`n")} | Measure-Object).Count
     if ($Total -ge "1")
     {
-        $Stats = $MailItemsAccessed| Select-Object Folder | ForEach-Object {($_.Folder -split "`r`n")} | Group-Object | Select-Object @{Name='Folder'; Expression={$_.Name}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
+        $Stats = $MailItemsAccessed| Select-Object Folder | ForEach-Object {($_.Folder -split "`r`n")} | Group-Object | Select-Object @{Name='Folder'; Expression={if($_.Name){$_.Name}else{'N/A'}}},Count,@{Name='PercentUse'; Expression={"{0:p2}" -f ($_.Count / $Total)}} | Sort-Object Count -Descending
         $Stats | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\Stats\Folders.xlsx" -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "Folders" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
@@ -6643,8 +7180,9 @@ if ($Count -gt 0)
     New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\Stats\LineCharts" -ItemType Directory -Force | Out-Null
 
     # Accessed Mailbox Items (per day)
-    $Import = Import-Csv -Path "$LogFile" -Delimiter "," | Where-Object { $_.RecordType -eq "ExchangeItemAggregated" } | Where-Object { $_.Operations -eq "MailItemsAccessed" } | Select-Object @{Name="CreationDate";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd"))}} | Group-Object{($_.CreationDate -split "\s+")[0]} | Select-Object Count,@{Name='CreationDate'; Expression={ $_.Values[0] }} | Sort-Object { $_.CreationDate -as [datetime] }
-    $ChartDefinition = New-ExcelChartDefinition -XRange CreationDate -YRange Count -Title "MailItemsAccessed" -ChartType Line -NoLegend -Width 1200
+    $AuditData = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Select-Object -ExpandProperty AuditData | ConvertFrom-Json
+    $Import = $AuditData | Where-Object { $_.Operation -eq "MailItemsAccessed" } | Select-Object @{Name="CreationTime";Expression={($_.CreationTime | ForEach-Object{($_ -split "T")[0]})}} | Group-Object{($_.CreationTime -split "\s+")[0]} | Select-Object @{Name='CreationTime'; Expression={ $_.Values[0] }},Count | Sort-Object { $_.CreationTime -as [datetime] }
+    $ChartDefinition = New-ExcelChartDefinition -XRange CreationTime -YRange Count -Title "MailItemsAccessed" -ChartType Line -NoLegend -Width 1200
     $Import | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\Stats\LineCharts\MailItemsAccessed.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
 
     # Count IP addresses
@@ -6703,7 +7241,7 @@ if ($Count -gt 0)
         }
     }
 
-    # IPinfo CLI (50k lookups per month, Geolocation data only)
+    # IPinfo CLI
     if (Test-Path "$($IPinfo)")
     {
         if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\ClientIPAddress\IP.txt")
@@ -6739,6 +7277,142 @@ if ($Count -gt 0)
 
                             # TXT --> Top Privacy Services
                             Get-Content "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\ClientIPAddress\IP.txt" | & $IPinfo summarize --token "$Token" | Out-File "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\ClientIPAddress\IPinfo\Summary.txt"
+                        
+                            # CSV
+                            Get-Content "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\ClientIPAddress\IPv4.txt" | & $IPinfo --csv --token "$Token" | Out-File "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\ClientIPAddress\IPinfo\IPinfo.csv" -Encoding UTF8
+                            
+                            # Custom CSV (Free)
+                            if ($PrivacyDetection -eq "False")
+                            {
+                                if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\ClientIPAddress\IPinfo\IPinfo.csv")
+                                {
+                                    if([int](& $xsv count "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\ClientIPAddress\IPinfo\IPinfo.csv") -gt 0)
+                                    {
+                                        $IPinfoRecords = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\ClientIPAddress\IPinfo\IPinfo.csv" -Delimiter "," -Encoding UTF8
+
+                                        $Results = [Collections.Generic.List[PSObject]]::new()
+                                        ForEach($IPinfoRecord in $IPinfoRecords)
+                                        {
+                                            $Line = [PSCustomObject]@{
+                                                "IP"           = $IPinfoRecord.ip
+                                                "City"         = $IPinfoRecord.city
+                                                "Region"       = $IPinfoRecord.region
+                                                "Country"      = $IPinfoRecord.country
+                                                "Country Name" = $IPinfoRecord.country_name
+                                                "EU"           = $IPinfoRecord.isEU
+                                                "Location"     = $IPinfoRecord.loc
+                                                "ASN"          = $IPinfoRecord | Select-Object -ExpandProperty org | ForEach-Object{($_ -split "\s+")[0]}
+                                                "OrgName"      = $IPinfoRecord | Select-Object -ExpandProperty org | ForEach-Object {$_ -replace "^AS[0-9]+ "}
+                                                "Postal Code"  = $IPinfoRecord.postal
+                                                "Timezone"     = $IPinfoRecord.timezone
+                                            }
+
+                                            $Results.Add($Line)
+                                        }
+
+                                        $Results | Sort-Object {$_.IP -as [Version]} | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\ClientIPAddress\IPinfo\IPinfo-Custom.csv" -NoTypeInformation -Encoding UTF8
+                                    }
+                                }
+
+                                # Custom XLSX (Free)
+                                if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\ClientIPAddress\IPinfo\IPinfo-Custom.csv")
+                                {
+                                    if([int](& $xsv count "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\ClientIPAddress\IPinfo\IPinfo-Custom.csv") -gt 0)
+                                    {
+                                        $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\ClientIPAddress\IPinfo\IPinfo-Custom.csv" -Delimiter "," | Sort-Object {$_.IP -as [Version]}
+                                        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\ClientIPAddress\IPinfo\IPinfo-Custom.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -IncludePivotTable -PivotTableName "PivotTable" -PivotRows "Country Name" -PivotData @{"IP"="Count"} -WorkSheetname "IPinfo (Free)" -CellStyleSB {
+                                        param($WorkSheet)
+                                        # BackgroundColor and FontColor for specific cells of TopRow
+                                        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+                                        Set-Format -Address $WorkSheet.Cells["A1:K1"] -BackgroundColor $BackgroundColor -FontColor White
+                                        # HorizontalAlignment "Center" of columns A-K
+                                        $WorkSheet.Cells["A:K"].Style.HorizontalAlignment="Center"
+                                        }
+                                    }
+                                }
+                            }
+
+                            # Custom CSV (Privacy Detection)
+                            if ($PrivacyDetection -eq "True")
+                            {
+                                if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\ClientIPAddress\IPinfo\IPinfo.csv")
+                                {
+                                    if([int](& $xsv count "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\ClientIPAddress\IPinfo\IPinfo.csv") -gt 0)
+                                    {
+                                        $IPinfoRecords = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\ClientIPAddress\IPinfo\IPinfo.csv" -Delimiter "," -Encoding UTF8
+                                
+                                        $Results = [Collections.Generic.List[PSObject]]::new()
+                                        ForEach($IPinfoRecord in $IPinfoRecords)
+                                        {
+                                            $Line = [PSCustomObject]@{
+                                                "IP"           = $IPinfoRecord.ip
+                                                "City"         = $IPinfoRecord.city
+                                                "Region"       = $IPinfoRecord.region
+                                                "Country"      = $IPinfoRecord.country
+                                                "Country Name" = $IPinfoRecord.country_name
+                                                "Location"     = $IPinfoRecord.loc
+                                                "ASN"          = $IPinfoRecord.asn_id
+                                                "OrgName"      = $IPinfoRecord.asn_asn
+                                                "Postal Code"  = $IPinfoRecord.postal
+                                                "Timezone"     = $IPinfoRecord.timezone
+                                                "VPN"          = $IPinfoRecord.privacy_vpn
+                                                "Proxy"        = $IPinfoRecord.privacy_proxy
+                                                "Tor"          = $IPinfoRecord.privacy_tor
+                                                "Relay"        = $IPinfoRecord.privacy_relay
+                                                "Hosting"      = $IPinfoRecord.privacy_hosting
+                                                "Service"      = $IPinfoRecord.privacy_service
+                                            }
+
+                                            $Results.Add($Line)
+                                        }
+
+                                        $Results | Sort-Object {$_.IP -as [Version]} | Export-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\ClientIPAddress\IPinfo\IPinfo-Custom.csv" -NoTypeInformation -Encoding UTF8
+                                    }
+                                }
+
+                                # Custom XLSX (Privacy Detection)
+                                if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\ClientIPAddress\IPinfo\IPinfo-Custom.csv")
+                                {
+                                    if([int](& $xsv count "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\ClientIPAddress\IPinfo\IPinfo-Custom.csv") -gt 0)
+                                    {
+                                        $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\ClientIPAddress\IPinfo\IPinfo-Custom.csv" -Delimiter "," | Sort-Object {$_.ip -as [Version]}
+                                        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\Accessed-Mailbox-Items\ClientIPAddress\IPinfo\IPinfo-Custom.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -IncludePivotTable -PivotTableName "PivotTable" -PivotRows "Country Name" -PivotData @{"IP"="Count"} -WorkSheetname "IPinfo (Standard)" -CellStyleSB {
+                                        param($WorkSheet)
+                                        # BackgroundColor and FontColor for specific cells of TopRow
+                                        $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
+                                        Set-Format -Address $WorkSheet.Cells["A1:P1"] -BackgroundColor $BackgroundColor -FontColor White
+                                        # HorizontalAlignment "Center" of columns A-P
+                                        $WorkSheet.Cells["A:P"].Style.HorizontalAlignment="Center"
+                                        # ConditionalFormatting - VPN
+                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["K:K"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("true",$K1)))' -BackgroundColor Red
+                                        # ConditionalFormatting - Proxy
+                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["L:L"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("true",$L1)))' -BackgroundColor Red
+                                        # ConditionalFormatting - Tor
+                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["M:M"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("true",$M1)))' -BackgroundColor Red
+                                        # ConditionalFormatting - Relay
+                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["N:N"] -WorkSheet $WorkSheet -RuleType 'Expression' 'NOT(ISERROR(FIND("true",$N1)))' -BackgroundColor Red
+                                        # ConditionalFormatting - Service
+                                        $LastRow = $WorkSheet.Dimension.End.Row
+                                        Add-ConditionalFormatting -Address $WorkSheet.Cells["P2:P$LastRow"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue '=$P2<>""' -BackgroundColor Red
+                                    
+                                        # ConditionalFormatting - ASN
+                                        foreach ($ASN in $AsnBlacklist_HashTable.Keys) 
+                                        {
+                                            $ConditionValue = 'NOT(ISERROR(FIND("AS{0}",$G1)))' -f $ASN
+                                            Add-ConditionalFormatting -Address $WorkSheet.Cells["G:G"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                        }
+
+                                        # ConditionalFormatting - Country
+                                        foreach ($Country in $CountryBlacklist_HashTable.Keys) 
+                                        {
+                                            $ConditionValue = 'NOT(ISERROR(FIND("{0}",$E1)))' -f $Country
+                                            Add-ConditionalFormatting -Address $WorkSheet.Cells["E:E"] -WorkSheet $WorkSheet -RuleType 'Expression' -ConditionValue $ConditionValue -BackgroundColor Red
+                                        }
+                                    
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -6747,12 +7421,26 @@ if ($Count -gt 0)
     }
 
     # Create HashTable and import 'IPinfo-Custom.csv'
-    $HashTable = @{}
+    $IPinfo_HashTable = @{}
     if (Test-Path "$OUTPUT_FOLDER\ClientIP\IPinfo\IPinfo-Custom.csv")
     {
         if([int](& $xsv count "$OUTPUT_FOLDER\ClientIP\IPinfo\IPinfo-Custom.csv") -gt 0)
         {
-            Import-Csv "$OUTPUT_FOLDER\ClientIP\IPinfo\IPinfo-Custom.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $HashTable[$_.IP] = $_.City,$_.Region,$_.Country,$_."Country Name",$_.ASN,$_.OrgName }
+            # Free
+            if ($PrivacyDetection -eq "False")
+            {
+                Import-Csv -Path "$OUTPUT_FOLDER\ClientIP\IPinfo\IPinfo-Custom.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $IPinfo_HashTable[$_.IP] = $_.City,$_.Region,$_.Country,$_."Country Name",$_.Location,$_.ASN,$_.OrgName,$_."Postal Code",$_.Timezone }
+            }
+
+            # Privacy Detection
+            if ($PrivacyDetection -eq "True")
+            {
+                Import-Csv -Path "$OUTPUT_FOLDER\ClientIP\IPinfo\IPinfo-Custom.csv" -Delimiter "," -Encoding UTF8 | ForEach-Object { $IPinfo_HashTable[$_.IP] = $_.City,$_.Region,$_.Country,$_."Country Name",$_.Location,$_.ASN,$_.OrgName,$_."Postal Code",$_.Timezone,$_.VPN,$_.Proxy,$_.Tor,$_.Relay,$_.Hosting,$_.Service }
+            }
+
+            # Count Ingested Properties
+            $Count = $IPinfo_HashTable.Count
+            Write-Output "[Info]  Initializing 'IPinfo-Custom.csv' Lookup Table ($Count) ..."
         }
     }
 
@@ -6771,14 +7459,14 @@ if ($Count -gt 0)
                 $ClientIPAddress = $Record.ClientIPAddress
 
                 # Check if HashTable contains ClientIPAddress
-                if($HashTable.ContainsKey("$ClientIPAddress"))
+                if($IPinfo_HashTable.ContainsKey("$ClientIPAddress"))
                 {
-                    $City        = $HashTable["$ClientIPAddress"][0]
-                    $Region      = $HashTable["$ClientIPAddress"][1]
-                    $Country     = $HashTable["$ClientIPAddress"][2]
-                    $CountryName = $HashTable["$ClientIPAddress"][3]
-                    $ASN         = $HashTable["$ClientIPAddress"][4]
-                    $OrgName     = $HashTable["$ClientIPAddress"][5]
+                    $City        = $IPinfo_HashTable["$ClientIPAddress"][0]
+                    $Region      = $IPinfo_HashTable["$ClientIPAddress"][1]
+                    $Country     = $IPinfo_HashTable["$ClientIPAddress"][2]
+                    $CountryName = $IPinfo_HashTable["$ClientIPAddress"][3]
+                    $ASN         = $IPinfo_HashTable["$ClientIPAddress"][4]
+                    $OrgName     = $IPinfo_HashTable["$ClientIPAddress"][5]
                 }
                 else
                 {
@@ -7124,7 +7812,7 @@ $StartTime_DeviceCodeAuthentication = (Get-Date)
 # RecordType: AzureActiveDirectoryStsLogon --> Secure Token Service (STS) logon events in Azure Active Directory.
 # Operation: UserLoggedIn --> A user signed in to their Microsoft 365 user account.
 # RequestType: Cmsi:Cmsi --> Check My Sign In
-$DeviceCodeAuthenticationRecords = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoggedIn.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "AzureActiveDirectoryStsLogon" } | Where-Object { $_.Operations -eq "UserLoggedIn" } | Where-Object { $_.RequestType -eq "Cmsi:Cmsi" } | Sort-Object { $_.CreationDate -as [datetime] } -Descending
+$DeviceCodeAuthenticationRecords = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\CSV\UserLoggedIn.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "AzureActiveDirectoryStsLogon" } | Where-Object { $_.Operations -eq "UserLoggedIn" } | Where-Object { $_.RequestType -eq "Cmsi:Cmsi" } | Sort-Object { $_.CreationTime -as [datetime] } -Descending
 $Count = [string]::Format('{0:N0}',($DeviceCodeAuthenticationRecords | Measure-Object).Count)
 if ($Count -gt 0)
 {
@@ -7153,7 +7841,7 @@ Function Get-MicrosoftTeams {
 $StartTime_MicrosoftTeams = (Get-Date)
 
 # MicrosoftTeams
-$MicrosoftTeamsRecords = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Where-Object { $_.RecordType -eq "MicrosoftTeams" }
+$MicrosoftTeamsRecords = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Sort-Object Identifier -Unique | Where-Object { $_.RecordType -eq "MicrosoftTeams" }
 
 # Check if Microsoft Teams Records exist
 $Count = [string]::Format('{0:N0}',($MicrosoftTeamsRecords).Count)
@@ -7175,15 +7863,16 @@ ForEach($Record in $MicrosoftTeamsRecords)
         CreationTime            = ($AuditData | Select-Object @{Name="CreationTime";Expression={([DateTime]::Parse($_.CreationTime).ToString("yyyy-MM-dd HH:mm:ss"))}}).CreationTime
         Id                      = $AuditData.Id
         Operation               = $AuditData.Operation
-        OrganizationId          = $AuditData.OrganizationId
         RecordType              = $AuditData.RecordType
+        UserId                  = $AuditData.UserId
         UserKey                 = $AuditData.UserKey
         UserType                = $AuditData.UserType
         Version                 = $AuditData.Version
         Workload                = $AuditData.Workload
         ClientIP                = $AuditData.ClientIP
         ObjectId                = $AuditData.ObjectId
-        UserId                  = $AuditData.UserId
+        OrganizationId          = $AuditData.OrganizationId
+        
         ChatThreadId            = $AuditData.ChatThreadId
         CommunicationType       = $AuditData.CommunicationType
 
@@ -7223,7 +7912,7 @@ if (Test-Path "$OUTPUT_FOLDER\UnifiedAuditLogs\MicrosoftTeams\CSV\MicrosoftTeams
     if([int](& $xsv count "$OUTPUT_FOLDER\UnifiedAuditLogs\MicrosoftTeams\CSV\MicrosoftTeams.csv") -gt 0)
     {
         $IMPORT = Import-Csv "$OUTPUT_FOLDER\UnifiedAuditLogs\MicrosoftTeams\CSV\MicrosoftTeams.csv" -Delimiter ","
-        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\MicrosoftTeams\XLSX\MicrosoftTeams.xlsx" -NoNumberConversion * -FreezeTopRow -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "MicrosoftTeams" -CellStyleSB {
+        $IMPORT | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\MicrosoftTeams\XLSX\MicrosoftTeams.xlsx" -NoNumberConversion * -FreezePane 2,4 -BoldTopRow -AutoSize -AutoFilter -WorkSheetname "MicrosoftTeams" -CellStyleSB {
         param($WorkSheet)
         # BackgroundColor and FontColor for specific cells of TopRow
         $BackgroundColor = [System.Drawing.Color]::FromArgb(50,60,220)
@@ -7295,13 +7984,20 @@ if ($Total -ge "1")
 New-Item "$OUTPUT_FOLDER\UnifiedAuditLogs\MicrosoftTeams\Stats\LineCharts" -ItemType Directory -Force | Out-Null
 
 # MicrosoftTeams - Operations per day (Line Chart)
-$Import = Import-Csv -Path "$LogFile" -Delimiter "," | Where-Object { $_.RecordType -eq "MicrosoftTeams" } | Select-Object @{Name="CreationTime";Expression={([DateTime]::ParseExact($_.CreationDate, "$TimestampFormat", [cultureinfo]::InvariantCulture).ToString("yyyy-MM-dd"))}} | Group-Object{($_.CreationTime -split "\s+")[0]} | Select-Object Count,@{Name='CreationTime'; Expression={ $_.Values[0] }} | Sort-Object { $_.CreationTime -as [datetime] }
-$Count = [string]::Format('{0:N0}',($Import | Measure-Object).Count)
+$AuditData = Import-Csv -Path "$LogFile" -Delimiter "," -Encoding UTF8 | Select-Object -ExpandProperty AuditData | ConvertFrom-Json
+$Import = $AuditData | Where-Object { $_.RecordType -eq "25" } | Select-Object @{Name="CreationTime";Expression={($_.CreationTime | ForEach-Object{($_ -split "T")[0]})}} | Group-Object{($_.CreationTime)} | Select-Object @{Name='CreationTime'; Expression={ $_.Values[0] }},Count | Sort-Object { $_.CreationTime -as [datetime] }
+$Count = ($Import | Measure-Object).Count
 if ($Count -gt 0)
 {
     $ChartDefinition = New-ExcelChartDefinition -XRange CreationTime -YRange Count -Title "Microsoft Teams" -ChartType Line -NoLegend -Width 1200
     $Import | Export-Excel -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\MicrosoftTeams\Stats\LineCharts\MicrosoftTeams.xlsx" -Append -WorksheetName "Line Chart" -AutoNameRange -ExcelChartDefinition $ChartDefinition
 }
+
+# RecordType: 25 - MicrosoftTeams
+# RecordType: 57 - MicrosoftTeamsAdmin
+# RecordType: 59 - MicrosoftTeamsDevice
+# RecordType: 60 - MicrosoftTeamsAnalytics
+# RecordType: 73 - MicrosoftTeamsShifts
 
 # Microsoft Teams Phishing --> Malicious payload placed on SharePoint Online
 
@@ -7315,7 +8011,7 @@ if ($Count -gt 0)
 # Microsoft Teams as phishing vector (Initial Access)
 # RecordType: MicrosoftTeams --> Events from Microsoft Teams.
 # Operations: ChatCreated --> A Teams chat was created.
-$ChatCreated = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\MicrosoftTeams\CSV\MicrosoftTeams.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.Operations -eq "ChatCreated" } | Sort-Object { $_.CreationDate -as [datetime] } -Descending
+$ChatCreated = Import-Csv -Path "$OUTPUT_FOLDER\UnifiedAuditLogs\MicrosoftTeams\CSV\MicrosoftTeams.csv" -Delimiter "," -Encoding UTF8 | Where-Object { $_.Operations -eq "ChatCreated" } | Sort-Object { $_.CreationTime -as [datetime] } -Descending
 $Count = [string]::Format('{0:N0}',($ChatCreated | Measure-Object).Count)
 if ($Count -gt 0)
 {
@@ -7554,8 +8250,8 @@ if ($Result -eq "OK" )
 # SIG # Begin signature block
 # MIIrxQYJKoZIhvcNAQcCoIIrtjCCK7ICAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUlmk44uFycci5koZbTEdWdOD4
-# NfOggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUHWkHa6lYtT1rrhfHvYiBBGP0
+# 1a+ggiT/MIIFbzCCBFegAwIBAgIQSPyTtGBVlI02p8mKidaUFjANBgkqhkiG9w0B
 # AQwFADB7MQswCQYDVQQGEwJHQjEbMBkGA1UECAwSR3JlYXRlciBNYW5jaGVzdGVy
 # MRAwDgYDVQQHDAdTYWxmb3JkMRowGAYDVQQKDBFDb21vZG8gQ0EgTGltaXRlZDEh
 # MB8GA1UEAwwYQUFBIENlcnRpZmljYXRlIFNlcnZpY2VzMB4XDTIxMDUyNTAwMDAw
@@ -7757,33 +8453,33 @@ if ($Result -eq "OK" )
 # YmxpYyBDb2RlIFNpZ25pbmcgQ0EgUjM2AhEAjEGek78rzqyIBig7dhm9PDAJBgUr
 # DgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAigAoAAoQKAADAZBgkqhkiG9w0BCQMx
 # DAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgELMQ4wDAYKKwYBBAGCNwIBFTAjBgkq
-# hkiG9w0BCQQxFgQUvUHaAIBGz6yT7QQEFqjCh1dvuagwDQYJKoZIhvcNAQEBBQAE
-# ggIAUuYBUI0+Qr+e9kLlJEkuOQRNXyQl0vchVyWBbAbPa83rffgizQGg8usno1ln
-# oTfC/M+TJwvYIj1/oftjC1Y8SGAyAEUEmRQoUyXnD45gVOcH8xhGVkvwnlTSorGD
-# 0lfNrZsik33O6T18XKPhB3rXc/a88aYJTvCVUwLcVt0Uo1wd7X1zasTLvXBAUZOt
-# EomOFoOq3IHjvVCYK4PGKAEDC+jVDYCrtD6wMOixLNgw2YVeIvsq99pyLDYao6D7
-# ke3TsZL1MdmGeLBx9DBJ1pF+f/iKnWksrQdSzWK/BEtLAmmq8J8SkWDLVLkH5ckf
-# NXNu6gbnqb7/yuLNyOCom3UFrK17VXs1JdbldmCG8ozHmEuaoJodPJs3wN08M1qw
-# C222ImgCAUQdb8ZIBj7PL5YL2yrNuLWqFnVNtkah3hTNvYpl3s1pxN6Ubsx/k4Ix
-# rZPV32s5WLaHEpB7FWjI0ji3sKs8xJqBw9jIRCcoj+n9UTfM1Msg1wv2uLIu9fa/
-# 0D4LtJwejv2VHJ4E22rJlF+cU+fd4zv4YN/sm85nQ7qM0GS+EEXb9ztMCANyWhgM
-# FFsl+fTp1YaBXlDjap81x9wMqTy7LFpST/Y2S1Bp4xXRo3xO7pMjdFnOiAzZhWGL
-# nc1NF4s6+Bh9Vl1KfEuk3Pa6n3Yu5MJSFBAXeV4b0NWPxIahggMiMIIDHgYJKoZI
+# hkiG9w0BCQQxFgQUVpLfAelRuFrhDwCYIqsevVTbB8UwDQYJKoZIhvcNAQEBBQAE
+# ggIAHUETFerdoY7jfaL2VFOrUQQufY8CTEL9uga1Xe24bTWzNlh+CwdBCL9WuqsR
+# d5fI1kgAH4vgN2IG688VOm7w6FNJPcynpN+TOtPKCEXncBURpzJNWmk8QogHm7Tl
+# Qvguae44wWuU8wybw0irSoxyQK4x1aJWzU2PokZBqTPbskRYQZX5fwQi3GmE4uWh
+# Y3CW3JJ+hkr4DU5cZpxM3Mog0X9nZnbdnN4iqPX05qjb51r34xb3CfQus+iHoD6z
+# eH0FK/m327mljZSxZ0PZY5GlFFraTjPIYyszKNIVaFjDCvA5pVSWexHk+5Uo/EcH
+# G0dEiaJr9I/uPo6RRri9y/2DwoRt/ux3peVEdIDtWgApIm17DRg0gvcqE5K97ZKO
+# M+RkKLRmbrVtc0+zvFQ/pcnmgPITzNwCi4DQ39Q3eYmCE+dl3reOMfcg7FYGCzxV
+# O4TD4p5NaJbkQyiYuvG32plQve2PPFrMqmmzcHAmLlOFTK3n1hOC24gmyQoIcKg5
+# tDC/ZDwgZhAumi/Ujxq3gG02tNKrLFwBoaXlymM9uor3cU9l9vHB2m2/Sa+GEqvM
+# YgkTCnDiJHEC9mviaVwRG4KYkZEzxwYbQKbljzLSqPsX5tTnnLlyx2dSC5v5fLl1
+# D7EsW0d+bsx8MF+H4rGXDImFCIxP7aiJjbpdKD8s5OdKLe6hggMiMIIDHgYJKoZI
 # hvcNAQkGMYIDDzCCAwsCAQEwaTBVMQswCQYDVQQGEwJHQjEYMBYGA1UEChMPU2Vj
 # dGlnbyBMaW1pdGVkMSwwKgYDVQQDEyNTZWN0aWdvIFB1YmxpYyBUaW1lIFN0YW1w
 # aW5nIENBIFIzNgIQOlJqLITOVeYdZfzMEtjpiTANBglghkgBZQMEAgIFAKB5MBgG
-# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI1MDEyNzA1
-# NDk1NlowPwYJKoZIhvcNAQkEMTIEMCSgpW9Qp6ZkNR0tA6w7P+2AKPIrckolidwe
-# b7phvM+m7PttC6PdYOXEqLSQ6+C5yzANBgkqhkiG9w0BAQEFAASCAgBs6XMHNdRA
-# mAXQDBNzAFxY50JDoUksiObzlTsxelMQXiYF7xJ0TLRDGQsKJ3OHNB2kcZwUT9Vo
-# LDeatTHA8L+OxBx0RZMr8qOjpDHRvg3hEMjJ5cj6p3tTci2wAQjjISj0zDFWxVSs
-# kUPIbK1Umr8UEstJ9W1te3NtPBTmjVzEOTwD7f1mPLHGIgboPXm3Tcr1Qg6X0cvu
-# wnf/n4dhO+A2PLrPJEuDuL16UFRcPRIdHmummv5luCUSoQ7OzJW5rEC7M6yfMqDA
-# TkZ0RJv7zjUCC1/T78KRmgi9kxWOGuV1KI7ZZWqX5oBDZdTns9dO8jzoApUZyuRE
-# MoCHgkVjSVjFz94du0HQG2ya2ig/ISMKbR1d2Q1Y+qOxcXVA6odTPUPT796oxIxQ
-# WaTwPk6NchlNYbFGEVwkM3uA2lLWnXpNVUThwoCYi5PtRChMzzdrgSvuAyBKF3IN
-# 9518HN4XYS5JUsqRVxtK2b4Cs4qyOnT63Xh3S9hFMzn39H/QOJnbgunpn0ro0FaQ
-# c+cxU5qN6FaWg/zp8GMRmSoaxlruzZHg3Zcd2yYn24wAUW4EcnFoAiuIaaUV8CKV
-# iiPS8hIZS4KVkxrzfnq8mvwk/TEtsY5pF5EjO56Yd5FMO3DJGkkgpiB/C76AoVoZ
-# SgBmZc7PJbZZIq/lMmDZNGBIX1b+rsIejA==
+# CSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI1MDIyNDA2
+# MDExMVowPwYJKoZIhvcNAQkEMTIEMAl9FkhvmHY+V4FA74x6Zi5kFngrY/OwnbW/
+# bt0wnypMDwmYomchdz1ryRG0RE8lTTANBgkqhkiG9w0BAQEFAASCAgBy2ITGjeoX
+# 45MSk89FossfpND6b74wi6fsdAbFHqDo9MGprs7SN8KX1b0t1FWHnrmXGfDo2muZ
+# 1geTu0cBvr+2albYFnVBwtaiO/JBq/RXvsasplhFHitPctztG1OGvJON0ISPuR/l
+# dVMb2NjL15BqhtVTAy/lZVahyex63hSYeupSwL8BxE+PbF9Lp/2twrxWA6n1DA9H
+# yTg0H1JbGqRzLucRn9+J6L+vYkUK6UFsLb/P3YRKrc3aPVEwpH67W4XgtwhYtlEo
+# BWuIxZ81JCZiImtwGY5Pbc9qG6htfE0rF2CeC5h+wZ3gHYObl9iCro2V5y/2Tb5l
+# 7WCrw31h0pVaBfQA41WOvFq/YuZh/OVNcLLG/t8Hv0tAv8Ti2wn8VOhOgMD9zEO6
+# GbI9xM8sabKGb30tW+ao5sCH1fR6vecj5pEEpLRA7BZDX7smO7D8nDv/aK58tbL8
+# nbvIOQdCiXVS06qhHxZcVKGNkyIUjj1iUqenGf1UIsiHE+w+vIxgYXc55chP9rHc
+# /i9X11hbDXdMpqvZ6enVncxgIg2R+FbE731Sjwa93I0N6f86o3f31gseR3hheHC0
+# t0cxIr8irYxqmr7KvWhf1aqd0m2xSHrwGtdNfCJrD4mU88lzW6TTlbBFmbpHKENh
+# CgFlIq8Yh5baUAORfWlptPRSWvtBxPYRHQ==
 # SIG # End signature block
