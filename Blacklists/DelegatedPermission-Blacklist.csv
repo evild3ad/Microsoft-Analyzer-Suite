@@ -90,6 +90,7 @@
 "SMTP.Send","Delegated","Send emails from mailboxes using SMTP AUTH.","No","High"
 "Team.ReadBasic.All","Delegated","Read the names and descriptions of teams","No","Medium"
 "user_impersonation","Delegated","Create and access protected content for users","No","High"
+"User.DeleteRestore.All","Delegated","Delete and restore users","Yes","High"
 "User.Export.All","Delegated","Export user's data","Yes","High"
 "User.Read","Delegated","Sign in and read user profile","No","Low"
 "User.ReadBasic.All","Delegated","Read all users' basic profiles","No","Low"

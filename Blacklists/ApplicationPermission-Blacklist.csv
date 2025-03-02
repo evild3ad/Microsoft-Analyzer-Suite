@@ -58,4 +58,5 @@
 "Sites.Selected","Application","Access selected site collections","Yes","High"
 "Team.ReadBasic.All","Application","Get a list of all teams","Yes","Medium"
 "UserAuthenticationMethod.ReadWrite.All","Application","Read and write all users' authentication methods","Yes","High"
+"User.DeleteRestore.All","Application","Delete and restore all users (incl. Global Admins and break-glass accounts)","Yes","High"
 "User.ReadWrite.All","Application","Read and write all users' full profiles","Yes","High"
