@@ -8,7 +8,7 @@ Automated Processing of Microsoft 365 Logs and Microsoft Entra ID Logs extracted
 
 ## The following Microsoft data sources are supported yet:
 
-> Output Files of Microsoft-Extractor-Suite v3.0.2 by Invictus-IR
+> Output Files of Microsoft-Extractor-Suite v3.0.3 by Invictus-IR
   * [Get-Devices](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/Azure/Devices.html) &#8594; [Devices-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/Devices%E2%80%90Analyzer)  
   * [Get-EntraAuditLogs](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/Azure/AzureActiveDirectoryAuditLog.html) &#8594; [EntraAuditLogs-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/EntraAuditLogs%E2%80%90Analyzer)  
   * [Get-EntraSignInLogs](https://microsoft-365-extractor-suite.readthedocs.io/en/latest/functionality/Azure/AzureActiveDirectorysign-inlogs.html) &#8594; [EntraSignInLogs-Analyzer](https://github.com/evild3ad/Microsoft-Analyzer-Suite/wiki/EntraSignInLogs%E2%80%90Analyzer)  
